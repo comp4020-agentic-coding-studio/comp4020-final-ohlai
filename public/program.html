@@ -1,0 +1,297 @@
+<!doctype html>
+<html lang="en-AU">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Program</title>
+  <link rel="stylesheet" href="/style.css" />
+</head>
+<body data-default-view="mobile">
+<main>
+  <section id="workout">
+    <div class="topbar">
+      <h1 id="title">Loading…</h1>
+      <button type="button" class="view-toggle"></button>
+    </div>
+    <p class="sub" id="sub"></p>
+    <div class="stats" id="stats"></div>
+    <div class="tabs" id="tabs" role="group" aria-label="Day"></div>
+    <div class="exercises" id="list"></div>
+  </section>
+
+  <section id="summary" hidden>
+    <div class="topbar">
+      <button type="button" class="back" id="back" aria-label="Back to workout">←</button>
+      <h1 id="sumTitle"></h1>
+      <button type="button" class="view-toggle"></button>
+    </div>
+    <div id="sumBody"></div>
+  </section>
+  <p id="err" class="error" role="alert"></p>
+</main>
+
+<div class="restbar" id="rest" hidden>
+  <div class="restprog"><div id="restFill"></div></div>
+  <div class="restrow">
+    <button type="button" id="restMinus">-15</button>
+    <output id="restTime" aria-live="off">0:00</output>
+    <button type="button" id="restPlus">+15</button>
+    <button type="button" class="primary" id="restSkip">Skip</button>
+  </div>
+</div>
+
+<script src="/view.js"></script>
+<script>
+  // The client link defaults to the phone layout, the PT link to desktop.
+  const tok = location.pathname.split("/").pop();
+  let state, day;
+  const drafts = {};   // typed-but-unlogged values, kept across re-renders
+  const extraSets = {}; // "+ Add set" rows not yet logged
+  const $ = (id) => document.getElementById(id);
+
+  function el(tag, props = {}, ...kids) {
+    const n = Object.assign(document.createElement(tag), props);
+    n.append(...kids);
+    return n;
+  }
+
+  // A session is one calendar day in the viewer's time zone.
+  const dayKey = (l) => new Date(l.logged_at + "Z").toLocaleDateString("en-CA");
+  const today = new Date().toLocaleDateString("en-CA");
+  const fmtDay = (k) => new Date(k + "T00:00").toLocaleDateString("en-AU", { day: "numeric", month: "short" });
+  const kg = (w) => (w == null ? "–" : `${+w}kg`);
+
+  // { "2026-10-06": { 1: log, 2: log } }; a re-logged set replaces the earlier one.
+  function sessions(exId) {
+    const out = {};
+    for (const l of state.logs) if (l.exercise_id === exId) (out[dayKey(l)] ??= {})[l.set_no] = l;
+    return out;
+  }
+
+  async function api(path, body) {
+    const res = await fetch(path, body && { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body) });
+    const data = await res.json();
+    if (!res.ok) { $("err").textContent = data.error; return null; }
+    $("err").textContent = "";
+    return data;
+  }
+
+  async function load() {
+    const data = await api(`/api/p/${tok}`);
+    if (!data) return ($("title").textContent = "Program not found");
+    if (data.role === "pt") window.setDefaultView?.("desktop");
+    state = data;
+    route();
+  }
+
+  function route() {
+    const id = Number(location.hash.match(/^#ex-(\d+)$/)?.[1]);
+    const ex = state.exercises.find((e) => e.id === id);
+    $("workout").hidden = !!ex;
+    $("summary").hidden = !ex;
+    ex ? renderSummary(ex) : renderWorkout();
+  }
+  addEventListener("hashchange", route);
+  $("back").onclick = () => history.length > 1 ? history.back() : (location.hash = "");
+
+  function renderWorkout() {
+    const { program, role, exercises, logs } = state;
+    document.title = program.title;
+    $("title").textContent = program.title;
+    $("sub").textContent = role === "pt"
+      ? `PT view. ${program.client_name}'s sets appear here as they log them.`
+      : `From ${program.pt_name}. Tick each set as you finish it.`;
+
+    // Client: today's numbers. PT: the client's most recent session.
+    const days = [...new Set(logs.map(dayKey))].sort();
+    const focus = role === "client" ? today : days.at(-1);
+    const focusLogs = logs.filter((l) => dayKey(l) === focus);
+    const volume = focusLogs.reduce((s, l) => s + (l.weight ?? 0) * l.reps, 0);
+    let first = focusLogs.map((l) => new Date(l.logged_at + "Z")).sort((a, b) => a - b)[0];
+    const mins = first ? Math.round((Date.now() - first) / 60000) : 0;
+    $("stats").replaceChildren(
+      ...(role === "client"
+        ? [["Duration", first ? `${mins} min` : "–"], ["Volume", `${+volume.toFixed(1)} kg`], ["Sets", focusLogs.length]]
+        : [["Last session", focus ? fmtDay(focus) : "None yet"], ["Volume", `${+volume.toFixed(1)} kg`], ["Sessions", days.length]]
+      ).map(([k, v]) => el("div", {}, el("small", { textContent: k }), el("strong", { textContent: v }))));
+
+    const dayNames = [...new Set(exercises.map((e) => e.day))];
+    day ??= dayNames[0];
+    $("tabs").hidden = dayNames.length < 2;
+    $("tabs").replaceChildren(...dayNames.map((d) =>
+      el("button", { type: "button", textContent: d, ariaPressed: String(d === day), onclick: () => { day = d; renderWorkout(); } })));
+    $("list").replaceChildren(...exercises.filter((e) => e.day === day).map((ex) => exerciseCard(ex, role, focus)));
+  }
+
+  function exerciseCard(ex, role, focus) {
+    const byDay = sessions(ex.id);
+    const current = byDay[focus] ?? {};
+    const earlier = Object.keys(byDay).filter((k) => k < focus).sort().reverse();
+    const prev = (n) => earlier.map((k) => byDay[k][n]).find(Boolean);
+    const count = Math.max(ex.sets, ...Object.keys(current).map(Number), extraSets[ex.id] ?? 0);
+    const client = role === "client";
+
+    const rows = [];
+    for (let n = 1; n <= count; n++) {
+      const done = current[n], p = prev(n), key = `${ex.id}:${n}`;
+      const d = drafts[key] ?? {};
+      const target = parseInt(ex.reps) || "";
+      const wIn = el("input", { type: "number", inputMode: "decimal", step: "0.25", min: 0, ariaLabel: `Set ${n} kg`,
+        value: done ? (done.weight ?? "") : (d.w ?? ""), placeholder: p?.weight ?? "", disabled: !client || !!done,
+        oninput: (e) => ((drafts[key] ??= {}).w = e.target.value) });
+      const rIn = el("input", { type: "number", inputMode: "numeric", min: 0, ariaLabel: `Set ${n} reps`,
+        value: done ? done.reps : (d.r ?? ""), placeholder: p?.reps ?? target, disabled: !client || !!done,
+        oninput: (e) => ((drafts[key] ??= {}).r = e.target.value) });
+      const tick = el("button", { type: "button", className: "tick", textContent: "✓", ariaPressed: String(!!done),
+        ariaLabel: done ? `Untick set ${n}` : `Tick set ${n} done`, disabled: !client,
+        onclick: () => done ? untick(done.id) : tickSet(ex, n, wIn.value || wIn.placeholder, rIn.value || rIn.placeholder) });
+      rows.push(el("div", { className: "set" + (done ? " done" : "") },
+        el("span", { className: "setno", textContent: n }),
+        el("span", { className: "prev", textContent: p ? `${kg(p.weight)} x ${p.reps}` : "–" }),
+        wIn, rIn, tick));
+    }
+
+    const rest = ex.rest_seconds;
+    return el("article", { className: "card" },
+      el("div", { className: "ex-head" },
+        el("a", { href: `#ex-${ex.id}`, className: "ex-name", textContent: ex.name }),
+        el("span", { className: "muted", textContent: `${ex.sets} × ${ex.reps}` })),
+      ex.notes ? el("p", { className: "notes", textContent: ex.notes }) : "",
+      el("p", { className: "rest-label", textContent: `⏱ Rest Timer: ${Math.floor(rest / 60)}min ${rest % 60}s` }),
+      el("div", { className: "sets" },
+        el("div", { className: "set head" }, ...["Set", "Previous", "kg", "Reps", "✓"].map((t) => el("span", { textContent: t }))),
+        ...rows),
+      client ? el("button", { type: "button", className: "addset", textContent: "+ Add Set",
+        onclick: () => { extraSets[ex.id] = count + 1; renderWorkout(); } }) : "");
+  }
+
+  async function tickSet(ex, set_no, weight, reps) {
+    const data = await api(`/api/p/${tok}/log`, { exercise_id: ex.id, set_no, reps: parseInt(reps) || 0, weight });
+    if (!data) return;
+    delete drafts[`${ex.id}:${set_no}`];
+    state = data;
+    route();
+    if (ex.rest_seconds) startRest(ex.rest_seconds);
+  }
+
+  async function untick(id) {
+    const data = await api(`/api/p/${tok}/unlog`, { id });
+    if (data) { state = data; route(); }
+  }
+
+  // Rest timer: a deadline, so it stays right if the phone sleeps.
+  let restEnd = 0, restTotal = 0, restTick;
+  function startRest(s) {
+    restTotal = s; restEnd = Date.now() + s * 1000;
+    $("rest").hidden = false;
+    clearInterval(restTick);
+    restTick = setInterval(drawRest, 250);
+    drawRest();
+  }
+  function drawRest() {
+    const left = Math.max(0, Math.ceil((restEnd - Date.now()) / 1000));
+    $("restTime").textContent = `${Math.floor(left / 60)}:${String(left % 60).padStart(2, "0")}`;
+    $("restFill").style.width = `${(left / restTotal) * 100}%`;
+    if (!left) { clearInterval(restTick); $("rest").hidden = true; navigator.vibrate?.(300); }
+  }
+  $("restMinus").onclick = () => { restEnd -= 15000; drawRest(); };
+  $("restPlus").onclick = () => { restEnd += 15000; restTotal += 15; drawRest(); };
+  $("restSkip").onclick = () => { restEnd = 0; drawRest(); };
+
+  // Exercise summary: a chart over sessions, and records.
+  //
+  // "Progress" follows double progression: reps climb through the PT's range at
+  // one weight, then the weight goes up and reps drop back to the bottom. A
+  // set scores weight + step * (reps - lo) / (hi - lo + 1), so the top of the
+  // range at one weight scores just under the bottom of the range one step up
+  // and the line keeps rising through the weight jump. step is the smallest
+  // weight increase the client has made on this exercise (2.5 kg until known).
+  const METRICS = {
+    progress: { label: "Progress", unit: "" },
+    heaviest: { label: "Heaviest weight", unit: "kg" },
+    reps: { label: "Most reps", unit: " reps" },
+    orm: { label: "Est. 1RM", unit: "kg" },
+    volume: { label: "Session volume", unit: "kg" },
+  };
+  let metric = "progress";
+
+  function repRange(reps) {
+    const [lo, hi = lo] = String(reps).match(/\d+/g)?.map(Number) ?? [10];
+    return [Math.min(lo, hi), Math.max(lo, hi)];
+  }
+
+  function weightStep(sets) {
+    const ws = [...new Set(sets.map((s) => s.weight).filter((w) => w > 0))].sort((a, b) => a - b);
+    const gaps = ws.slice(1).map((w, i) => w - ws[i]).filter((g) => g > 0);
+    return gaps.length ? Math.min(...gaps) : 2.5;
+  }
+
+  function renderSummary(ex) {
+    $("sumTitle").textContent = ex.name;
+    document.title = ex.name;
+    const byDay = sessions(ex.id);
+    const all = Object.values(byDay).flatMap(Object.values);
+    const body = $("sumBody");
+    if (!all.length) return body.replaceChildren(el("p", { className: "muted", textContent: "No sets logged for this exercise yet." }));
+
+    const [lo, hi] = repRange(ex.reps);
+    const step = weightStep(all);
+    const w = (s) => s.weight ?? 0;
+    const score = (s) => w(s) + (step * (s.reps - lo)) / (hi - lo + 1);
+    const epley = (s) => w(s) * (1 + s.reps / 30);
+    const per = Object.keys(byDay).sort().map((k) => {
+      const sets = Object.values(byDay[k]);
+      const top = (f) => Math.max(...sets.map(f));
+      return { k, progress: top(score), heaviest: top(w), reps: top((s) => s.reps), orm: top(epley),
+        volume: sets.reduce((a, s) => a + w(s) * s.reps, 0) };
+    });
+    const best = (f) => all.reduce((a, s) => (f(s) > f(a) ? s : a));
+    const bestVol = best((s) => w(s) * s.reps);
+    const last = per.at(-1), m = METRICS[metric];
+    const shown = (v) => `${+v.toFixed(metric === "progress" || metric === "orm" ? 1 : 2)}${m.unit}`;
+
+    body.replaceChildren(
+      ex.notes ? el("p", { className: "notes", textContent: ex.notes }) : "",
+      el("p", { className: "big" }, el("strong", { textContent: shown(last[metric]) + " " }), el("span", { className: "accent", textContent: fmtDay(last.k) })),
+      chart(per, metric),
+      el("div", { className: "tabs pills", role: "group", ariaLabel: "Chart" },
+        ...Object.entries(METRICS).map(([key, { label }]) =>
+          el("button", { type: "button", textContent: label, ariaPressed: String(key === metric),
+            onclick: () => { metric = key; renderSummary(ex); } }))),
+      metric === "progress" ? el("p", { className: "muted", textContent:
+        `Rep range ${lo}${hi > lo ? "–" + hi : ""}, weight step ${step}kg. Reaching the top of the range, then moving up a weight, both push the line up.` }) : "",
+      el("h2", { textContent: "Personal records" }),
+      el("dl", { className: "records" },
+        ...[["Heaviest weight", `${Math.max(...per.map((p) => p.heaviest))}kg`],
+            ["Best 1RM (est.)", `${+epley(best(epley)).toFixed(2)}kg`],
+            ["Best set volume", `${kg(bestVol.weight)} x ${bestVol.reps}`],
+            ["Best session volume", `${+Math.max(...per.map((p) => p.volume)).toFixed(1)}kg`]]
+          .flatMap(([k, v]) => [el("dt", { textContent: k }), el("dd", { textContent: v })])));
+  }
+
+  function chart(per, key) {
+    const W = 320, H = 150, L = 40, B = 22, T = 10, R = 10;
+    const ys = per.map((p) => p[key]);
+    let lo = Math.min(...ys), hi = Math.max(...ys);
+    if (lo === hi) { lo -= 1; hi += 1; }
+    const x = (i) => L + (per.length === 1 ? (W - L - R) / 2 : (i * (W - L - R)) / (per.length - 1));
+    const y = (v) => T + ((hi - v) * (H - T - B)) / (hi - lo);
+    const ns = "http://www.w3.org/2000/svg";
+    const svg = document.createElementNS(ns, "svg");
+    svg.setAttribute("viewBox", `0 0 ${W} ${H}`);
+    svg.setAttribute("class", "chart");
+    svg.setAttribute("role", "img");
+    svg.setAttribute("aria-label", `${METRICS[key].label} per session, ${per.map((p) => `${fmtDay(p.k)} ${+p[key].toFixed(1)}`).join(", ")}`);
+    const grid = [hi, (hi + lo) / 2, lo].map((v) => `<line class="grid" x1="${L}" x2="${W - R}" y1="${y(v)}" y2="${y(v)}"/><text class="axis" x="${L - 4}" y="${y(v) + 3}" text-anchor="end">${+v.toFixed(1)}</text>`);
+    const ticks = per.map((p, i) => ({ p, i })).filter(({ i }) => per.length <= 5 || i % Math.ceil(per.length / 5) === 0)
+      .map(({ p, i }) => `<text class="axis" x="${x(i)}" y="${H - 6}" text-anchor="middle">${fmtDay(p.k)}</text>`);
+    const pts = per.map((p, i) => `${x(i)},${y(p[key])}`).join(" ");
+    svg.innerHTML = grid.join("") + ticks.join("") + `<polyline class="line" points="${pts}"/>` +
+      per.map((p, i) => `<circle class="dot" cx="${x(i)}" cy="${y(p[key])}" r="3.5"/>`).join("");
+    return svg;
+  }
+
+  load();
+</script>
+</body>
+</html>

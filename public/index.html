@@ -1,0 +1,99 @@
+<!doctype html>
+<html lang="en-AU">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Build a program</title>
+  <link rel="stylesheet" href="/style.css" />
+</head>
+<body data-default-view="desktop">
+<main>
+  <div class="topbar"><h1>Build a program</h1><button type="button" class="view-toggle"></button></div>
+  <p class="sub">For a PT: write the program, send it to your client, watch their sets come in. <a href="/readme/">About</a></p>
+
+  <form id="f">
+    <label for="title">Program name</label>
+    <input id="title" required placeholder="e.g. 4-week strength block" />
+    <div class="row">
+      <div><label for="pt">Your name</label><input id="pt" required /></div>
+      <div><label for="client">Client name</label><input id="client" required /></div>
+    </div>
+    <label for="email">Client email</label>
+    <input id="email" type="email" required />
+
+    <h2>Exercises</h2>
+    <div id="list"></div>
+    <button type="button" id="add">+ Add exercise</button>
+
+    <p id="err" class="error" role="alert"></p>
+    <button class="primary" type="submit">Create program</button>
+  </form>
+
+  <section id="done" hidden>
+    <h2>Program created</h2>
+    <p>Your client's link:</p>
+    <p class="share"><a id="clientLink"></a></p>
+    <div class="actions">
+      <a id="mail" class="btn primary">Email it to them</a>
+      <a id="ptLink" class="btn">Open your PT view</a>
+    </div>
+    <p class="muted">Keep the PT view link: it's how you come back to see their logged sets.</p>
+  </section>
+</main>
+
+<template id="exTpl">
+  <div class="card ex">
+    <div class="row">
+      <div class="narrow"><label>Day</label><input name="day" value="Day 1" /></div>
+      <div><label>Exercise</label><input name="name" placeholder="Back squat" /></div>
+    </div>
+    <div class="row">
+      <div><label>Sets</label><input name="sets" type="number" min="1" max="20" value="3" /></div>
+      <div><label>Reps</label><input name="reps" value="8-10" /></div>
+      <div><label>Rest (s)</label><input name="rest" type="number" min="0" max="600" step="15" value="90" /></div>
+      <div class="narrow"><label>&nbsp;</label><button type="button" class="rm" aria-label="Remove exercise">✕</button></div>
+    </div>
+    <label>Notes</label><input name="notes" placeholder="Tempo, rest, cues" />
+  </div>
+</template>
+
+<script src="/view.js"></script>
+<script>
+  const list = document.getElementById("list");
+  const tpl = document.getElementById("exTpl");
+  function addEx() {
+    const node = tpl.content.cloneNode(true);
+    const last = list.querySelector(".ex:last-child [name=day]");
+    if (last) node.querySelector("[name=day]").value = last.value;
+    node.querySelector(".rm").onclick = (e) => e.target.closest(".ex").remove();
+    list.append(node);
+  }
+  document.getElementById("add").onclick = addEx;
+  addEx();
+
+  document.getElementById("f").onsubmit = async (e) => {
+    e.preventDefault();
+    const v = (id) => document.getElementById(id).value;
+    const exercises = [...list.querySelectorAll(".ex")].map((el) =>
+      Object.fromEntries([...el.querySelectorAll("input")].map((i) => [i.name, i.value])));
+    const res = await fetch("/api/programs", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ title: v("title"), pt_name: v("pt"), client_name: v("client"), client_email: v("email"), exercises }),
+    });
+    const data = await res.json();
+    if (!res.ok) return (document.getElementById("err").textContent = data.error);
+
+    const clientUrl = `${location.origin}/p/${data.clientToken}`;
+    const a = document.getElementById("clientLink");
+    a.href = a.textContent = clientUrl;
+    document.getElementById("ptLink").href = `/p/${data.ptToken}`;
+    const body = `Hi ${v("client")},\n\nHere's your program "${v("title")}". Open it on your phone at the gym and log each set as you go:\n\n${clientUrl}\n\n${v("pt")}`;
+    document.getElementById("mail").href =
+      `mailto:${encodeURIComponent(v("email"))}?subject=${encodeURIComponent("Your program: " + v("title"))}&body=${encodeURIComponent(body)}`;
+    e.target.hidden = true;
+    document.getElementById("done").hidden = false;
+  };
+</script>
+</body>
+</html>
