@@ -148,3 +148,67 @@ body[data-view="desktop"] .exercises { display: grid; grid-template-columns: 1fr
 .records dt, .records dd { margin: 0; padding: 14px 0; border-bottom: 1px solid var(--line); }
 .records dd { color: var(--accent); text-align: right; }
 .pills button { white-space: nowrap; flex: none; }
+
+/* ---------- Macros style: the warm paper look from my Macros app ---------- */
+@font-face { font-family: "Instrument Sans"; src: url("/fonts/instrument-sans-latin-400-700.woff2") format("woff2"); font-weight: 400 700; font-display: swap; }
+@font-face { font-family: "JetBrains Mono"; src: url("/fonts/jetbrains-mono-latin-400-600.woff2") format("woff2"); font-weight: 400 600; font-display: swap; }
+:root[data-style="macros"] {
+  --bg: #f2efe9;
+  --card: #ffffff;
+  --soft: rgba(20, 21, 15, 0.05);
+  --ink: #14150f;
+  --muted: rgba(20, 21, 15, 0.58);
+  --line: rgba(0, 0, 0, 0.08);
+  --accent: #0f7a5c;
+  --accent-ink: #14150f;
+  --fill: #6ee7b7;
+  --done: rgba(110, 231, 183, 0.2);
+  --tick: #33cd97;
+  --shadow: 0 22px 54px -34px rgba(0, 0, 0, 0.5);
+}
+@media (prefers-color-scheme: dark) {
+  :root[data-style="macros"] {
+    --bg: #0f1211;
+    --card: #181c1b;
+    --soft: rgba(255, 255, 255, 0.07);
+    --ink: #f2f1ee;
+    --muted: rgba(242, 241, 238, 0.58);
+    --line: rgba(255, 255, 255, 0.12);
+    --accent: #6ee7b7;
+    --done: rgba(110, 231, 183, 0.14);
+    --shadow: none;
+  }
+}
+[data-style="macros"] body { font-family: "Instrument Sans", -apple-system, system-ui, sans-serif; }
+[data-style="macros"] .set input, [data-style="macros"] .prev, [data-style="macros"] .setno,
+[data-style="macros"] .stats strong, [data-style="macros"] .restrow output, [data-style="macros"] .records dd {
+  font-family: "JetBrains Mono", ui-monospace, monospace;
+}
+[data-style="macros"] button.primary, [data-style="macros"] .btn.primary,
+[data-style="macros"] .tabs button[aria-pressed="true"] { background: var(--fill); border-color: var(--fill); color: #14150f; }
+[data-style="macros"] button, [data-style="macros"] .btn { border-color: transparent; border-radius: 12px; }
+[data-style="macros"] input { border-radius: 12px; }
+[data-style="macros"] .card,
+[data-style="macros"] .exercises .card { background: var(--card); border: 0; border-radius: 20px; box-shadow: var(--shadow); padding: 16px; margin: 12px 0; }
+[data-style="macros"] .stats { background: var(--card); border: 0; border-radius: 20px; box-shadow: var(--shadow); padding: 14px 16px; }
+[data-style="macros"] .restbar { background: var(--card); border-radius: 26px 26px 0 0; border: 0; box-shadow: 0 -20px 60px -30px rgba(0, 0, 0, 0.35); }
+[data-style="macros"] .chart .line, [data-style="macros"] .chart .dot { stroke: var(--accent); }
+[data-style="macros"] .chart .dot { fill: var(--accent); }
+.toggles { display: flex; gap: 6px; }
+
+/* picker, finish, swipe to delete */
+.actions.top { margin: 0 0 12px; justify-content: flex-end; }
+.actions.top:empty { display: none; }
+.wide { width: 100%; margin-top: 12px; }
+.recent { list-style: none; padding: 0; margin: 0; }
+.recent li { display: flex; justify-content: space-between; gap: 8px; padding: 12px 0; border-bottom: 1px solid var(--line); }
+.swipe { position: relative; overflow: hidden; border-radius: 8px; }
+.swipe > .set { position: relative; background: var(--card); touch-action: pan-y; }
+.swipe > .set.done { background: linear-gradient(var(--done), var(--done)), var(--card); }
+.swipe .del { position: absolute; inset: 0 0 0 auto; width: 88px; border: 0; border-radius: 0; background: #d64545; color: #fff; }
+.topbar { flex-wrap: wrap; }
+.toggles { order: -1; width: 100%; justify-content: flex-end; }
+.toggles button { font-size: 0.8rem; padding: 6px 10px; white-space: nowrap; }
+[data-style="macros"] .prev { font-size: 0.78rem; }
+.swipe .del { opacity: 0; }
+.swipe.open .del, .swipe.drag .del { opacity: 1; }

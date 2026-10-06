@@ -18,7 +18,7 @@ Node modules such as better-sqlite3 have failed to build before.
 
 ## Decision
 
-Option 3. `server.js` is the whole backend; `public/` holds three pages and a
+Option 3. `server.js` is the whole backend, and `public/` holds three pages and a
 stylesheet. The database is one SQLite file on the volume.
 
 ## What this means

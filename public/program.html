@@ -11,9 +11,10 @@
   <section id="workout">
     <div class="topbar">
       <h1 id="title">Loading…</h1>
-      <button type="button" class="view-toggle"></button>
+      <span class="toggles"><button type="button" class="style-toggle"></button><button type="button" class="view-toggle"></button></span>
     </div>
     <p class="sub" id="sub"></p>
+    <div class="actions top" id="actions"></div>
     <div class="stats" id="stats"></div>
     <div class="tabs" id="tabs" role="group" aria-label="Day"></div>
     <div class="exercises" id="list"></div>
@@ -23,7 +24,7 @@
     <div class="topbar">
       <button type="button" class="back" id="back" aria-label="Back to workout">←</button>
       <h1 id="sumTitle"></h1>
-      <button type="button" class="view-toggle"></button>
+      <span class="toggles"><button type="button" class="style-toggle"></button><button type="button" class="view-toggle"></button></span>
     </div>
     <div id="sumBody"></div>
   </section>
@@ -55,17 +56,29 @@
     return n;
   }
 
-  // A session is one calendar day in the viewer's time zone.
-  const dayKey = (l) => new Date(l.logged_at + "Z").toLocaleDateString("en-CA");
-  const today = new Date().toLocaleDateString("en-CA");
-  const fmtDay = (k) => new Date(k + "T00:00").toLocaleDateString("en-AU", { day: "numeric", month: "short" });
+  const utc = (t) => new Date(t + "Z");
+  const fmtDay = (d) => d.toLocaleDateString("en-AU", { day: "numeric", month: "short" });
   const kg = (w) => (w == null ? "–" : `${+w}kg`);
+  const vol = (logs) => logs.reduce((s, l) => s + (l.weight ?? 0) * l.reps, 0);
+  const rowCount = {}; // rows shown per exercise in the open workout, after adds and removals
 
-  // { "2026-10-06": { 1: log, 2: log } }; a re-logged set replaces the earlier one.
-  function sessions(exId) {
-    const out = {};
-    for (const l of state.logs) if (l.exercise_id === exId) (out[dayKey(l)] ??= {})[l.set_no] = l;
-    return out;
+  // Every workout, oldest first, with its sets. Sets logged before workouts
+  // existed have no session, so they group by calendar day instead.
+  function workouts() {
+    const by = new Map();
+    for (const s of state.sessions) by.set(s.id, { id: s.id, day: s.day, start: utc(s.started_at), finished: s.finished_at, logs: [] });
+    for (const l of state.logs) {
+      const key = l.session_id ?? "d" + utc(l.logged_at).toLocaleDateString("en-CA");
+      if (!by.has(key)) by.set(key, { id: key, day: null, start: utc(l.logged_at), finished: l.logged_at, logs: [] });
+      by.get(key).logs.push(l);
+    }
+    return [...by.values()].sort((a, b) => a.start - b.start);
+  }
+
+  // One exercise's sets per workout: [{ w, sets: { 1: log, 2: log } }], oldest first.
+  function exHistory(exId) {
+    return workouts().map((w) => ({ w, sets: Object.fromEntries(w.logs.filter((l) => l.exercise_id === exId).map((l) => [l.set_no, l])) }))
+      .filter((h) => Object.keys(h.sets).length);
   }
 
   async function api(path, body) {
@@ -73,6 +86,11 @@
     const data = await res.json();
     if (!res.ok) { $("err").textContent = data.error; return null; }
     $("err").textContent = "";
+    return data;
+  }
+  async function act(what, body = {}) {
+    const data = await api(`/api/p/${tok}/${what}`, body);
+    if (data) { state = data; route(); }
     return data;
   }
 
@@ -92,44 +110,100 @@
     ex ? renderSummary(ex) : renderWorkout();
   }
   addEventListener("hashchange", route);
-  $("back").onclick = () => history.length > 1 ? history.back() : (location.hash = "");
+  $("back").onclick = () => (history.length > 1 ? history.back() : (location.hash = ""));
+
+  const stat = ([k, v]) => el("div", {}, el("small", { textContent: k }), el("strong", { textContent: v }));
+  let durationTick;
 
   function renderWorkout() {
-    const { program, role, exercises, logs } = state;
+    const { program, role, exercises } = state;
+    const open = state.open_session;
     document.title = program.title;
+    $("tabs").hidden = true;
+    $("actions").replaceChildren();
+    clearInterval(durationTick);
+
+    if (role === "client" && !open) return renderPicker();
+
+    const all = workouts();
+    if (role === "client") {
+      $("title").textContent = open.day;
+      $("sub").textContent = `${program.title}, from ${program.pt_name}. Tick each set as you finish it.`;
+      $("actions").append(
+        el("button", { type: "button", textContent: "Discard", onclick: () => confirm("Discard this workout and its sets?") && act("discard") }),
+        el("button", { type: "button", className: "primary", textContent: "Finish", onclick: finish }));
+      const cur = all.find((w) => w.id === open.id)?.logs ?? [];
+      const drawStats = () => $("stats").replaceChildren(...[
+        ["Duration", `${Math.max(0, Math.floor((Date.now() - utc(open.started_at)) / 60000))} min`],
+        ["Volume", `${+vol(cur).toFixed(1)} kg`], ["Sets", cur.length]].map(stat));
+      drawStats();
+      durationTick = setInterval(drawStats, 30000);
+      $("list").replaceChildren(...exercises.filter((e) => e.day === open.day).map((ex) => exerciseCard(ex, true)));
+      return;
+    }
+
+    // PT: a tab per workout, each exercise showing the client's latest sets.
     $("title").textContent = program.title;
-    $("sub").textContent = role === "pt"
-      ? `PT view. ${program.client_name}'s sets appear here as they log them.`
-      : `From ${program.pt_name}. Tick each set as you finish it.`;
-
-    // Client: today's numbers. PT: the client's most recent session.
-    const days = [...new Set(logs.map(dayKey))].sort();
-    const focus = role === "client" ? today : days.at(-1);
-    const focusLogs = logs.filter((l) => dayKey(l) === focus);
-    const volume = focusLogs.reduce((s, l) => s + (l.weight ?? 0) * l.reps, 0);
-    let first = focusLogs.map((l) => new Date(l.logged_at + "Z")).sort((a, b) => a - b)[0];
-    const mins = first ? Math.round((Date.now() - first) / 60000) : 0;
-    $("stats").replaceChildren(
-      ...(role === "client"
-        ? [["Duration", first ? `${mins} min` : "–"], ["Volume", `${+volume.toFixed(1)} kg`], ["Sets", focusLogs.length]]
-        : [["Last session", focus ? fmtDay(focus) : "None yet"], ["Volume", `${+volume.toFixed(1)} kg`], ["Sessions", days.length]]
-      ).map(([k, v]) => el("div", {}, el("small", { textContent: k }), el("strong", { textContent: v }))));
-
+    $("sub").textContent = `PT view. ${program.client_name}'s sets appear here as they log them.`;
+    const last = all.at(-1);
+    $("stats").replaceChildren(...[
+      ["Last workout", last ? fmtDay(last.start) : "None yet"],
+      ["Workouts", all.filter((w) => w.finished).length],
+      ["In progress", open ? open.day : "No"]].map(stat));
     const dayNames = [...new Set(exercises.map((e) => e.day))];
     day ??= dayNames[0];
     $("tabs").hidden = dayNames.length < 2;
     $("tabs").replaceChildren(...dayNames.map((d) =>
       el("button", { type: "button", textContent: d, ariaPressed: String(d === day), onclick: () => { day = d; renderWorkout(); } })));
-    $("list").replaceChildren(...exercises.filter((e) => e.day === day).map((ex) => exerciseCard(ex, role, focus)));
+    $("list").replaceChildren(...exercises.filter((e) => e.day === day).map((ex) => exerciseCard(ex, false)));
   }
 
-  function exerciseCard(ex, role, focus) {
-    const byDay = sessions(ex.id);
-    const current = byDay[focus] ?? {};
-    const earlier = Object.keys(byDay).filter((k) => k < focus).sort().reverse();
-    const prev = (n) => earlier.map((k) => byDay[k][n]).find(Boolean);
-    const count = Math.max(ex.sets, ...Object.keys(current).map(Number), extraSets[ex.id] ?? 0);
-    const client = role === "client";
+  // The client's home: pick a workout, see the recent ones.
+  function renderPicker() {
+    const { program, exercises } = state;
+    const all = workouts().filter((w) => w.finished);
+    $("title").textContent = program.title;
+    $("sub").textContent = `From ${program.pt_name}. Pick a workout to start.`;
+    const weekAgo = Date.now() - 7 * 864e5;
+    $("stats").replaceChildren(...[
+      ["Workouts", all.length], ["This week", all.filter((w) => w.start >= weekAgo).length],
+      ["Last", all.length ? fmtDay(all.at(-1).start) : "–"]].map(stat));
+
+    const dayNames = [...new Set(exercises.map((e) => e.day))];
+    const picks = dayNames.map((d) => {
+      const lastDone = all.filter((w) => w.day === d).at(-1);
+      return el("article", { className: "card pick" },
+        el("div", { className: "ex-head" },
+          el("strong", { className: "ex-name", textContent: d }),
+          el("span", { className: "muted", textContent: lastDone ? `Last done ${fmtDay(lastDone.start)}` : "Not done yet" })),
+        el("p", { className: "notes", textContent: exercises.filter((e) => e.day === d).map((e) => `${e.sets} × ${e.name}`).join(", ") }),
+        el("button", { type: "button", className: "primary wide", textContent: `Start ${d}`, onclick: () => act("start", { day: d }) }));
+    });
+    const recent = all.slice(-5).reverse().map((w) =>
+      el("li", {}, el("span", { textContent: `${w.day ?? "Workout"} · ${fmtDay(w.start)}` }),
+        el("span", { className: "muted", textContent: `${w.logs.length} sets · ${+vol(w.logs).toFixed(0)} kg` })));
+    $("list").replaceChildren(...picks,
+      recent.length ? el("h2", { textContent: "Recent workouts" }) : "",
+      recent.length ? el("ul", { className: "recent" }, ...recent) : "");
+  }
+
+  async function finish() {
+    const open = state.open_session;
+    const n = state.logs.filter((l) => l.session_id === open.id).length;
+    if (!confirm(n ? `Finish ${open.day}? ${n} sets will be saved.` : "No sets logged. Finish and throw this workout away?")) return;
+    if (await act("finish")) { for (const k in rowCount) delete rowCount[k]; restEnd = 0; drawRest(); }
+  }
+
+  function exerciseCard(ex, client) {
+    const hist = exHistory(ex.id);
+    const open = state.open_session;
+    // Client: the open workout. PT: the latest workout with this exercise in it.
+    const curIdx = client ? hist.findIndex((h) => h.w.id === open.id) : hist.length - 1;
+    const current = hist[curIdx]?.sets ?? {};
+    const earlier = (curIdx === -1 ? hist : hist.slice(0, curIdx)).slice().reverse();
+    const prev = (n) => earlier.map((h) => h.sets[n]).find(Boolean);
+    const maxLogged = Math.max(0, ...Object.keys(current).map(Number));
+    const count = Math.max(client ? (rowCount[ex.id] ?? ex.sets) : ex.sets, maxLogged);
 
     const rows = [];
     for (let n = 1; n <= count; n++) {
@@ -144,39 +218,84 @@
         oninput: (e) => ((drafts[key] ??= {}).r = e.target.value) });
       const tick = el("button", { type: "button", className: "tick", textContent: "✓", ariaPressed: String(!!done),
         ariaLabel: done ? `Untick set ${n}` : `Tick set ${n} done`, disabled: !client,
-        onclick: () => done ? untick(done.id) : tickSet(ex, n, wIn.value || wIn.placeholder, rIn.value || rIn.placeholder) });
-      rows.push(el("div", { className: "set" + (done ? " done" : "") },
+        onclick: () => (done ? act("unlog", { id: done.id }) : tickSet(ex, n, wIn.value || wIn.placeholder, rIn.value || rIn.placeholder)) });
+      const row = el("div", { className: "set" + (done ? " done" : "") },
         el("span", { className: "setno", textContent: n }),
         el("span", { className: "prev", textContent: p ? `${kg(p.weight)} x ${p.reps}` : "–" }),
-        wIn, rIn, tick));
+        wIn, rIn, tick);
+      rows.push(client ? swipeable(row, n, () => removeSet(ex, n, count)) : row);
     }
 
     const rest = ex.rest_seconds;
+    const shown = hist[curIdx];
     return el("article", { className: "card" },
       el("div", { className: "ex-head" },
         el("a", { href: `#ex-${ex.id}`, className: "ex-name", textContent: ex.name }),
         el("span", { className: "muted", textContent: `${ex.sets} × ${ex.reps}` })),
       ex.notes ? el("p", { className: "notes", textContent: ex.notes }) : "",
       el("p", { className: "rest-label", textContent: `⏱ Rest Timer: ${Math.floor(rest / 60)}min ${rest % 60}s` }),
+      !client && shown ? el("p", { className: "muted", textContent: `Sets from ${fmtDay(shown.w.start)}${shown.w.finished ? "" : " (in progress)"}` }) : "",
       el("div", { className: "sets" },
         el("div", { className: "set head" }, ...["Set", "Previous", "kg", "Reps", "✓"].map((t) => el("span", { textContent: t }))),
         ...rows),
       client ? el("button", { type: "button", className: "addset", textContent: "+ Add Set",
-        onclick: () => { extraSets[ex.id] = count + 1; renderWorkout(); } }) : "");
+        onclick: () => { rowCount[ex.id] = count + 1; renderWorkout(); } }) : "");
+  }
+
+  // Swipe a row left to reveal Delete, or keep going to delete straight away.
+  // The button stays in the tab order, so a keyboard reaches it without a swipe.
+  function swipeable(row, n, onDelete) {
+    const del = el("button", { type: "button", className: "del", textContent: "Delete", ariaLabel: `Delete set ${n}`, onclick: onDelete });
+    const wrap = el("div", { className: "swipe" }, del, row);
+    const OPEN = -88;
+    let x0 = null, y0, dx = 0, dragging = false;
+    const slide = (x, anim) => {
+      row.style.transition = anim ? "transform .18s" : "none";
+      row.style.transform = x ? `translateX(${x}px)` : "";
+    };
+    row.addEventListener("pointerdown", (e) => {
+      if (e.target.closest("input, button")) return;
+      x0 = e.clientX; y0 = e.clientY; dragging = null;
+    });
+    row.addEventListener("pointermove", (e) => {
+      if (x0 === null) return;
+      const mx = e.clientX - x0, my = e.clientY - y0;
+      if (dragging === null && Math.abs(mx) + Math.abs(my) > 8) dragging = Math.abs(mx) > Math.abs(my);
+      if (!dragging) return;
+      wrap.classList.add("drag");
+      row.setPointerCapture(e.pointerId);
+      dx = Math.min(0, mx + (wrap.classList.contains("open") ? OPEN : 0));
+      slide(dx);
+    });
+    const end = () => {
+      if (dragging) {
+        if (dx < -wrap.offsetWidth * 0.6) return onDelete();
+        const open = dx < OPEN / 2;
+        wrap.classList.toggle("open", open);
+        slide(open ? OPEN : 0, true);
+      }
+      wrap.classList.remove("drag");
+      x0 = null; dragging = false; dx = 0;
+    };
+    row.addEventListener("pointerup", end);
+    row.addEventListener("pointercancel", end);
+    del.addEventListener("focus", () => { wrap.classList.add("open"); slide(OPEN, true); });
+    del.addEventListener("blur", () => { wrap.classList.remove("open"); slide(0, true); });
+    return wrap;
+  }
+
+  async function removeSet(ex, n, count) {
+    // Typed values in the rows below move up with them.
+    for (let i = n; i < count; i++) drafts[`${ex.id}:${i}`] = drafts[`${ex.id}:${i + 1}`];
+    delete drafts[`${ex.id}:${count}`];
+    rowCount[ex.id] = count - 1;
+    await act("remove", { exercise_id: ex.id, set_no: n });
   }
 
   async function tickSet(ex, set_no, weight, reps) {
-    const data = await api(`/api/p/${tok}/log`, { exercise_id: ex.id, set_no, reps: parseInt(reps) || 0, weight });
-    if (!data) return;
+    if (!(await act("log", { exercise_id: ex.id, set_no, reps: parseInt(reps) || 0, weight }))) return;
     delete drafts[`${ex.id}:${set_no}`];
-    state = data;
-    route();
     if (ex.rest_seconds) startRest(ex.rest_seconds);
-  }
-
-  async function untick(id) {
-    const data = await api(`/api/p/${tok}/unlog`, { id });
-    if (data) { state = data; route(); }
   }
 
   // Rest timer: a deadline, so it stays right if the phone sleeps.
@@ -229,8 +348,8 @@
   function renderSummary(ex) {
     $("sumTitle").textContent = ex.name;
     document.title = ex.name;
-    const byDay = sessions(ex.id);
-    const all = Object.values(byDay).flatMap(Object.values);
+    const hist = exHistory(ex.id);
+    const all = hist.flatMap((h) => Object.values(h.sets));
     const body = $("sumBody");
     if (!all.length) return body.replaceChildren(el("p", { className: "muted", textContent: "No sets logged for this exercise yet." }));
 
@@ -239,8 +358,8 @@
     const w = (s) => s.weight ?? 0;
     const score = (s) => w(s) + (step * (s.reps - lo)) / (hi - lo + 1);
     const epley = (s) => w(s) * (1 + s.reps / 30);
-    const per = Object.keys(byDay).sort().map((k) => {
-      const sets = Object.values(byDay[k]);
+    const per = hist.map(({ w: wk, sets: bySet }) => {
+      const sets = Object.values(bySet), k = wk.start;
       const top = (f) => Math.max(...sets.map(f));
       return { k, progress: top(score), heaviest: top(w), reps: top((s) => s.reps), orm: top(epley),
         volume: sets.reduce((a, s) => a + w(s) * s.reps, 0) };
