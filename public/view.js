@@ -13,18 +13,18 @@
     view ||= d;
     apply();
   };
-  // Style: "classic" or "macros", one choice per browser for every page.
+  // Style: "classic" or "mono", one choice per browser for every page.
   let style;
   try { style = new URLSearchParams(location.search).get("style") ?? localStorage.getItem("style"); } catch {}
   const applyStyle = () => {
-    document.documentElement.dataset.style = style === "macros" ? "macros" : "classic";
+    document.documentElement.dataset.style = style === "mono" ? "mono" : "classic";
     for (const b of document.querySelectorAll(".style-toggle"))
-      b.textContent = style === "macros" ? "Classic style" : "Macros style";
+      b.textContent = style === "mono" ? "Classic style" : "Mono style";
   };
   applyStyle();
   document.addEventListener("click", (e) => {
     if (e.target.closest(".style-toggle")) {
-      style = style === "macros" ? "classic" : "macros";
+      style = style === "mono" ? "classic" : "mono";
       try { localStorage.setItem("style", style); } catch {}
       return applyStyle();
     }

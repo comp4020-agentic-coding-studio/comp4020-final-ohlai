@@ -1,7 +1,8 @@
 # Harness
 
 The app is a gym program tracker for one PT and their clients. `README.md` says
-what good means; these are the rules that follow from it.
+what good means, which is that the app fits each person where they are: the
+client on a phone mid-workout, the PT at a desk. These rules follow from that.
 
 ## Never
 
@@ -19,7 +20,10 @@ what good means; these are the rules that follow from it.
 - Works at phone width (390px) with no horizontal scroll, and every control is
   reachable by keyboard.
 - Has the mobile/desktop toggle. Client pages start in mobile, PT pages in
-  desktop.
+  desktop. A new screen for the client is designed at phone width first; a new
+  screen for the PT is designed at desktop width first.
+- Has the classic/mono style toggle. Colours come from the tokens in
+  `public/style.css`, never a component's own hex value.
 
 ## Every change
 

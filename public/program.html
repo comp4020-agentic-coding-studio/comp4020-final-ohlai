@@ -221,7 +221,7 @@
         onclick: () => (done ? act("unlog", { id: done.id }) : tickSet(ex, n, wIn.value || wIn.placeholder, rIn.value || rIn.placeholder)) });
       const row = el("div", { className: "set" + (done ? " done" : "") },
         el("span", { className: "setno", textContent: n }),
-        el("span", { className: "prev", textContent: p ? `${kg(p.weight)} x ${p.reps}` : "–" }),
+        el("span", { className: "prev", textContent: p ? `${kg(p.weight)}×${p.reps}` : "–" }),
         wIn, rIn, tick);
       rows.push(client ? swipeable(row, n, () => removeSet(ex, n, count)) : row);
     }
