@@ -21,7 +21,7 @@ Node modules such as better-sqlite3 have failed to build before.
 Option 3. `server.js` is the whole backend; `public/` holds three pages and a
 stylesheet. The database is one SQLite file on the volume.
 
-## Costs
+## What this means
 
 - No router, templating or component model: every page builds its own DOM.
   Fine at three pages, painful at fifteen.
