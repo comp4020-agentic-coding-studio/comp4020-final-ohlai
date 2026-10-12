@@ -1,21 +1,22 @@
-# Crit 9: Planned, not built
+# Crit 9: Still a plan
 
 ## What was the breakthrough that moved the work forward?
 
-Realising where the app actually stands. The plan is a good depth and size,
-but the implementation isn't there yet. What's missing is a stronger point of
-view. I keep saying the app is good because it fits each user, but I haven't
-fleshed out what the PT needs and what the client needs in enough detail for
-that to show up in the app. Right now it's a PT side and a client side, not two
-people whose needs shape every screen.
+Realising where the app actually stands. I think the plan is a good depth and
+size, but the implementation isn't there yet. What's missing is a stronger
+point of view. I keep saying the app is good because it fits each user, but I
+haven't fleshed out what the PT needs and what the client needs in enough
+detail for that to show up anywhere. At the moment there's a PT side and a
+client side, and the screens on each don't really come from what that person
+is trying to do.
 
-So the next step is writing those needs down properly for both users and then
-checking what each one means for the app, before building more.
+So the next step is writing those needs down properly for both users, then
+working out what each one means for the app before I build anything else.
 
 ## What did this work change about who I want to be as a software developer?
 
-I want to be thoughtful and intentional about what I build. It's easy to keep
-adding features because they're quick to get from the agent, but a feature
-that doesn't serve one of the two users just makes the app bigger, not better.
-Going forward every feature has to answer which user it's for and what it
-does for them. If I can't say that, it doesn't get built.
+I want to be a lot more thoughtful and intentional about which features I
+build. It's really easy to keep adding things because the agent can make them
+in a few minutes, and I've kinda been doing that. Going forward each feature
+needs a clear answer to which user it's for and what it does for them, and the
+ones without an answer can wait.
