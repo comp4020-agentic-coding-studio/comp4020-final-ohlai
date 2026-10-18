@@ -10,6 +10,9 @@ client on a phone mid-workout, the PT at a desk. These rules follow from that.
   link in anything the client link returns. `spec/programs.test.ts` checks both.
 - Never delete or rewrite logged sets as a side effect. A set goes away only
   when the client removes it.
+- Never put a link token in a log line. Every API action and refusal goes
+  through `audit()` in `server.js`, so the logs say who did what
+  (`docs/adr/0002-who-can-do-what.md`).
 - Never add a dependency without a decision record in `docs/adr/`. The stack is
   Node built-ins and SQLite on purpose (`docs/adr/0001-stack.md`).
 

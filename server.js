@@ -56,6 +56,35 @@ db.exec(`
 if (!db.prepare("SELECT 1 FROM pragma_table_info('set_logs') WHERE name = 'session_id'").get())
   db.exec("ALTER TABLE set_logs ADD COLUMN session_id INTEGER REFERENCES sessions(id) ON DELETE CASCADE");
 
+// Who did what, kept for good: flyctl logs only holds the last little while.
+// docs/adr/0002-who-can-do-what.md says why it looks like this.
+db.exec(`
+  CREATE TABLE IF NOT EXISTS events (
+    id INTEGER PRIMARY KEY,
+    at TEXT NOT NULL,
+    program_id INTEGER,
+    role TEXT,
+    who TEXT,
+    action TEXT NOT NULL,
+    status INTEGER NOT NULL,
+    line TEXT NOT NULL
+  );
+`);
+const insertEvent = db.prepare("INSERT INTO events (at, program_id, role, who, action, status, line) VALUES (?,?,?,?,?,?,?)");
+
+// One readable line per event, e.g. `client "Jack" p3 logged Squat set 1: 5 x 100kg`.
+// Names, never tokens: the token is the password.
+function audit(found, action, status, detail) {
+  const at = new Date().toISOString().slice(0, 19) + "Z";
+  const p = found?.program;
+  const role = found?.role ?? null;
+  const who = p ? (role === "pt" ? p.pt_name : p.client_name) : null;
+  const actor = p ? `${role} ${JSON.stringify(who)} p${p.id}` : "unknown link";
+  const line = `${at} ${actor} ${status >= 400 ? `DENIED ${action} (${status} ${detail})` : detail}`;
+  console.log(line);
+  insertEvent.run(at, p?.id ?? null, role, who, action, status, line);
+}
+
 const page = (f) => readFileSync(new URL(`./public/${f}`, import.meta.url));
 const esc = (s) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 const token = () => randomBytes(12).toString("base64url");
@@ -150,50 +179,59 @@ const server = createServer(async (req, res) => {
 
     if (req.method === "POST" && path === "/api/programs") {
       const made = createProgram(await readJson(req));
-      return made ? send(res, 201, made) : send(res, 400, { error: "Need a title, both names, a valid email and at least one exercise." });
+      if (!made) return send(res, 400, { error: "Need a title, both names, a valid email and at least one exercise." });
+      const found = findProgram(made.ptToken);
+      audit(found, "create", 201, `created program ${JSON.stringify(found.program.title)} for ${JSON.stringify(found.program.client_name)}`);
+      return send(res, 201, made);
     }
 
     const m = path.match(/^\/api\/p\/([\w-]+)(?:\/(log|unlog|remove|start|finish|discard))?$/);
     if (m) {
       const found = findProgram(m[1]);
-      if (!found) return send(res, 404, { error: "No program at this link." });
-      if (req.method === "GET" && !m[2]) return send(res, 200, found);
+      const action = m[2] ?? "open";
+      const deny = (status, error) => (audit(found, action, status, error), send(res, status, { error }));
+      if (!found) return deny(404, "No program at this link.");
+      if (req.method === "GET" && !m[2]) {
+        audit(found, "open", 200, "opened program");
+        return send(res, 200, found);
+      }
       if (req.method === "POST" && m[2]) {
-        if (found.role !== "client") return send(res, 403, { error: "Only the client logs sets." });
+        if (found.role !== "client") return deny(403, "Only the client logs sets.");
         const b = await readJson(req);
         const open = found.open_session;
-        const fresh = (status = 200) => send(res, status, findProgram(m[1]));
+        const done = (detail, status = 200) => (audit(found, action, status, detail), send(res, status, findProgram(m[1])));
+        const exName = (id) => found.exercises.find((e) => e.id === id)?.name ?? `exercise ${id}`;
 
         if (m[2] === "start") {
-          if (open) return send(res, 409, { error: "Finish or discard the workout you've already started." });
-          if (!found.exercises.some((e) => e.day === b.day)) return send(res, 400, { error: "No such workout." });
+          if (open) return deny(409, "Finish or discard the workout you've already started.");
+          if (!found.exercises.some((e) => e.day === b.day)) return deny(400, "No such workout.");
           db.prepare("INSERT INTO sessions (program_id, day) VALUES (?, ?)").run(found.program.id, b.day);
-          return fresh(201);
+          return done(`started ${JSON.stringify(b.day)}`, 201);
         }
-        if (!open) return send(res, 409, { error: "Start a workout first." });
+        if (!open) return deny(409, "Start a workout first.");
 
         if (m[2] === "finish") {
           // An empty workout isn't worth keeping.
-          if (found.logs.some((l) => l.session_id === open.id))
-            db.prepare("UPDATE sessions SET finished_at = datetime('now') WHERE id = ?").run(open.id);
+          const sets = found.logs.filter((l) => l.session_id === open.id).length;
+          if (sets) db.prepare("UPDATE sessions SET finished_at = datetime('now') WHERE id = ?").run(open.id);
           else db.prepare("DELETE FROM sessions WHERE id = ?").run(open.id);
-          return fresh();
+          return done(sets ? `finished ${JSON.stringify(open.day)} with ${sets} sets` : `finished ${JSON.stringify(open.day)} empty, so it was dropped`);
         }
         if (m[2] === "discard") {
           db.prepare("DELETE FROM set_logs WHERE session_id = ?").run(open.id);
           db.prepare("DELETE FROM sessions WHERE id = ?").run(open.id);
-          return fresh();
+          return done(`discarded ${JSON.stringify(open.day)}`);
         }
         if (m[2] === "unlog") {
           const log = found.logs.find((l) => l.id === Number(b.id) && l.session_id === open.id);
-          if (!log) return send(res, 404, { error: "No such set." });
+          if (!log) return deny(404, "No such set.");
           db.prepare("DELETE FROM set_logs WHERE id = ?").run(log.id);
-          return fresh();
+          return done(`unticked ${exName(log.exercise_id)} set ${log.set_no}`);
         }
 
         const ex = found.exercises.find((e) => e.id === Number(b.exercise_id));
         const setNo = parseInt(b.set_no);
-        if (!ex || !(setNo >= 1)) return send(res, 400, { error: "Bad set." });
+        if (!ex || !(setNo >= 1)) return deny(400, "Bad set.");
 
         if (m[2] === "remove") {
           // Drop the set and close the gap, so set 3 becomes set 2.
@@ -201,15 +239,15 @@ const server = createServer(async (req, res) => {
           db.prepare("DELETE FROM set_logs WHERE session_id = ? AND exercise_id = ? AND set_no = ?").run(open.id, ex.id, setNo);
           db.prepare("UPDATE set_logs SET set_no = set_no - 1 WHERE session_id = ? AND exercise_id = ? AND set_no > ?").run(open.id, ex.id, setNo);
           db.exec("COMMIT");
-          return fresh();
+          return done(`removed ${ex.name} set ${setNo}`);
         }
 
         const reps = parseInt(b.reps);
         const weight = b.weight === "" || b.weight == null ? null : Number(b.weight);
-        if (!(reps >= 0) || (weight !== null && !Number.isFinite(weight))) return send(res, 400, { error: "Bad set." });
+        if (!(reps >= 0) || (weight !== null && !Number.isFinite(weight))) return deny(400, "Bad set.");
         db.prepare("DELETE FROM set_logs WHERE session_id = ? AND exercise_id = ? AND set_no = ?").run(open.id, ex.id, setNo);
         db.prepare("INSERT INTO set_logs (exercise_id, set_no, reps, weight, session_id) VALUES (?,?,?,?,?)").run(ex.id, setNo, reps, weight, open.id);
-        return fresh(201);
+        return done(`logged ${ex.name} set ${setNo}: ${reps}${weight === null ? " reps" : ` x ${weight}kg`}`, 201);
       }
     }
     send(res, 404, "Not found", "text/plain");
