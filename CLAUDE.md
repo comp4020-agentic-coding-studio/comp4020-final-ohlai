@@ -25,8 +25,8 @@ client on a phone mid-workout, the PT at a desk. These rules follow from that.
 - Has the mobile/desktop toggle. Client pages start in mobile, PT pages in
   desktop. A new screen for the client is designed at phone width first; a new
   screen for the PT is designed at desktop width first.
-- Has the classic/mono style toggle. Colours come from the tokens in
-  `public/style.css`, never a component's own hex value.
+- Uses the mono style only (`data-style="mono"` on `<html>`). Colours come
+  from the tokens in `public/style.css`, never a component's own hex value.
 
 ## Every change
 

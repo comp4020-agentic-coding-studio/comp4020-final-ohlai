@@ -56,7 +56,8 @@ the chart has something real looking to show.
 
 The look comes from Macros. I tried its warm paper style first and then
 switched to its black and white mono style, which keeps colour for data only.
-It's a toggle, so the classic look is still there.
+It started as a toggle with the classic look still there. In crit 10 I dropped
+classic and kept mono only.
 
 ## Corrections
 

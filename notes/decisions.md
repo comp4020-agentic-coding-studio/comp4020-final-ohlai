@@ -26,3 +26,9 @@ Full write-up in `docs/adr/0002-who-can-do-what.md`.
   what actually happened, not reconstructed at the end. Claude now asks me when
   a decision comes up and logs it here, keeps a session log, and works from a
   feature board. Rules are in `CLAUDE.md`.
+
+## 2026-10-19: Mono style only
+
+- Dropped the classic/mono toggle and kept mono everywhere. The look comes from
+  my Macros app (black and white, colour for data only). One style means one
+  thing to design and check, and the toggle wasn't for either user.
