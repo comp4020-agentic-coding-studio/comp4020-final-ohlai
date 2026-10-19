@@ -72,7 +72,28 @@ It's a toggle, so the classic look is still there.
   the spec broke, because logging now needs a started workout. I updated the
   spec to the new flow and added checks for removing a set and finishing.
 
+## Crit 10: telling people apart
+
+The app already knew who was looking, since the PT link and the client link are
+different, but nothing on the server said so. I had Claude ask me how the logs
+should work before writing any code, and it came back with four questions:
+how to name a person, what to log, what format, and where to keep it. I went
+with role, name and program id (never the token, since that's the password),
+every action plus program opens and refusals, plain sentences I can read out at
+the crit, and both stdout and an events table so the history outlives Fly's log
+retention. The access rules and why are in
+[`docs/adr/0002-who-can-do-what.md`](docs/adr/0002-who-can-do-what.md), and
+`CLAUDE.md` now says tokens never go in a log line.
+
+The crit feedback so far kept pointing at the same gap: I make decisions but
+don't keep a record of them, so the docs end up reconstructed at the end. So I
+set up `notes/` with a feature board, a decision log and a session log, and
+added rules to `CLAUDE.md` so Claude asks me when a decision comes up and writes
+it down as we go.
+
 ## What's next
 
-Crit 9 makes it real-time, so the PT sees a set land while the client is still
-at the gym. I'll rewrite this at each crit.
+Real-time is still missing from crit 9, so that's first: the PT should see a set
+land without reloading. After that, picking a niche and making the multi-user
+side clearer, both from crit feedback. The board in `notes/features.md` has the
+detail.

@@ -37,3 +37,22 @@ client on a phone mid-workout, the PT at a desk. These rules follow from that.
   `server.js`, never drop data on the volume.
 - When the agent gets something wrong, the fix goes into this file or `spec/`,
   not just into the code.
+
+## Working with me
+
+I want the final docs written from what actually happened, so every session
+leaves a trail in `notes/`.
+
+- At the start of a session, read `notes/features.md` and say which feature
+  we're picking up. Add a dated note under that feature as work happens. Never
+  move a feature to Done yourself, I do that.
+- When a choice comes up that changes what the app does or how it's built
+  (data shape, what a user sees, a library, a trade-off), stop and ask me with
+  the options and your recommendation. Don't decide it silently. Small code
+  details that nobody would notice are yours.
+- After I answer, add it to `notes/decisions.md`: what came up, the options,
+  what I picked and why. If it changes the architecture, also write an ADR.
+- Keep `notes/sessions/YYYY-MM-DD.md` for today (create it if missing): what I
+  asked for, what we did, what you got wrong and how it was fixed. Update it
+  before each commit, not just at the end.
+- Write notes plainly, in my voice. No em dashes.
