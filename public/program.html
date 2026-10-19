@@ -97,13 +97,13 @@
     return data;
   }
 
-  async function load() {
-    const data = await api(`/api/p/${tok}`);
+  async function load(refresh) {
+    const data = await api(`/api/p/${tok}${refresh === true ? "?refresh" : ""}`);
     if (!data) return ($("title").textContent = "Program not found");
     if (data.role === "pt" && !state) {
       window.setDefaultView?.("desktop");
       // The client is the only one who writes, so only the PT view needs live updates.
-      live(`/api/p/${tok}/events`, load);
+      live(`/api/p/${tok}/events`, () => load(true));
     }
     state = data;
     route();

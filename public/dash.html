@@ -31,8 +31,8 @@
   const STATUS = { up: "Moving up", stalled: "Stalled", steady: "Steady", new: "Too early" };
   const opened = new Set(); // which clients are expanded, kept across live refreshes
 
-  async function load() {
-    const [data, ok] = await api("/api/dash");
+  async function load(refresh) {
+    const [data, ok] = await api(refresh === true ? "/api/dash?refresh" : "/api/dash");
     if (!ok) return toLogin();
     $("hi").textContent = `${data.me.name}'s clients`;
     const c = data.clients;
@@ -112,7 +112,7 @@
   }
 
   load();
-  live("/api/events", load);
+  live("/api/events", () => load(true));
 </script>
 </body>
 </html>

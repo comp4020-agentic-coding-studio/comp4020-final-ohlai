@@ -115,11 +115,13 @@ const insertEvent = db.prepare("INSERT INTO events (at, program_id, role, who, a
 // link, shown with the program id) or asUser (someone logged in, user id).
 function audit(who, action, status, detail) {
   const at = new Date().toISOString().slice(0, 19) + "Z";
-  const actor = who ? `${who.role} ${JSON.stringify(who.name)} ${who.program_id ? `p${who.program_id}` : `u${who.user_id}`}` : "unknown visitor";
+  const actor = who === SERVER ? "server"
+    : who ? `${who.role} ${JSON.stringify(who.name)} ${who.program_id ? `p${who.program_id}` : `u${who.user_id}`}` : "unknown visitor";
   const line = `${at} ${actor} ${status >= 400 ? `DENIED ${action} (${status} ${detail})` : detail}`;
   console.log(line);
   insertEvent.run(at, who?.program_id ?? null, who?.role ?? null, who?.name ?? null, action, status, line);
 }
+const SERVER = { role: "server" };
 const asProgram = (found) =>
   found && { role: found.role, name: found.role === "pt" ? found.program.pt_name : found.program.client_name, program_id: found.program.id };
 const asUser = (u) => u && { role: u.role, name: u.name, user_id: u.id };
@@ -128,18 +130,30 @@ const asUser = (u) => u && { role: u.role, name: u.name, user_id: u.id };
 // about that program; a logged-in browser hears about its programs and chats.
 // ponytail: subscribers live in memory, fine on one Fly machine; a second
 // machine needs a shared bus (or SQLite polling) behind push().
+// Connecting, leaving and every update sent are logged, so the logs show who
+// was watching when something changed.
 const subs = new Set();
-function stream(req, res, sub) {
+function stream(req, res, who, sub) {
   res.writeHead(200, { "content-type": "text/event-stream", "cache-control": "no-cache", connection: "keep-alive" });
   res.write(": open\n\n");
   const s = { res, ...sub };
+  const room = sub.programId ? `p${sub.programId}` : `u${sub.userId}`;
+  const watching = () => [...subs].filter((x) => x.programId === sub.programId && x.userId === sub.userId).length;
   subs.add(s);
+  audit(who, "connect", 200, `connected to live updates (${watching()} watching ${room}, ${subs.size} connected in all)`);
   const beat = setInterval(() => res.write(": beat\n\n"), 25000); // Fly's proxy drops idle connections
-  req.on("close", () => { clearInterval(beat); subs.delete(s); });
+  req.on("close", () => {
+    clearInterval(beat);
+    subs.delete(s);
+    audit(who, "disconnect", 200, `left live updates (${watching()} watching ${room}, ${subs.size} connected in all)`);
+  });
 }
 function push(type, { programId = null, users = [] }) {
   const msg = `data: ${JSON.stringify({ type, programId })}\n\n`;
-  for (const s of subs) if ((programId && s.programId === programId) || users.includes(s.userId)) s.res.write(msg);
+  let sent = 0;
+  for (const s of subs) if ((programId && s.programId === programId) || users.includes(s.userId)) { s.res.write(msg); sent++; }
+  const about = type === "chat" ? `chat between u${users[0]} and u${users[1]}` : `program p${programId}`;
+  audit(SERVER, "broadcast", 200, `sent ${type} update for ${about} to ${sent} connection${sent === 1 ? "" : "s"}`);
 }
 
 const page = (f) => readFileSync(new URL(`./public/${f}`, import.meta.url));
@@ -366,13 +380,13 @@ const server = createServer(async (req, res) => {
     }
     if (req.method === "GET" && path === "/api/events") {
       if (!me) return send(res, 401, { error: "Not logged in." });
-      return stream(req, res, { userId: me.id });
+      return stream(req, res, asUser(me), { userId: me.id });
     }
 
     // ---------- PT dashboard ----------
     if (req.method === "GET" && path === "/api/dash") {
       if (me?.role !== "pt") return send(res, 401, { error: "Log in as a PT to see your dashboard." });
-      audit(asUser(me), "dash", 200, "opened dashboard");
+      if (!url.searchParams.has("refresh")) audit(asUser(me), "dash", 200, "opened dashboard");
       const rows = db.prepare("SELECT * FROM programs WHERE pt_user_id = ? ORDER BY id").all(me.id).map(dashRow);
       // Whoever has gone longest without training comes first.
       rows.sort((a, b) => (a.last_workout ?? "").localeCompare(b.last_workout ?? ""));
@@ -442,9 +456,10 @@ const server = createServer(async (req, res) => {
       const who = () => (action === "claim" && me ? asUser(me) : asProgram(found));
       const deny = (status, error) => (audit(who(), action, status, error), send(res, status, { error }));
       if (!found) return deny(404, "No program at this link.");
-      if (req.method === "GET" && m[2] === "events") return stream(req, res, { programId: found.program.id });
+      if (req.method === "GET" && m[2] === "events") return stream(req, res, asProgram(found), { programId: found.program.id });
       if (req.method === "GET" && !m[2]) {
-        audit(asProgram(found), "open", 200, "opened program");
+        // A refetch after a live update is already covered by the broadcast line.
+        if (!url.searchParams.has("refresh")) audit(asProgram(found), "open", 200, "opened program");
         return send(res, 200, found);
       }
       if (req.method === "POST" && m[2]) {

@@ -42,6 +42,12 @@ program they are being coached on. `spec/programs.test.ts` checks both.
   link's owner.
   Names are safe to print and easy to read out. The token never appears, since
   it is the password.
+- Live updates are logged too: each connect and disconnect (with how many are
+  watching), and each update the server sends (with how many connections it
+  reached), as `server sent program update for program p1 to 2 connections`.
+  A page refetching after an update doesn't log an "opened" line, since the
+  update line already covers it. `docs/testing/multi-user-test-report.md` uses
+  these to test several people at once.
 - Static files (CSS, fonts, pages) are not logged. They say nothing about who
   did what.
 - Plain sentences, not JSON, so I can read them aloud from `flyctl logs`.

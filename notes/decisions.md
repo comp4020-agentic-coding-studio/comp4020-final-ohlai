@@ -59,3 +59,18 @@ Full write-up in `docs/adr/0002-who-can-do-what.md`.
   shrunk on the phone and capped at 5 MB.
 
 Write-up in `docs/adr/0003-accounts-and-chat.md`.
+
+## 2026-10-19: Logs for multi-user testing (crit 10 whiteboard)
+
+- The tutor's checklist asked for logs of connect, disconnect, actions received,
+  updates broadcast, refusals and state sent to one user. Ours had actions,
+  refusals and opens, but nothing for live connections. Added connect and
+  disconnect lines with counts, and a line for every update sent with how many
+  connections it reached. Stopped logging "opened" on refetches after a live
+  update, since they flooded the log.
+- Kept plain sentences rather than the whiteboard's `key=value` example, same
+  reason as before: I read them aloud.
+- Wrote `docs/testing/multi-user-test-report.md` with the expected behaviour for
+  the eight scenarios, observations to fill in.
+- `scripts/fly-logs.js` follows the logs through Fly's API, because Smart App
+  Control blocks flyctl.exe on my laptop.
