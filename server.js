@@ -1,10 +1,12 @@
 import { createServer } from "node:http";
-import { readFileSync, mkdirSync } from "node:fs";
-import { randomBytes } from "node:crypto";
+import { readFileSync, writeFileSync, mkdirSync } from "node:fs";
+import { randomBytes, scryptSync, timingSafeEqual } from "node:crypto";
 import { DatabaseSync } from "node:sqlite";
+import { trend } from "./public/progress.js";
 
 const DATA = process.env.DATA_DIR ?? (process.env.FLY_APP_NAME ? "/data" : "./data");
-mkdirSync(DATA, { recursive: true });
+const UPLOADS = `${DATA}/uploads`;
+mkdirSync(UPLOADS, { recursive: true });
 const db = new DatabaseSync(`${DATA}/app.db`);
 db.exec(`
   PRAGMA journal_mode = WAL;
@@ -39,7 +41,8 @@ db.exec(`
   );
 `);
 // Added after the first deploy; SQLite has no ADD COLUMN IF NOT EXISTS.
-if (!db.prepare("SELECT 1 FROM pragma_table_info('exercises') WHERE name = 'rest_seconds'").get())
+const hasColumn = (table, col) => db.prepare(`SELECT 1 FROM pragma_table_info('${table}') WHERE name = ?`).get(col);
+if (!hasColumn("exercises", "rest_seconds"))
   db.exec("ALTER TABLE exercises ADD COLUMN rest_seconds INTEGER NOT NULL DEFAULT 90");
 
 // A session is one workout: the client picks a day, logs sets, then finishes
@@ -53,8 +56,43 @@ db.exec(`
     finished_at TEXT
   );
 `);
-if (!db.prepare("SELECT 1 FROM pragma_table_info('set_logs') WHERE name = 'session_id'").get())
+if (!hasColumn("set_logs", "session_id"))
   db.exec("ALTER TABLE set_logs ADD COLUMN session_id INTEGER REFERENCES sessions(id) ON DELETE CASCADE");
+
+// Accounts sit on top of the links, they don't replace them: a link still
+// opens its program. docs/adr/0003-accounts.md says why.
+db.exec(`
+  CREATE TABLE IF NOT EXISTS users (
+    id INTEGER PRIMARY KEY,
+    email TEXT UNIQUE NOT NULL COLLATE NOCASE,
+    name TEXT NOT NULL,
+    role TEXT NOT NULL CHECK (role IN ('pt', 'client')),
+    pass TEXT NOT NULL,
+    created_at TEXT NOT NULL DEFAULT (datetime('now'))
+  );
+  CREATE TABLE IF NOT EXISTS logins (
+    token TEXT PRIMARY KEY,
+    user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    created_at TEXT NOT NULL DEFAULT (datetime('now'))
+  );
+  CREATE TABLE IF NOT EXISTS messages (
+    id INTEGER PRIMARY KEY,
+    pt_id INTEGER NOT NULL REFERENCES users(id),
+    client_id INTEGER NOT NULL REFERENCES users(id),
+    sender_id INTEGER NOT NULL REFERENCES users(id),
+    body TEXT NOT NULL DEFAULT '',
+    image TEXT,
+    created_at TEXT NOT NULL DEFAULT (datetime('now'))
+  );
+  CREATE TABLE IF NOT EXISTS reads (
+    user_id INTEGER NOT NULL,
+    other_id INTEGER NOT NULL,
+    last_id INTEGER NOT NULL,
+    PRIMARY KEY (user_id, other_id)
+  );
+`);
+for (const col of ["pt_user_id", "client_user_id"])
+  if (!hasColumn("programs", col)) db.exec(`ALTER TABLE programs ADD COLUMN ${col} INTEGER REFERENCES users(id)`);
 
 // Who did what, kept for good: flyctl logs only holds the last little while.
 // docs/adr/0002-who-can-do-what.md says why it looks like this.
@@ -73,43 +111,99 @@ db.exec(`
 const insertEvent = db.prepare("INSERT INTO events (at, program_id, role, who, action, status, line) VALUES (?,?,?,?,?,?,?)");
 
 // One readable line per event, e.g. `client "Jack" p3 logged Squat set 1: 5 x 100kg`.
-// Names, never tokens: the token is the password.
-function audit(found, action, status, detail) {
+// Names, never tokens or passwords. `who` comes from asProgram (someone on a
+// link, shown with the program id) or asUser (someone logged in, user id).
+function audit(who, action, status, detail) {
   const at = new Date().toISOString().slice(0, 19) + "Z";
-  const p = found?.program;
-  const role = found?.role ?? null;
-  const who = p ? (role === "pt" ? p.pt_name : p.client_name) : null;
-  const actor = p ? `${role} ${JSON.stringify(who)} p${p.id}` : "unknown link";
+  const actor = who ? `${who.role} ${JSON.stringify(who.name)} ${who.program_id ? `p${who.program_id}` : `u${who.user_id}`}` : "unknown visitor";
   const line = `${at} ${actor} ${status >= 400 ? `DENIED ${action} (${status} ${detail})` : detail}`;
   console.log(line);
-  insertEvent.run(at, p?.id ?? null, role, who, action, status, line);
+  insertEvent.run(at, who?.program_id ?? null, who?.role ?? null, who?.name ?? null, action, status, line);
+}
+const asProgram = (found) =>
+  found && { role: found.role, name: found.role === "pt" ? found.program.pt_name : found.program.client_name, program_id: found.program.id };
+const asUser = (u) => u && { role: u.role, name: u.name, user_id: u.id };
+
+// Live updates over server-sent events. A browser on a program link hears
+// about that program; a logged-in browser hears about its programs and chats.
+// ponytail: subscribers live in memory, fine on one Fly machine; a second
+// machine needs a shared bus (or SQLite polling) behind push().
+const subs = new Set();
+function stream(req, res, sub) {
+  res.writeHead(200, { "content-type": "text/event-stream", "cache-control": "no-cache", connection: "keep-alive" });
+  res.write(": open\n\n");
+  const s = { res, ...sub };
+  subs.add(s);
+  const beat = setInterval(() => res.write(": beat\n\n"), 25000); // Fly's proxy drops idle connections
+  req.on("close", () => { clearInterval(beat); subs.delete(s); });
+}
+function push(type, { programId = null, users = [] }) {
+  const msg = `data: ${JSON.stringify({ type, programId })}\n\n`;
+  for (const s of subs) if ((programId && s.programId === programId) || users.includes(s.userId)) s.res.write(msg);
 }
 
 const page = (f) => readFileSync(new URL(`./public/${f}`, import.meta.url));
 const esc = (s) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 const token = () => randomBytes(12).toString("base64url");
+const utc = (t) => new Date(t.replace(" ", "T") + "Z");
 
 function send(res, status, body, type = "application/json") {
   res.writeHead(status, { "content-type": `${type}; charset=utf-8` });
   res.end(type === "application/json" ? JSON.stringify(body) : body);
 }
 
-async function readJson(req) {
-  let raw = "";
+async function readRaw(req, max) {
+  const chunks = [];
+  let size = 0;
   for await (const chunk of req) {
-    raw += chunk;
-    if (raw.length > 100_000) throw new Error("too large");
+    size += chunk.length;
+    if (size > max) throw new Error("too large");
+    chunks.push(chunk);
   }
-  return JSON.parse(raw);
+  return Buffer.concat(chunks);
 }
+const readJson = async (req) => JSON.parse((await readRaw(req, 100_000)).toString() || "{}");
 
 const str = (v, max = 200) => (typeof v === "string" && v.trim() ? v.trim().slice(0, max) : null);
+const EMAIL = /^\S+@\S+\.\S+$/;
 
-function createProgram(body) {
-  const title = str(body.title), pt = str(body.pt_name), client = str(body.client_name);
+// Passwords: scrypt from node:crypto, salted per user.
+// ponytail: no login rate limit; add one per email if anyone starts guessing.
+const hashPw = (pw, salt = randomBytes(16).toString("hex")) => `${salt}:${scryptSync(pw, salt, 64).toString("hex")}`;
+function pwOk(pw, stored) {
+  const [salt, hash] = stored.split(":");
+  return timingSafeEqual(Buffer.from(hash, "hex"), scryptSync(String(pw), salt, 64));
+}
+
+function currentUser(req) {
+  const sid = /(?:^|;\s*)sid=([\w-]+)/.exec(req.headers.cookie ?? "")?.[1];
+  if (!sid) return null;
+  return db.prepare("SELECT u.id, u.email, u.name, u.role FROM logins l JOIN users u ON u.id = l.user_id WHERE l.token = ?").get(sid) ?? null;
+}
+function startLogin(res, user) {
+  const t = token();
+  db.prepare("INSERT INTO logins (token, user_id) VALUES (?, ?)").run(t, user.id);
+  const secure = process.env.FLY_APP_NAME ? "; Secure" : "";
+  res.setHeader("set-cookie", `sid=${t}; Path=/; HttpOnly; SameSite=Lax; Max-Age=${90 * 86400}${secure}`);
+}
+function addUser(name, email, role, password) {
+  const { lastInsertRowid: id } = db.prepare("INSERT INTO users (email, name, role, pass) VALUES (?,?,?,?)").run(email, name, role, hashPw(password));
+  return { id: Number(id), email, name, role };
+}
+
+// A PT and a client can message each other once a program links both accounts.
+const paired = (pt, client) => !!db.prepare("SELECT 1 FROM programs WHERE pt_user_id = ? AND client_user_id = ?").get(pt, client);
+function unread(me, other) {
+  const last = db.prepare("SELECT last_id FROM reads WHERE user_id = ? AND other_id = ?").get(me, other)?.last_id ?? 0;
+  return db.prepare("SELECT count(*) n FROM messages WHERE ((pt_id = ? AND client_id = ?) OR (pt_id = ? AND client_id = ?)) AND sender_id = ? AND id > ?")
+    .get(me, other, other, me, other, last).n;
+}
+
+function createProgram(body, pt) {
+  const title = str(body.title), client = str(body.client_name);
   const email = str(body.client_email);
   const exercises = Array.isArray(body.exercises) ? body.exercises : [];
-  if (!title || !pt || !client || !email || !/^\S+@\S+\.\S+$/.test(email)) return null;
+  if (!title || !client || !email || !EMAIL.test(email)) return null;
   const clean = exercises
     .map((e) => ({
       day: str(e.day, 60) ?? "Day 1",
@@ -126,8 +220,8 @@ function createProgram(body) {
   db.exec("BEGIN");
   try {
     const { lastInsertRowid: id } = db
-      .prepare("INSERT INTO programs (pt_token, client_token, title, pt_name, client_name, client_email) VALUES (?,?,?,?,?,?)")
-      .run(ptToken, clientToken, title, pt, client, email);
+      .prepare("INSERT INTO programs (pt_token, client_token, title, pt_name, client_name, client_email, pt_user_id) VALUES (?,?,?,?,?,?,?)")
+      .run(ptToken, clientToken, title, pt.name, client, email, pt.id);
     const ins = db.prepare("INSERT INTO exercises (program_id, day, position, name, sets, reps, notes, rest_seconds) VALUES (?,?,?,?,?,?,?,?)");
     clean.forEach((e, i) => ins.run(id, e.day, i, e.name, e.sets, e.reps, e.notes, e.rest));
     db.exec("COMMIT");
@@ -150,8 +244,12 @@ function findProgram(tok) {
   const sessions = db.prepare("SELECT * FROM sessions WHERE program_id = ? ORDER BY started_at, id").all(p.id);
   return {
     role,
-    program: { id: p.id, title: p.title, pt_name: p.pt_name, client_name: p.client_name, client_email: p.client_email, created_at: p.created_at },
+    program: {
+      id: p.id, title: p.title, pt_name: p.pt_name, client_name: p.client_name, client_email: p.client_email, created_at: p.created_at,
+      pt_user_id: p.pt_user_id, client_user_id: p.client_user_id,
+    },
     client_token: role === "pt" ? p.client_token : undefined,
+    claimed: !!(role === "pt" ? p.pt_user_id : p.client_user_id),
     exercises,
     logs,
     sessions,
@@ -159,53 +257,237 @@ function findProgram(tok) {
   };
 }
 
+// One client's row on the PT dashboard: when they last trained, what they've
+// done in the last 7 days against the program, and which lifts are moving.
+function dashRow(p) {
+  const f = findProgram(p.pt_token);
+  const done = f.sessions.filter((s) => s.finished_at);
+  const last = done.at(-1)?.started_at ?? f.logs.at(-1)?.logged_at ?? null;
+  const weekAgo = Date.now() - 7 * 864e5;
+  const bySession = (exId) => {
+    const m = new Map();
+    for (const l of f.logs.filter((l) => l.exercise_id === exId)) {
+      const k = l.session_id ?? l.logged_at.slice(0, 10);
+      m.set(k, [...(m.get(k) ?? []), l]);
+    }
+    return [...m.values()];
+  };
+  return {
+    program_id: f.program.id,
+    title: f.program.title,
+    pt_token: p.pt_token,
+    client_name: f.program.client_name,
+    client_user_id: p.client_user_id,
+    last_workout: last,
+    in_progress: f.open_session?.day ?? null,
+    days: [...new Set(f.exercises.map((e) => e.day))],
+    week: done.filter((s) => utc(s.started_at) >= weekAgo).map((s) => ({ day: s.day, at: s.started_at })),
+    recent: done.slice(-5).reverse().map((s) => ({ day: s.day, at: s.started_at, sets: f.logs.filter((l) => l.session_id === s.id).length })),
+    lifts: f.exercises.map((e) => ({ id: e.id, name: e.name, day: e.day, status: trend(e.reps, bySession(e.id)) })),
+    unread: p.client_user_id ? unread(p.pt_user_id, p.client_user_id) : 0,
+  };
+}
+
+// Images people send in chat. Checked by their first bytes, not by what the
+// browser says they are.
+const IMAGE_TYPES = [
+  ["jpg", (b) => b[0] === 0xff && b[1] === 0xd8 && b[2] === 0xff],
+  ["png", (b) => b.subarray(0, 4).toString("hex") === "89504e47"],
+  ["gif", (b) => b.subarray(0, 3).toString() === "GIF"],
+  ["webp", (b) => b.subarray(0, 4).toString() === "RIFF" && b.subarray(8, 12).toString() === "WEBP"],
+];
+const MIME = { jpg: "image/jpeg", png: "image/png", gif: "image/gif", webp: "image/webp" };
+
+const PAGES = { "/": "landing.html", "/login": "login.html", "/new": "new.html", "/dash": "dash.html", "/me": "me.html" };
+const STATIC = { "/style.css": "text/css", "/view.js": "text/javascript", "/ui.js": "text/javascript", "/progress.js": "text/javascript" };
+
 const server = createServer(async (req, res) => {
   const url = new URL(req.url, "http://x");
   const path = url.pathname;
   try {
-    if (req.method === "GET" && path === "/") return send(res, 200, page("index.html"), "text/html");
+    if (req.method === "GET" && PAGES[path]) return send(res, 200, page(PAGES[path]), "text/html");
+    if (req.method === "GET" && STATIC[path]) return send(res, 200, page(path.slice(1)), STATIC[path]);
     if (req.method === "GET" && (path === "/readme" || path === "/readme/")) {
       // ponytail: README served verbatim in <pre>; render markdown properly if it starts to matter
       const md = esc(readFileSync(new URL("./README.md", import.meta.url), "utf8"));
       return send(res, 200, page("readme.html").toString().replace("@README@", md), "text/html");
     }
     if (req.method === "GET" && /^\/p\/[\w-]+$/.test(path)) return send(res, 200, page("program.html"), "text/html");
-    if (req.method === "GET" && path === "/style.css") return send(res, 200, page("style.css"), "text/css");
+    if (req.method === "GET" && /^\/chat\/\d+$/.test(path)) return send(res, 200, page("chat.html"), "text/html");
     if (req.method === "GET" && /^\/fonts\/[\w-]+\.woff2$/.test(path)) {
       res.writeHead(200, { "content-type": "font/woff2", "cache-control": "public, max-age=31536000, immutable" });
       return res.end(page(path.slice(1)));
     }
-    if (req.method === "GET" && path === "/view.js") return send(res, 200, page("view.js"), "text/javascript");
 
+    const me = currentUser(req);
+
+    // ---------- accounts ----------
+    if (req.method === "POST" && path === "/api/signup") {
+      const b = await readJson(req);
+      const name = str(b.name, 80), email = str(b.email);
+      if (!name || !email || !EMAIL.test(email)) return send(res, 400, { error: "Need your name and a valid email." });
+      if (String(b.password ?? "").length < 8) return send(res, 400, { error: "Pick a password of at least 8 characters." });
+      if (db.prepare("SELECT 1 FROM users WHERE email = ?").get(email)) {
+        audit(null, "signup", 409, "email already has an account");
+        return send(res, 409, { error: "That email already has an account. Log in instead." });
+      }
+      const u = addUser(name, email, "pt", b.password);
+      startLogin(res, u);
+      audit(asUser(u), "signup", 201, "signed up as a PT");
+      return send(res, 201, { role: u.role, next: "/dash" });
+    }
+    if (req.method === "POST" && path === "/api/login") {
+      const b = await readJson(req);
+      const u = db.prepare("SELECT * FROM users WHERE email = ?").get(String(b.email ?? "").trim());
+      if (!u || !pwOk(b.password ?? "", u.pass)) {
+        audit(null, "login", 401, "wrong email or password");
+        return send(res, 401, { error: "Wrong email or password." });
+      }
+      startLogin(res, u);
+      audit(asUser(u), "login", 200, "logged in");
+      return send(res, 200, { role: u.role, next: u.role === "pt" ? "/dash" : "/me" });
+    }
+    if (req.method === "POST" && path === "/api/logout") {
+      const sid = /(?:^|;\s*)sid=([\w-]+)/.exec(req.headers.cookie ?? "")?.[1];
+      if (sid) db.prepare("DELETE FROM logins WHERE token = ?").run(sid);
+      if (me) audit(asUser(me), "logout", 200, "logged out");
+      res.setHeader("set-cookie", "sid=; Path=/; HttpOnly; SameSite=Lax; Max-Age=0");
+      return send(res, 200, {});
+    }
+    if (req.method === "GET" && path === "/api/me") {
+      if (!me) return send(res, 401, { error: "Not logged in." });
+      if (me.role === "pt") return send(res, 200, { me });
+      const programs = db
+        .prepare("SELECT title, client_token, pt_name, pt_user_id FROM programs WHERE client_user_id = ? ORDER BY id DESC")
+        .all(me.id);
+      const pts = [...new Map(programs.filter((p) => p.pt_user_id).map((p) => [p.pt_user_id, p.pt_name])).entries()]
+        .map(([id, name]) => ({ id, name, unread: unread(me.id, id) }));
+      return send(res, 200, { me, programs, pts });
+    }
+    if (req.method === "GET" && path === "/api/events") {
+      if (!me) return send(res, 401, { error: "Not logged in." });
+      return stream(req, res, { userId: me.id });
+    }
+
+    // ---------- PT dashboard ----------
+    if (req.method === "GET" && path === "/api/dash") {
+      if (me?.role !== "pt") return send(res, 401, { error: "Log in as a PT to see your dashboard." });
+      audit(asUser(me), "dash", 200, "opened dashboard");
+      const rows = db.prepare("SELECT * FROM programs WHERE pt_user_id = ? ORDER BY id").all(me.id).map(dashRow);
+      // Whoever has gone longest without training comes first.
+      rows.sort((a, b) => (a.last_workout ?? "").localeCompare(b.last_workout ?? ""));
+      return send(res, 200, { me, clients: rows });
+    }
+
+    // ---------- chat ----------
+    const cm = path.match(/^\/api\/chat\/(\d+)(\/image)?$/);
+    if (cm) {
+      const other = Number(cm[1]);
+      const [pt, client] = me?.role === "pt" ? [me.id, other] : [other, me?.id];
+      if (!me || !paired(pt, client)) {
+        audit(asUser(me), "chat", 404, "no conversation with that person");
+        return send(res, 404, { error: "No conversation with that person." });
+      }
+      const otherUser = db.prepare("SELECT id, name, role FROM users WHERE id = ?").get(other);
+      if (req.method === "GET" && !cm[2]) {
+        const messages = db
+          .prepare("SELECT id, sender_id, body, image, created_at FROM messages WHERE pt_id = ? AND client_id = ? ORDER BY id")
+          .all(pt, client);
+        if (messages.length)
+          db.prepare("INSERT INTO reads (user_id, other_id, last_id) VALUES (?,?,?) ON CONFLICT DO UPDATE SET last_id = excluded.last_id")
+            .run(me.id, other, messages.at(-1).id);
+        return send(res, 200, { me, other: otherUser, messages });
+      }
+      if (req.method === "POST") {
+        let body = "", image = null;
+        if (cm[2]) {
+          const buf = await readRaw(req, 5_000_000);
+          const ext = IMAGE_TYPES.find(([, is]) => buf.length > 12 && is(buf))?.[0];
+          if (!ext) return send(res, 400, { error: "That isn't a photo we can show." });
+          image = `${token()}.${ext}`;
+          writeFileSync(`${UPLOADS}/${image}`, buf);
+        } else {
+          body = str((await readJson(req)).body, 2000);
+          if (!body) return send(res, 400, { error: "Type a message first." });
+        }
+        db.prepare("INSERT INTO messages (pt_id, client_id, sender_id, body, image) VALUES (?,?,?,?,?)").run(pt, client, me.id, body ?? "", image);
+        audit(asUser(me), "message", 201, `sent ${image ? "a photo" : "a message"} to ${JSON.stringify(otherUser.name)}`);
+        push("chat", { users: [pt, client] });
+        return send(res, 201, {});
+      }
+    }
+    const im = path.match(/^\/api\/img\/([\w-]+\.(?:jpg|png|gif|webp))$/);
+    if (req.method === "GET" && im) {
+      const ok = me && db.prepare("SELECT 1 FROM messages WHERE image = ? AND (pt_id = ? OR client_id = ?)").get(im[1], me.id, me.id);
+      if (!ok) return send(res, 404, "Not found", "text/plain");
+      res.writeHead(200, { "content-type": MIME[im[1].split(".").pop()], "cache-control": "private, max-age=31536000, immutable" });
+      return res.end(readFileSync(`${UPLOADS}/${im[1]}`));
+    }
+
+    // ---------- programs ----------
     if (req.method === "POST" && path === "/api/programs") {
-      const made = createProgram(await readJson(req));
-      if (!made) return send(res, 400, { error: "Need a title, both names, a valid email and at least one exercise." });
+      if (me?.role !== "pt") return send(res, 401, { error: "Log in as a PT to write a program." });
+      const made = createProgram(await readJson(req), me);
+      if (!made) return send(res, 400, { error: "Need a title, the client's name, a valid email and at least one exercise." });
       const found = findProgram(made.ptToken);
-      audit(found, "create", 201, `created program ${JSON.stringify(found.program.title)} for ${JSON.stringify(found.program.client_name)}`);
+      audit(asProgram(found), "create", 201, `created program ${JSON.stringify(found.program.title)} for ${JSON.stringify(found.program.client_name)}`);
       return send(res, 201, made);
     }
 
-    const m = path.match(/^\/api\/p\/([\w-]+)(?:\/(log|unlog|remove|start|finish|discard))?$/);
+    const m = path.match(/^\/api\/p\/([\w-]+)(?:\/(log|unlog|remove|start|finish|discard|claim|events))?$/);
     if (m) {
       const found = findProgram(m[1]);
       const action = m[2] ?? "open";
-      const deny = (status, error) => (audit(found, action, status, error), send(res, status, { error }));
+      // Claiming is done by whoever is logged in, not by the link's owner.
+      const who = () => (action === "claim" && me ? asUser(me) : asProgram(found));
+      const deny = (status, error) => (audit(who(), action, status, error), send(res, status, { error }));
       if (!found) return deny(404, "No program at this link.");
+      if (req.method === "GET" && m[2] === "events") return stream(req, res, { programId: found.program.id });
       if (req.method === "GET" && !m[2]) {
-        audit(found, "open", 200, "opened program");
+        audit(asProgram(found), "open", 200, "opened program");
         return send(res, 200, found);
       }
       if (req.method === "POST" && m[2]) {
-        if (found.role !== "client") return deny(403, "Only the client logs sets.");
         const b = await readJson(req);
+        const p = found.program;
+        const done = (detail, status = 200) => {
+          audit(who(), action, status, detail);
+          push("program", { programId: p.id, users: [p.pt_user_id, p.client_user_id].filter(Boolean) });
+          return send(res, status, findProgram(m[1]));
+        };
+
+        // Claiming ties a link to an account. The PT link joins the logged-in
+        // PT's dashboard. The client link makes (or logs into) the client's
+        // account, under the email the PT wrote the program for.
+        if (m[2] === "claim") {
+          if (found.role === "pt") {
+            if (me?.role !== "pt") return deny(401, "Log in as a PT to add this to your dashboard.");
+            if (p.pt_user_id && p.pt_user_id !== me.id) return deny(409, "This program is on another PT's dashboard.");
+            db.prepare("UPDATE programs SET pt_user_id = ? WHERE id = ?").run(me.id, p.id);
+            return done(`added it to ${JSON.stringify(me.name)}'s dashboard`);
+          }
+          if (p.client_user_id) return deny(409, "This program already has an account. Log in instead.");
+          let u = db.prepare("SELECT * FROM users WHERE email = ?").get(p.client_email);
+          if (u) {
+            if (u.role !== "client" || (me?.id !== u.id && !pwOk(b.password ?? "", u.pass)))
+              return deny(403, `Wrong password for ${p.client_email}.`);
+          } else {
+            if (String(b.password ?? "").length < 8) return deny(400, "Pick a password of at least 8 characters.");
+            u = addUser(p.client_name, p.client_email, "client", b.password);
+          }
+          db.prepare("UPDATE programs SET client_user_id = ? WHERE id = ?").run(u.id, p.id);
+          startLogin(res, u);
+          return done("set up their account");
+        }
+
+        if (found.role !== "client") return deny(403, "Only the client logs sets.");
         const open = found.open_session;
-        const done = (detail, status = 200) => (audit(found, action, status, detail), send(res, status, findProgram(m[1])));
         const exName = (id) => found.exercises.find((e) => e.id === id)?.name ?? `exercise ${id}`;
 
         if (m[2] === "start") {
           if (open) return deny(409, "Finish or discard the workout you've already started.");
           if (!found.exercises.some((e) => e.day === b.day)) return deny(400, "No such workout.");
-          db.prepare("INSERT INTO sessions (program_id, day) VALUES (?, ?)").run(found.program.id, b.day);
+          db.prepare("INSERT INTO sessions (program_id, day) VALUES (?, ?)").run(p.id, b.day);
           return done(`started ${JSON.stringify(b.day)}`, 201);
         }
         if (!open) return deny(409, "Start a workout first.");
@@ -253,7 +535,7 @@ const server = createServer(async (req, res) => {
     send(res, 404, "Not found", "text/plain");
   } catch (err) {
     console.error(err);
-    send(res, 400, { error: "Bad request." });
+    if (!res.headersSent) send(res, 400, { error: "Bad request." });
   }
 });
 

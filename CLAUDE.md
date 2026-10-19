@@ -7,7 +7,11 @@ client on a phone mid-workout, the PT at a desk. These rules follow from that.
 ## Never
 
 - Never let the PT link log or change a client's sets, and never put the PT
-  link in anything the client link returns. `spec/programs.test.ts` checks both.
+  link in anything the client link or a client login returns.
+  `spec/programs.test.ts` checks both.
+- Never show a PT another PT's clients, and never let anyone but the PT and
+  client a program links read their chat or its photos. The spec checks the
+  dashboard and the chat.
 - Never delete or rewrite logged sets as a side effect. A set goes away only
   when the client removes it.
 - Never put a link token in a log line. Every API action and refusal goes
@@ -15,6 +19,13 @@ client on a phone mid-workout, the PT at a desk. These rules follow from that.
   (`docs/adr/0002-who-can-do-what.md`).
 - Never add a dependency without a decision record in `docs/adr/`. The stack is
   Node built-ins and SQLite on purpose (`docs/adr/0001-stack.md`).
+
+## Who's on what screen
+
+For now the PT only uses a desktop and the client only uses a phone. Design and
+check PT pages (dashboard, builder, PT program view) at desktop width, and
+client pages (program, my programs, chat) at phone width (390px). Don't spend
+effort making PT pages fit a phone.
 
 ## Every client page
 
@@ -32,7 +43,8 @@ client on a phone mid-workout, the PT at a desk. These rules follow from that.
 
 - Run the app (`node server.js`), then `pnpm check`. Both must pass before a
   commit.
-- Look at the changed page at phone and desktop width before calling it done.
+- Look at the changed page at its width (see "Who's on what screen") before
+  calling it done.
 - Schema changes are additive: add columns with a guarded `ALTER TABLE` in
   `server.js`, never drop data on the volume.
 - When the agent gets something wrong, the fix goes into this file or `spec/`,

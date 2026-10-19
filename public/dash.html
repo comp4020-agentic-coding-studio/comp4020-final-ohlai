@@ -1,0 +1,118 @@
+<!doctype html>
+<html lang="en-AU" data-style="mono">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Your clients</title>
+  <link rel="stylesheet" href="/style.css" />
+</head>
+<body data-default-view="desktop">
+<main>
+  <div class="topbar">
+    <h1 id="hi">Your clients</h1>
+    <a href="/new" class="btn primary newbtn">New program</a>
+    <span class="toggles">
+      <button type="button" class="view-toggle"></button>
+      <button type="button" id="logout">Log out</button>
+    </span>
+  </div>
+  <div class="stats dashstats" id="stats"></div>
+  <div id="clients" class="clients"></div>
+  <p class="muted">Got a program from before you had an account? Open its PT link while you're logged in
+    and add it here.</p>
+  <p id="err" class="error" role="alert"></p>
+</main>
+
+<script src="/view.js"></script>
+<script type="module">
+  import { $, el, api, ago, fmtDay, utc, logout, toLogin, live } from "/ui.js";
+  $("logout").onclick = logout;
+
+  const STATUS = { up: "Moving up", stalled: "Stalled", steady: "Steady", new: "Too early" };
+  const opened = new Set(); // which clients are expanded, kept across live refreshes
+
+  async function load() {
+    const [data, ok] = await api("/api/dash");
+    if (!ok) return toLogin();
+    $("hi").textContent = `${data.me.name}'s clients`;
+    const c = data.clients;
+    const quiet = c.filter((x) => !x.last_workout || Date.now() - utc(x.last_workout) > 7 * 864e5).length;
+    $("stats").replaceChildren(...[
+      ["Clients", c.length],
+      ["Trained in the last 7 days", c.filter((x) => x.week.length).length],
+      ["Gone quiet (7+ days)", quiet],
+      ["Unread messages", c.reduce((s, x) => s + x.unread, 0)],
+    ].map(([k, v]) => el("div", {}, el("small", { textContent: k }), el("strong", { textContent: v }))));
+
+    $("clients").replaceChildren(...(c.length ? c.map(clientRow) : [
+      el("div", { className: "card empty" },
+        el("h2", { textContent: "No clients yet" }),
+        el("p", { className: "muted", textContent: "Write a program and send your client the link. They show up here." }),
+        el("a", { href: "/new", className: "btn primary", textContent: "Write a program" })),
+    ]));
+  }
+
+  function clientRow(x) {
+    const count = (s) => x.lifts.filter((l) => l.status === s).length;
+    const doneDays = new Set(x.week.map((w) => w.day));
+    const quiet = !x.last_workout || Date.now() - utc(x.last_workout) > 7 * 864e5;
+
+    const summary = el("summary", {},
+      el("span", { className: "who" },
+        el("strong", { textContent: x.client_name }),
+        el("span", { className: "muted", textContent: x.title })),
+      el("span", { className: "cell" },
+        el("small", { textContent: "Last workout" }),
+        el("span", { className: quiet ? "flag" : "", textContent: x.in_progress ? `Training now (${x.in_progress})` : ago(x.last_workout) })),
+      el("span", { className: "cell" },
+        el("small", { textContent: "Last 7 days" }),
+        el("span", { textContent: `${x.week.length} of ${x.days.length}` },
+          el("span", { className: "dots", ariaHidden: "true" },
+            ...x.days.map((d) => el("i", { className: doneDays.has(d) ? "on" : "", title: d }))))),
+      el("span", { className: "cell" },
+        el("small", { textContent: "Lifts" }),
+        el("span", {},
+          el("span", { className: count("up") ? "up" : "", textContent: `${count("up")} up` }), " · ",
+          el("span", { className: count("stalled") ? "flag" : "", textContent: `${count("stalled")} stalled` }))),
+      el("span", { className: "cell" },
+        el("small", { textContent: "Messages" }),
+        x.unread ? el("span", { className: "badge", textContent: `${x.unread} new` }) : el("span", { className: "muted", textContent: "None new" })));
+
+    // The detail behind each number in the summary.
+    const lifts = (s) => x.lifts.filter((l) => l.status === s);
+    const liftList = (s) => lifts(s).length ? el("div", {},
+      el("h4", { textContent: STATUS[s] }),
+      el("ul", { className: "plain" }, ...lifts(s).map((l) =>
+        el("li", {}, el("a", { href: `/p/${x.pt_token}#ex-${l.id}`, textContent: l.name }), el("span", { className: "muted", textContent: ` ${l.day}` }))))) : null;
+
+    const details = el("details", { className: "card client", open: opened.has(x.program_id),
+      ontoggle: (e) => (e.target.open ? opened.add(x.program_id) : opened.delete(x.program_id)) },
+      summary,
+      el("div", { className: "more" },
+        el("section", {},
+          el("h3", { textContent: "Last 7 days" }),
+          el("ul", { className: "plain" }, ...x.days.map((d) => {
+            const w = x.week.filter((s) => s.day === d).at(-1);
+            return el("li", {}, el("span", { textContent: d }), el("span", { className: w ? "" : "muted", textContent: w ? ` done ${fmtDay(utc(w.at))}` : " not yet" }));
+          })),
+          el("h3", { textContent: "Recent workouts" }),
+          x.recent.length ? el("ul", { className: "plain" }, ...x.recent.map((r) =>
+            el("li", {}, `${r.day} · ${fmtDay(utc(r.at))}`, el("span", { className: "muted", textContent: ` ${r.sets} sets` }))))
+            : el("p", { className: "muted", textContent: "Nothing logged yet." })),
+        el("section", {},
+          el("h3", { textContent: "Lifts" }),
+          el("p", { className: "muted", textContent: "Click a lift to see its progress chart." }),
+          liftList("stalled"), liftList("up"), liftList("steady"), liftList("new")),
+        el("div", { className: "actions" },
+          el("a", { href: `/p/${x.pt_token}`, className: "btn primary", textContent: "Open program" }),
+          x.client_user_id
+            ? el("a", { href: `/chat/${x.client_user_id}`, className: "btn", textContent: `Message ${x.client_name}${x.unread ? ` (${x.unread} new)` : ""}` })
+            : el("span", { className: "muted", textContent: `Chat opens once ${x.client_name} sets a password from their link.` }))));
+    return details;
+  }
+
+  load();
+  live("/api/events", load);
+</script>
+</body>
+</html>

@@ -1,0 +1,47 @@
+<!doctype html>
+<html lang="en-AU" data-style="mono">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>My programs</title>
+  <link rel="stylesheet" href="/style.css" />
+</head>
+<body data-default-view="mobile">
+<main>
+  <div class="topbar">
+    <h1 id="hi">My programs</h1>
+    <span class="toggles">
+      <button type="button" class="view-toggle"></button>
+      <button type="button" id="logout">Log out</button>
+    </span>
+  </div>
+  <div id="programs"></div>
+  <h2>Messages</h2>
+  <div id="pts"></div>
+</main>
+
+<script src="/view.js"></script>
+<script type="module">
+  import { $, el, api, logout, toLogin, live } from "/ui.js";
+  $("logout").onclick = logout;
+
+  async function load() {
+    const [data, ok] = await api("/api/me");
+    if (!ok) return toLogin();
+    if (data.me.role === "pt") return (location.href = "/dash");
+    $("hi").textContent = `Hi ${data.me.name}`;
+    $("programs").replaceChildren(...data.programs.map((p) =>
+      el("a", { href: `/p/${p.client_token}`, className: "card link" },
+        el("strong", { textContent: p.title }),
+        el("span", { className: "muted", textContent: `From ${p.pt_name}` }))));
+    $("pts").replaceChildren(...(data.pts.length ? data.pts.map((pt) =>
+      el("a", { href: `/chat/${pt.id}`, className: "card link" },
+        el("strong", { textContent: pt.name }),
+        pt.unread ? el("span", { className: "badge", textContent: `${pt.unread} new` }) : el("span", { className: "muted", textContent: "Ask about your program" })))
+      : [el("p", { className: "muted", textContent: "Your PT hasn't set up their account yet, so there's no one to message." })]));
+  }
+  load();
+  live("/api/events", load);
+</script>
+</body>
+</html>

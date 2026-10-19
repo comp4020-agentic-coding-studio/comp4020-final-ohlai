@@ -1,0 +1,72 @@
+<!doctype html>
+<html lang="en-AU" data-style="mono">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Log in</title>
+  <link rel="stylesheet" href="/style.css" />
+</head>
+<body class="landing">
+<header class="site"><a href="/" class="brand">Program</a></header>
+<main class="narrow">
+  <div class="tabs" role="group" aria-label="Log in or sign up">
+    <button type="button" id="tabLogin" aria-pressed="true">Log in</button>
+    <button type="button" id="tabSignup" aria-pressed="false">Sign up as a PT</button>
+  </div>
+
+  <form id="login" class="card">
+    <h1>Log in</h1>
+    <p class="muted">PTs and clients both log in here.</p>
+    <label for="lEmail">Email</label>
+    <input id="lEmail" type="email" autocomplete="email" required />
+    <label for="lPass">Password</label>
+    <input id="lPass" type="password" autocomplete="current-password" required />
+    <button class="primary wide" type="submit">Log in</button>
+    <p class="muted">Client without a password yet? Open the link your PT sent you and set one there.</p>
+  </form>
+
+  <form id="signup" class="card" hidden>
+    <h1>Sign up as a PT</h1>
+    <p class="muted">Clients don't sign up here. They get a link from you.</p>
+    <label for="sName">Your name</label>
+    <input id="sName" autocomplete="name" required />
+    <label for="sEmail">Email</label>
+    <input id="sEmail" type="email" autocomplete="email" required />
+    <label for="sPass">Password</label>
+    <input id="sPass" type="password" autocomplete="new-password" minlength="8" required />
+    <button class="primary wide" type="submit">Sign up</button>
+  </form>
+
+  <p id="err" class="error" role="alert"></p>
+</main>
+
+<script type="module">
+  import { api, $ } from "/ui.js";
+  const next = new URLSearchParams(location.search).get("next");
+  const safeNext = next?.startsWith("/") && !next.startsWith("//") ? next : null; // only back into this site
+
+  function show(signup) {
+    $("login").hidden = signup;
+    $("signup").hidden = !signup;
+    $("tabLogin").ariaPressed = String(!signup);
+    $("tabSignup").ariaPressed = String(signup);
+    document.title = signup ? "Sign up" : "Log in";
+    $("err").textContent = "";
+  }
+  $("tabLogin").onclick = () => { history.replaceState(null, "", "#"); show(false); };
+  $("tabSignup").onclick = () => { history.replaceState(null, "", "#signup"); show(true); };
+  show(location.hash === "#signup");
+
+  async function submit(path, body) {
+    const [data, ok] = await api(path, body);
+    if (!ok) return ($("err").textContent = data.error);
+    location.href = safeNext ?? data.next;
+  }
+  $("login").onsubmit = (e) => { e.preventDefault(); submit("/api/login", { email: $("lEmail").value, password: $("lPass").value }); };
+  $("signup").onsubmit = (e) => {
+    e.preventDefault();
+    submit("/api/signup", { name: $("sName").value, email: $("sEmail").value, password: $("sPass").value });
+  };
+</script>
+</body>
+</html>

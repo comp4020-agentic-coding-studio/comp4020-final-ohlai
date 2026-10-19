@@ -32,3 +32,30 @@ Full write-up in `docs/adr/0002-who-can-do-what.md`.
 - Dropped the classic/mono toggle and kept mono everywhere. The look comes from
   my Macros app (black and white, colour for data only). One style means one
   thing to design and check, and the toggle wasn't for either user.
+
+## 2026-10-19: Landing page, logins, PT dashboard, chat
+
+- **How logging in works.** Options: email + password with links still working,
+  email + password with links retired, or magic link by email. Picked the first.
+  Nobody has to sign up to start training, Jack's seeded links keep working, and
+  no email service. Asked whether "a private link is enough" was a course
+  requirement. It wasn't, it was my own call, and the spec leaves identity open.
+- **What the dashboard shows per client.** Picked who's gone quiet, the last 7
+  days against the program, and lifts moving up or stalled, each opening into
+  the detail. Instead of a live activity feed I asked for chat with the PT.
+- **Video calls.** Options: browser WebRTC with Google's free STUN server, a
+  hosted video service, or chat only for now. Picked chat only, with photos.
+  Video goes on the board.
+- **Chat shape.** Options: one thread per program, one per PT and client, or
+  live only. Picked one per PT and client, so it carries on across programs.
+- **Landing page audience.** PTs in general, with a small link for clients. The
+  niche is still open.
+- **Old programs.** Claimed by opening the PT link while logged in, nothing moved
+  automatically.
+- **Screens.** For now the PT only uses a desktop and the client only uses a
+  phone. PT pages don't need to fit a phone.
+- Claude's defaults, not asked: only a logged-in PT can write a program, the
+  dashboard counts the last 7 days rather than a calendar week, photos are
+  shrunk on the phone and capped at 5 MB.
+
+Write-up in `docs/adr/0003-accounts-and-chat.md`.

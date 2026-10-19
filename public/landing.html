@@ -1,0 +1,98 @@
+<!doctype html>
+<html lang="en-AU" data-style="mono">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Program: training programs your clients actually log</title>
+  <meta name="description" content="Write a training program, send your client one link, and see every set they lift as they log it." />
+  <link rel="stylesheet" href="/style.css" />
+</head>
+<body class="landing">
+<header class="site">
+  <a href="/" class="brand">Program</a>
+  <nav id="nav" aria-label="Account">
+    <a href="/login">Log in</a>
+    <a href="/login#signup" class="btn primary">Sign up</a>
+  </nav>
+</header>
+
+<main>
+  <section class="hero">
+    <div>
+      <p class="eyebrow">For personal trainers</p>
+      <h1>Write the program. Send the link. See what they actually lifted.</h1>
+      <p class="lede">Your clients log every set on their phone between sets. You see it land on your
+        dashboard, instead of whatever they remember by Friday.</p>
+      <div class="actions">
+        <a href="/login#signup" class="btn primary">Sign up as a PT</a>
+        <a href="/login" class="btn">Log in</a>
+      </div>
+      <p class="muted">Got a program from your PT? Open the link they sent you, or <a href="/login">log in</a>.</p>
+    </div>
+
+    <!-- What the client sees mid-workout, built from the real row styles. -->
+    <figure class="phone" aria-label="The client's logging screen: three sets of bench press, two ticked">
+      <div class="card">
+        <div class="ex-head"><strong class="ex-name">Bench Press</strong><span class="muted">3 × 6-10</span></div>
+        <p class="rest-label">⏱ Rest Timer: 3min 0s</p>
+        <div class="sets" aria-hidden="true">
+          <div class="set head"><span>Set</span><span>Previous</span><span>kg</span><span>Reps</span><span>✓</span></div>
+          <div class="set done"><span class="setno">1</span><span class="prev">70kg×9</span><input value="70" disabled tabindex="-1" /><input value="10" disabled tabindex="-1" /><button class="tick" aria-pressed="true" tabindex="-1">✓</button></div>
+          <div class="set done"><span class="setno">2</span><span class="prev">70kg×8</span><input value="70" disabled tabindex="-1" /><input value="9" disabled tabindex="-1" /><button class="tick" aria-pressed="true" tabindex="-1">✓</button></div>
+          <div class="set"><span class="setno">3</span><span class="prev">70kg×8</span><input placeholder="70" disabled tabindex="-1" /><input placeholder="8" disabled tabindex="-1" /><button class="tick" tabindex="-1">✓</button></div>
+        </div>
+      </div>
+    </figure>
+  </section>
+
+  <section class="steps" aria-labelledby="how">
+    <h2 id="how">How it works</h2>
+    <ol>
+      <li><strong>Write it.</strong> Days, exercises, sets, rep ranges and rest, the way you already
+        program. Takes a few minutes at your desk.</li>
+      <li><strong>Send it.</strong> Your client gets one link, from your own email. They open it on
+        their phone at the gym, no app to install.</li>
+      <li><strong>Watch it.</strong> Every set shows up as they tick it. Your dashboard tells you who's
+        gone quiet, who's stalled and who's moving.</li>
+    </ol>
+  </section>
+
+  <section class="points" aria-labelledby="why">
+    <h2 id="why">Built around how you coach</h2>
+    <div class="grid3">
+      <div class="card">
+        <h3>One tap between sets</h3>
+        <p>Every row comes filled in from last session. Most of the time your client lifts, ticks
+          and rests. No typing with sweaty hands.</p>
+      </div>
+      <div class="card">
+        <h3>Progress the way you read it</h3>
+        <p>Rep ranges and double progression are scored properly, so going up a weight and dropping
+          reps doesn't look like going backwards.</p>
+      </div>
+      <div class="card">
+        <h3>Questions go to you</h3>
+        <p>Clients message you from the program, with photos for form checks. The chat sits next to
+          the training it's about.</p>
+      </div>
+    </div>
+  </section>
+
+  <section class="cta">
+    <h2>Start with one client</h2>
+    <p class="muted">It's free while it's a uni project. Sign up, write a program, send the link.</p>
+    <a href="/login#signup" class="btn primary">Sign up as a PT</a>
+  </section>
+</main>
+
+<footer class="site"><a href="/readme/">About this project</a></footer>
+
+<script type="module">
+  import { api, el, $ } from "/ui.js";
+  // Already logged in: point straight at your own page.
+  const [data, ok] = await api("/api/me");
+  if (ok) $("nav").replaceChildren(
+    el("a", { href: data.me.role === "pt" ? "/dash" : "/me", className: "btn primary", textContent: data.me.role === "pt" ? "Dashboard" : "My programs" }));
+</script>
+</body>
+</html>

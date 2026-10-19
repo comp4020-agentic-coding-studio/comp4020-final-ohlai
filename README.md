@@ -6,9 +6,10 @@ actually lifted, instead of whatever the client remembers by Friday.
 
 ## Who it's for
 
-One PT and the few clients they program for. The two people on a program
-already know each other, so a private link is enough to tell them apart. The PT
-gets one link, the client gets another, and nobody else can find the program.
+A PT and the clients they program for. The PT signs up and gets a dashboard of
+everyone they coach. Each client gets a private link to their program, which
+works straight away, and can set a password from it so they can log in on any
+device and message their PT. Nobody else can find a program or read a chat.
 
 ## What good means here
 
@@ -24,9 +25,16 @@ swipe. Anything that needs typing or a menu mid-session is a failure. I took the
 row layout from Hevy, which already gets this right.
 
 **The PT is at a desk, planning.** They write programs and check in on clients
-between sessions, so their page opens in a desktop layout. They need to see
-where a client stalled or went heavier than written, which is the point of
-sending a program instead of a PDF.
+between sessions, so their pages are built for a desktop. The dashboard answers
+the questions a PT has about a list of clients: who's gone quiet, who's done
+this week's sessions, and which lifts are moving or stalled. Each of those opens
+up into the detail behind it, down to the progress chart for one lift. That's
+the point of sending a program instead of a PDF.
+
+**Questions go to the PT, next to the training.** A client mid-program has
+small questions ("bench felt heavy, should I drop the weight?"). They message
+their PT from the app, with photos for form checks, and it shows up live on the
+other side. One thread per PT and client, kept for good like everything else.
 
 Either person can flip layouts, since sometimes the PT checks in from the gym
 floor. The default is just the guess that's right most of the time.
@@ -41,10 +49,28 @@ adding weight both push the line up.
 **What's logged stays logged.** A workout from eight weeks ago needs to still be
 there or the progress line means nothing.
 
+## How to use it
+
+**As a PT.** Go to the home page and sign up. On your dashboard, click New
+program, write the days and exercises, and send the client link with the Email
+button (it opens your own mail app). Your client shows up on the dashboard
+straight away. Click a client to see their week, recent workouts and which lifts
+are moving, and click a lift to see its chart. Once your client has set a
+password, Message opens your chat with them.
+
+**As a client.** Open the link your PT sent you on your phone. Pick a workout,
+tick each set as you finish it (rows are filled in from last time), and press
+Finish. Set a password in the box at the top if you want to log in from another
+device or message your PT. After that you can log in from the home page.
+
 ## What I chose not to build
 
-No accounts, since a private link does the job for two people who already
-trust each other. No exercise library, because the PT already has names they
+Accounts came late. For the first three weeks a private link was all there was,
+since it does the job for two people who already trust each other. They came in
+when the PT needed one place for all their clients and a client needed somewhere
+to ask questions, and the links still work so nobody has to sign up to start
+training. `docs/adr/0003-accounts-and-chat.md` has the reasoning. No video
+calls yet, that's next. No exercise library, because the PT already has names they
 use. No feed or leaderboards. No email from the server either. The PT's own
 mail app sends the link, so it comes from someone the client knows.
 
@@ -52,7 +78,9 @@ mail app sends the link, so it comes from someone the client knows.
 
 The checks in `spec/` enforce that only the client link can log sets, that the
 client link never gives away the PT link, that removing a set closes the gap in
-set numbers, and that finishing a workout keeps its sets. The rest I have to
+set numbers, and that finishing a workout keeps its sets. They also check that a
+PT's dashboard only shows their own clients, that only a logged-in PT can write
+a program, and that only the PT and client on a program can read their chat. The rest I have to
 judge. Is logging really one tap between sets? I'll find out on my phone at the
 gym. Does the progress line match how a PT reads progress? That needs an actual
 PT.

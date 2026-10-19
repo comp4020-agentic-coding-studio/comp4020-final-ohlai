@@ -18,6 +18,10 @@ page never decides anything.
 | See the program, sets and workouts | yes | yes |
 | See the other link | sees the client link, to send it | never sees the PT link |
 | Start, log, remove, finish, discard | 403 | yes |
+| Add to a dashboard / set a password | logged-in PT, if no other PT has it | yes, first time only |
+
+Once accounts exist (ADR 0003), a logged-in PT sees only the programs on their
+own dashboard, and a chat can be read only by the PT and client a program links.
 
 The PT can't log because a set is the client's record of what they lifted. If
 the PT could change it, the progress line would stop being the client's own
@@ -29,9 +33,13 @@ program they are being coached on. `spec/programs.test.ts` checks both.
 ```
 2026-10-19T03:12:04Z client "Jack" p3 logged Squat set 1: 5 x 100kg
 2026-10-19T03:12:09Z pt "Sam" p3 DENIED log (403 Only the client logs sets.)
+2026-10-19T03:13:40Z client "Jack" u2 sent a message to "Sam"
 ```
 
-- A person is shown as role, the name typed into the program, and program id.
+- A person is shown as role, name, and either the program id (`p3`, someone on
+  a link) or their user id (`u3`, someone logged in, for signing up, logging in,
+  chat and the dashboard). A claim is logged as whoever is logged in, not the
+  link's owner.
   Names are safe to print and easy to read out. The token never appears, since
   it is the password.
 - Static files (CSS, fonts, pages) are not logged. They say nothing about who

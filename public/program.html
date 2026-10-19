@@ -15,6 +15,7 @@
     </div>
     <p class="sub" id="sub"></p>
     <div class="actions top" id="actions"></div>
+    <div id="banner"></div>
     <div class="stats" id="stats"></div>
     <div class="tabs" id="tabs" role="group" aria-label="Day"></div>
     <div class="exercises" id="list"></div>
@@ -42,7 +43,9 @@
 </div>
 
 <script src="/view.js"></script>
-<script>
+<script type="module">
+  import { repRange, weightStep, scorer } from "/progress.js";
+  import { api as getJson, toLogin, live } from "/ui.js";
   // The client link defaults to the phone layout, the PT link to desktop.
   const tok = location.pathname.split("/").pop();
   let state, day;
@@ -97,9 +100,51 @@
   async function load() {
     const data = await api(`/api/p/${tok}`);
     if (!data) return ($("title").textContent = "Program not found");
-    if (data.role === "pt") window.setDefaultView?.("desktop");
+    if (data.role === "pt" && !state) {
+      window.setDefaultView?.("desktop");
+      // The client is the only one who writes, so only the PT view needs live updates.
+      live(`/api/p/${tok}/events`, load);
+    }
     state = data;
     route();
+  }
+
+  // Ties this link to an account: the PT adds it to their dashboard, the
+  // client sets a password. Both are optional; the link keeps working either way.
+  let viewer; // the logged-in user, if any
+  async function renderBanner() {
+    const { role, claimed, program } = state;
+    const b = $("banner");
+    if (role === "pt" && !claimed) {
+      viewer ??= (await getJson("/api/me"))[0].me ?? null;
+      return b.replaceChildren(el("div", { className: "card notice" },
+        el("p", { textContent: "This program isn't on a dashboard yet." }),
+        viewer?.role === "pt"
+          ? el("button", { type: "button", className: "primary", textContent: "Add to my dashboard", onclick: () => act("claim") })
+          : el("button", { type: "button", className: "primary", textContent: "Log in to add it to your dashboard", onclick: toLogin })));
+    }
+    if (role === "client" && !claimed && !state.open_session) {
+      const pw = el("input", { type: "password", id: "pw", autocomplete: "new-password", minLength: 8 });
+      return b.replaceChildren(el("form", { className: "card notice", onsubmit: (e) => { e.preventDefault(); act("claim", { password: pw.value }); } },
+        el("label", { htmlFor: "pw", textContent: `Set a password to log in from any device and message ${program.pt_name}. Already have one? Use it here.` }),
+        el("div", { className: "row" }, pw, el("button", { type: "submit", className: "primary narrowbtn", textContent: "Save" }))));
+    }
+    b.replaceChildren();
+  }
+
+  // Links out of the program, once the right accounts exist.
+  function navLinks() {
+    const { role, claimed, program } = state;
+    const links = [];
+    if (role === "pt" && claimed) {
+      links.push(el("a", { href: "/dash", className: "btn", textContent: "Dashboard" }));
+      if (program.client_user_id) links.push(el("a", { href: `/chat/${program.client_user_id}`, className: "btn", textContent: `Message ${program.client_name}` }));
+    }
+    if (role === "client" && claimed) {
+      links.push(el("a", { href: "/me", className: "btn", textContent: "My programs" }));
+      if (program.pt_user_id) links.push(el("a", { href: `/chat/${program.pt_user_id}`, className: "btn", textContent: `Message ${program.pt_name}` }));
+    }
+    return links;
   }
 
   function route() {
@@ -122,6 +167,7 @@
     $("tabs").hidden = true;
     $("actions").replaceChildren();
     clearInterval(durationTick);
+    renderBanner();
 
     if (role === "client" && !open) return renderPicker();
 
@@ -145,6 +191,7 @@
     // PT: a tab per workout, each exercise showing the client's latest sets.
     $("title").textContent = program.title;
     $("sub").textContent = `PT view. ${program.client_name}'s sets appear here as they log them.`;
+    $("actions").append(...navLinks());
     const last = all.at(-1);
     $("stats").replaceChildren(...[
       ["Last workout", last ? fmtDay(last.start) : "None yet"],
@@ -164,6 +211,7 @@
     const all = workouts().filter((w) => w.finished);
     $("title").textContent = program.title;
     $("sub").textContent = `From ${program.pt_name}. Pick a workout to start.`;
+    $("actions").append(...navLinks());
     const weekAgo = Date.now() - 7 * 864e5;
     $("stats").replaceChildren(...[
       ["Workouts", all.length], ["This week", all.filter((w) => w.start >= weekAgo).length],
@@ -317,14 +365,8 @@
   $("restPlus").onclick = () => { restEnd += 15000; restTotal += 15; drawRest(); };
   $("restSkip").onclick = () => { restEnd = 0; drawRest(); };
 
-  // Exercise summary: a chart over sessions, and records.
-  //
-  // "Progress" follows double progression: reps climb through the PT's range at
-  // one weight, then the weight goes up and reps drop back to the bottom. A
-  // set scores weight + step * (reps - lo) / (hi - lo + 1), so the top of the
-  // range at one weight scores just under the bottom of the range one step up
-  // and the line keeps rising through the weight jump. step is the smallest
-  // weight increase the client has made on this exercise (2.5 kg until known).
+  // Exercise summary: a chart over sessions, and records. The scoring is in
+  // public/progress.js, shared with the dashboard.
   const METRICS = {
     progress: { label: "Progress", unit: "" },
     heaviest: { label: "Heaviest weight", unit: "kg" },
@@ -333,17 +375,6 @@
     volume: { label: "Session volume", unit: "kg" },
   };
   let metric = "progress";
-
-  function repRange(reps) {
-    const [lo, hi = lo] = String(reps).match(/\d+/g)?.map(Number) ?? [10];
-    return [Math.min(lo, hi), Math.max(lo, hi)];
-  }
-
-  function weightStep(sets) {
-    const ws = [...new Set(sets.map((s) => s.weight).filter((w) => w > 0))].sort((a, b) => a - b);
-    const gaps = ws.slice(1).map((w, i) => w - ws[i]).filter((g) => g > 0);
-    return gaps.length ? Math.min(...gaps) : 2.5;
-  }
 
   function renderSummary(ex) {
     $("sumTitle").textContent = ex.name;
@@ -356,7 +387,7 @@
     const [lo, hi] = repRange(ex.reps);
     const step = weightStep(all);
     const w = (s) => s.weight ?? 0;
-    const score = (s) => w(s) + (step * (s.reps - lo)) / (hi - lo + 1);
+    const score = scorer(ex.reps, all);
     const epley = (s) => w(s) * (1 + s.reps / 30);
     const per = hist.map(({ w: wk, sets: bySet }) => {
       const sets = Object.values(bySet), k = wk.start;

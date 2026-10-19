@@ -8,16 +8,14 @@
 </head>
 <body data-default-view="desktop">
 <main>
-  <div class="topbar"><h1>Build a program</h1><span class="toggles"><button type="button" class="view-toggle"></button></span></div>
-  <p class="sub">For a PT: write the program, send it to your client, watch their sets come in. <a href="/readme/">About</a></p>
+  <div class="topbar"><a class="back btn" href="/dash" aria-label="Back to dashboard">←</a><h1>Build a program</h1><span class="toggles"><button type="button" class="view-toggle"></button></span></div>
+  <p class="sub">Write the program, send it to your client, watch their sets come in.</p>
 
   <form id="f">
     <label for="title">Program name</label>
     <input id="title" required placeholder="e.g. 4-week strength block" />
-    <div class="row">
-      <div><label for="pt">Your name</label><input id="pt" required /></div>
-      <div><label for="client">Client name</label><input id="client" required /></div>
-    </div>
+    <label for="client">Client name</label>
+    <input id="client" required />
     <label for="email">Client email</label>
     <input id="email" type="email" required />
 
@@ -35,9 +33,10 @@
     <p class="share"><a id="clientLink"></a></p>
     <div class="actions">
       <a id="mail" class="btn primary">Email it to them</a>
-      <a id="ptLink" class="btn">Open your PT view</a>
+      <a id="ptLink" class="btn">Open the program</a>
+      <a href="/dash" class="btn">Back to dashboard</a>
     </div>
-    <p class="muted">Keep the PT view link: it's how you come back to see their logged sets.</p>
+    <p class="muted">It's on your dashboard now. When they open the link they can set a password, and then you can message each other.</p>
   </section>
 </main>
 
@@ -58,7 +57,10 @@
 </template>
 
 <script src="/view.js"></script>
-<script>
+<script type="module">
+  import { api, toLogin } from "/ui.js";
+  const [who, loggedIn] = await api("/api/me");
+  if (!loggedIn || who.me.role !== "pt") toLogin();
   const list = document.getElementById("list");
   const tpl = document.getElementById("exTpl");
   function addEx() {
@@ -79,7 +81,7 @@
     const res = await fetch("/api/programs", {
       method: "POST",
       headers: { "content-type": "application/json" },
-      body: JSON.stringify({ title: v("title"), pt_name: v("pt"), client_name: v("client"), client_email: v("email"), exercises }),
+      body: JSON.stringify({ title: v("title"), client_name: v("client"), client_email: v("email"), exercises }),
     });
     const data = await res.json();
     if (!res.ok) return (document.getElementById("err").textContent = data.error);
@@ -88,7 +90,7 @@
     const a = document.getElementById("clientLink");
     a.href = a.textContent = clientUrl;
     document.getElementById("ptLink").href = `/p/${data.ptToken}`;
-    const body = `Hi ${v("client")},\n\nHere's your program "${v("title")}". Open it on your phone at the gym and log each set as you go:\n\n${clientUrl}\n\n${v("pt")}`;
+    const body = `Hi ${v("client")},\n\nHere's your program "${v("title")}". Open it on your phone at the gym and log each set as you go:\n\n${clientUrl}\n\n${who.me.name}`;
     document.getElementById("mail").href =
       `mailto:${encodeURIComponent(v("email"))}?subject=${encodeURIComponent("Your program: " + v("title"))}&body=${encodeURIComponent(body)}`;
     e.target.hidden = true;
