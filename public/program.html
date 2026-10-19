@@ -42,10 +42,23 @@
   </div>
 </div>
 
+<!-- Chat with the other person on the program, without leaving it. -->
+<button type="button" class="chatfab" id="chatFab" hidden aria-label="Messages" aria-haspopup="dialog">
+  <span aria-hidden="true">💬</span><span class="dot" id="chatDot" hidden></span>
+</button>
+<dialog id="chatDrawer" class="drawer" aria-labelledby="chatTitle">
+  <div class="drawer-head">
+    <h2 id="chatTitle">Messages</h2>
+    <button type="button" id="chatClose" aria-label="Close messages">✕</button>
+  </div>
+  <div id="chatBody" class="drawer-body"></div>
+</dialog>
+
 <script src="/view.js"></script>
 <script type="module">
   import { repRange, weightStep, scorer } from "/progress.js";
   import { api as getJson, toLogin, live } from "/ui.js";
+  import { mountChat } from "/chat.js";
   // The client link defaults to the phone layout, the PT link to desktop.
   const tok = location.pathname.split("/").pop();
   let state, day;
@@ -107,7 +120,38 @@
     }
     state = data;
     route();
+    setupChat();
   }
+
+  // The chat drawer: a button bottom right once both people have accounts.
+  let chat;
+  async function setupChat() {
+    const { role, claimed, program } = state;
+    const other = claimed ? (role === "pt" ? program.client_user_id : program.pt_user_id) : null;
+    $("chatFab").hidden = !other;
+    if (!other || chat) return;
+    $("chatTitle").textContent = role === "pt" ? program.client_name : program.pt_name;
+    chat = mountChat($("chatBody"), other, {
+      onLoad: (data) => data || $("chatBody").replaceChildren(el("p", { className: "muted pad" }, "Log in to send messages. ",
+        el("button", { type: "button", textContent: "Log in", onclick: toLogin }))),
+    });
+    const [me, loggedIn] = await getJson("/api/me");
+    if (!loggedIn) return;
+    if (me.pts?.some((p) => p.id === other && p.unread)) $("chatDot").hidden = false;
+    live("/api/events", (e) => {
+      if (e.type !== "chat") return;
+      if ($("chatDrawer").open) chat.load();
+      else $("chatDot").hidden = false;
+    });
+  }
+  $("chatFab").onclick = () => {
+    $("chatDrawer").showModal();
+    $("chatDot").hidden = true;
+    chat.load();
+  };
+  $("chatClose").onclick = () => $("chatDrawer").close();
+  // Tapping the dimmed page above the drawer closes it.
+  $("chatDrawer").onclick = (e) => e.target === $("chatDrawer") && $("chatDrawer").close();
 
   // Ties this link to an account: the PT adds it to their dashboard, the
   // client sets a password. Both are optional; the link keeps working either way.
@@ -138,11 +182,9 @@
     const links = [];
     if (role === "pt" && claimed) {
       links.push(el("a", { href: "/dash", className: "btn", textContent: "Dashboard" }));
-      if (program.client_user_id) links.push(el("a", { href: `/chat/${program.client_user_id}`, className: "btn", textContent: `Message ${program.client_name}` }));
     }
     if (role === "client" && claimed) {
       links.push(el("a", { href: "/me", className: "btn", textContent: "My programs" }));
-      if (program.pt_user_id) links.push(el("a", { href: `/chat/${program.pt_user_id}`, className: "btn", textContent: `Message ${program.pt_name}` }));
     }
     return links;
   }

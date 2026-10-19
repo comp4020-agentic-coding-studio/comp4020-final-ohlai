@@ -313,7 +313,7 @@ const IMAGE_TYPES = [
 const MIME = { jpg: "image/jpeg", png: "image/png", gif: "image/gif", webp: "image/webp" };
 
 const PAGES = { "/": "landing.html", "/login": "login.html", "/new": "new.html", "/dash": "dash.html", "/me": "me.html" };
-const STATIC = { "/style.css": "text/css", "/view.js": "text/javascript", "/ui.js": "text/javascript", "/progress.js": "text/javascript" };
+const STATIC = { "/style.css": "text/css", "/view.js": "text/javascript", "/ui.js": "text/javascript", "/progress.js": "text/javascript", "/chat.js": "text/javascript" };
 
 const server = createServer(async (req, res) => {
   const url = new URL(req.url, "http://x");

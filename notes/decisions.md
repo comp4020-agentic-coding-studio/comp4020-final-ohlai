@@ -74,3 +74,12 @@ Write-up in `docs/adr/0003-accounts-and-chat.md`.
   the eight scenarios, observations to fill in.
 - `scripts/fly-logs.js` follows the logs through Fly's API, because Smart App
   Control blocks flyctl.exe on my laptop.
+
+## 2026-10-19: Chat inside the program
+
+- Wanted to message from the program view without leaving it: a chat button
+  that opens a drawer from the bottom. I asked for bottom right, but mid-workout
+  it covered the ✓ tick buttons. Options: bottom left, bottom right with page
+  padding, or in the top bar during a workout. Picked bottom left on the phone,
+  where it only covers the set number. The PT's desktop view keeps it bottom
+  right. A red dot shows when a message arrives while it's closed.

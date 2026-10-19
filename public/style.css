@@ -274,9 +274,10 @@ a.card.link { display: flex; justify-content: space-between; align-items: center
 .thread li.day { align-self: center; background: none; box-shadow: none; color: var(--muted); font-size: 0.8rem; }
 .thread time { display: block; font-size: 0.72rem; opacity: 0.6; margin-top: 2px; text-align: right; }
 .thread img { display: block; max-width: 100%; max-height: 320px; border-radius: 12px; }
-.compose { position: fixed; left: 0; right: 0; bottom: 0; display: flex; gap: 8px; padding: 10px 16px 18px; background: var(--card); box-shadow: 0 -20px 60px -30px rgba(0, 0, 0, 0.35); }
-body[data-view="mobile"] .compose { max-width: 480px; margin: 0 auto; }
-body[data-view="desktop"] .compose { max-width: 1120px; margin: 0 auto; }
+.compose { display: flex; gap: 8px; padding: 10px 16px 18px; background: var(--card); }
+.chatpage .compose { position: fixed; left: 0; right: 0; bottom: 0; box-shadow: 0 -20px 60px -30px rgba(0, 0, 0, 0.35); }
+body.chatpage[data-view="mobile"] .compose { max-width: 480px; margin: 0 auto; }
+body.chatpage[data-view="desktop"] .compose { max-width: 1120px; margin: 0 auto; }
 .compose input[type="text"], .compose #text { flex: 1; }
 .photo { position: relative; padding: 10px 12px; }
 .photo input { position: absolute; inset: 0; opacity: 0; cursor: pointer; }
@@ -313,3 +314,23 @@ header.site nav a:not(.btn) { color: var(--ink); text-decoration: none; font-wei
   .hero { grid-template-columns: 1.2fr 1fr; padding: 64px 0; }
   .steps ol, .grid3 { grid-template-columns: repeat(3, 1fr); }
 }
+
+/* chat drawer on the program page */
+/* Bottom left on a phone, so it never covers the tick column mid-workout. */
+.chatfab { position: fixed; left: 16px; bottom: 24px; width: 56px; height: 56px; padding: 0; border-radius: 50%; font-size: 1.4rem; background: var(--ink); color: var(--bg); box-shadow: 0 12px 30px -10px rgba(0, 0, 0, 0.5); z-index: 5; }
+body[data-view="desktop"] .chatfab { left: auto; right: 24px; }
+body:has(#rest:not([hidden])) .chatfab { bottom: 110px; } /* sit above the rest timer */
+.chatfab .dot { position: absolute; top: 4px; right: 4px; width: 14px; height: 14px; border-radius: 50%; background: var(--warn); border: 2px solid var(--bg); }
+.drawer { position: fixed; inset: auto 0 0 0; margin: 0 auto; width: 100%; max-width: 480px; height: 85vh; max-height: 85vh; padding: 0; border: 0; border-radius: 24px 24px 0 0; background: var(--bg); color: var(--ink); }
+body[data-view="desktop"] .drawer { inset: auto 24px 0 auto; margin: 0; height: 70vh; }
+.drawer[open] { display: flex; flex-direction: column; animation: drawer-up 0.22s ease-out; }
+.drawer::backdrop { background: rgba(0, 0, 0, 0.35); }
+.drawer-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 14px 16px 6px; }
+.drawer-head h2 { margin: 0; }
+.drawer-head button { width: 44px; height: 44px; padding: 0; border-radius: 50%; }
+.drawer-body { flex: 1; min-height: 0; display: flex; flex-direction: column; }
+.drawer-body .thread { flex: 1; overflow-y: auto; margin: 0; padding: 8px 16px; }
+.drawer-body .error { margin: 0 16px; }
+.pad { padding: 16px; }
+@keyframes drawer-up { from { transform: translateY(100%); } }
+@media (prefers-reduced-motion: reduce) { .drawer[open] { animation: none; } }
