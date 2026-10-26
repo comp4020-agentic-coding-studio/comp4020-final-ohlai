@@ -6,6 +6,7 @@
 // Run it next to a server that has already created the tables:
 //   node scripts/seed-jack.js              (local ./data)
 //   flyctl ssh console -C "node /app/scripts/seed-jack.js"
+//   node scripts/fly-exec.js node /app/scripts/seed-jack.js   (if flyctl is blocked)
 // Jack's history is only written once. The demo logins below are checked on
 // every run, so running it again on an old seed adds them.
 //
