@@ -28,6 +28,15 @@ weekly check-ins to build from the dashboard previews (`notes/decisions.md`,
 All of it is additive: two new tables and one guarded `ALTER TABLE`. No
 dependency.
 
+## Update, same day: templates became the program library
+
+Writing a program and assigning it are now separate. The PT writes a program
+with no client (stored in `templates`, the name kept so no table is renamed on
+the volume) and assigns it from the Programs page. Assigning runs the same
+`createProgram` as before, so each client gets their own copy and their logged
+sets never point at a library program. `/new` and `/templates` redirect to
+`/programs/new` and `/programs`.
+
 ## What this means
 
 No reminders or schedule for check-ins yet; the client checks in from My

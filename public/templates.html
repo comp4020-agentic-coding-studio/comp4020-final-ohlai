@@ -3,67 +3,137 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Templates</title>
+  <title>Programs</title>
   <link rel="stylesheet" href="/style.css" />
 </head>
 <body data-default-view="desktop" class="app">
 <main>
   <header class="apphead">
-    <div><p class="eyebrow">Reuse a program</p><h1>Templates</h1></div>
-    <a href="/new" class="btn primary">Write a program</a>
+    <div><p class="eyebrow">Your library</p><h1>Programs</h1></div>
+    <a href="/programs/new" class="btn primary">New program</a>
   </header>
-  <p class="muted">Save a program as a template from the builder, then start the next client from it. A program
-    started from a template is its own copy, so changing a template never touches a client's program.</p>
+  <p class="muted">Write a program once, then assign it to as many clients as you like. Each client gets their own
+    copy, so editing a program here changes it for clients you assign it to next, never for anyone who already has
+    it.</p>
   <div id="list" class="tgrid"></div>
   <p id="err" class="error" role="alert"></p>
 </main>
+
+<dialog id="assign" class="assign" aria-labelledby="a-title">
+  <form id="aform" method="dialog">
+    <h3 id="a-title">Assign</h3>
+    <fieldset class="who-pick">
+      <legend class="sr">Who to assign it to</legend>
+      <label><input type="radio" name="who" value="existing" checked /> A client you have</label>
+      <label><input type="radio" name="who" value="new" /> A new client</label>
+    </fieldset>
+    <div id="existing">
+      <label for="a-client">Client</label>
+      <select id="a-client"></select>
+    </div>
+    <div id="newc" hidden>
+      <label for="a-name">Client name</label>
+      <input id="a-name" maxlength="80" />
+      <label for="a-email">Client email</label>
+      <input id="a-email" type="email" />
+    </div>
+    <p id="a-err" class="error" role="alert"></p>
+    <div class="actions">
+      <button type="submit" class="primary" id="a-go">Assign</button>
+      <button type="button" id="a-cancel">Cancel</button>
+    </div>
+  </form>
+  <section id="a-done" hidden>
+    <h3>Assigned</h3>
+    <p class="muted" id="a-done-text"></p>
+    <p class="share"><a id="a-link" target="_blank"></a></p>
+    <div class="actions">
+      <a id="a-mail" class="btn primary">Email it to them</a>
+      <a id="a-open" class="btn">Open their program</a>
+      <button type="button" id="a-close">Done</button>
+    </div>
+  </section>
+</dialog>
 
 <script src="/view.js"></script>
 <script type="module">
   import { $, el, api, fmtDay, utc, toLogin } from "/ui.js";
   import { mountSide } from "/side.js";
   mountSide();
+  const [who] = await api("/api/me");
 
   async function load() {
     const [data, ok] = await api("/api/templates");
     if (!ok) return toLogin();
     $("list").replaceChildren(...(data.templates.length ? data.templates.map(card) : [
       el("section", { className: "panel empty" },
-        el("h2", { textContent: "No templates yet" }),
-        el("p", { className: "muted", textContent: "Write a program and press Save as template, or save one you're about to send." }),
-        el("a", { href: "/new", className: "btn primary", textContent: "Write a program" }))]));
+        el("h2", { textContent: "No programs yet" }),
+        el("p", { className: "muted", textContent: "Write a program once, then assign it to your clients." }),
+        el("a", { href: "/programs/new", className: "btn primary", textContent: "New program" }))]));
+    if (location.hash) document.querySelector(location.hash)?.scrollIntoView({ block: "center" });
   }
 
   function card(t) {
     const days = [...new Set(t.exercises.map((e) => e.day))];
-    const name = el("input", { value: t.name, maxLength: 80, ariaLabel: "Template name", className: "tname" });
-    // Rename on blur or Enter, only if it changed.
-    const rename = async () => {
-      const v = name.value.trim();
-      if (!v || v === t.name) return (name.value = t.name);
-      const [data, ok] = await api(`/api/templates/${t.id}`, { name: v });
-      $("err").textContent = ok ? "" : data.error;
-      if (ok) t.name = v;
-    };
-    name.onblur = rename;
-    name.onkeydown = (e) => e.key === "Enter" && name.blur();
-    return el("section", { className: "panel tcard" },
-      name,
+    return el("section", { className: "panel tcard", id: `p${t.id}` },
+      el("h2", { className: "tname", textContent: t.name }),
       el("small", { className: "muted", textContent: `${days.length} day${days.length > 1 ? "s" : ""} · ${t.exercises.length} exercises · saved ${fmtDay(utc(t.created_at))}` }),
       ...days.map((d) => el("div", { className: "tday" },
         el("h4", { textContent: d }),
         el("ul", { className: "plain" }, ...t.exercises.filter((e) => e.day === d).map((e) =>
           el("li", {}, el("span", { textContent: e.name }), el("span", { className: "muted num", textContent: ` ${e.sets} × ${e.reps}` })))))),
       el("div", { className: "actions" },
-        el("a", { href: `/new?template=${t.id}`, className: "btn primary", textContent: "Use for a client" }),
-        el("a", { href: `/new?edit=${t.id}`, className: "btn", textContent: "Edit" }),
+        el("button", { type: "button", className: "primary", textContent: "Assign to client", onclick: () => openAssign(t) }),
+        el("a", { href: `/programs/new?edit=${t.id}`, className: "btn", textContent: "Edit" }),
         el("button", { type: "button", textContent: "Delete", onclick: async () => {
-          if (!confirm(`Delete "${t.name}"? Programs already started from it stay as they are.`)) return;
+          if (!confirm(`Delete "${t.name}"? Clients you've already assigned it to keep their copy.`)) return;
           const [data, ok] = await api(`/api/templates/${t.id}/delete`, {});
           $("err").textContent = ok ? "" : data.error;
           if (ok) load();
         } })));
   }
+
+  // Assign: an existing client (picked by email) or a new one.
+  let current;
+  const mode = () => document.querySelector("[name=who]:checked").value;
+  const showMode = () => { $("existing").hidden = mode() !== "existing"; $("newc").hidden = mode() !== "new"; };
+  for (const r of document.querySelectorAll("[name=who]")) r.onchange = showMode;
+
+  async function openAssign(t) {
+    current = t;
+    const [{ clients = [] }] = await api("/api/clients");
+    $("a-title").textContent = `Assign ${t.name}`;
+    $("a-client").replaceChildren(...clients.map((c) => el("option", { value: c.email, label: `${c.name} (${c.email})`, textContent: c.name })));
+    document.querySelector(`[name=who][value=${clients.length ? "existing" : "new"}]`).checked = true;
+    document.querySelector("[name=who][value=existing]").disabled = !clients.length;
+    showMode();
+    $("a-err").textContent = "";
+    $("a-name").value = $("a-email").value = "";
+    $("aform").hidden = false;
+    $("a-done").hidden = true;
+    $("assign").showModal();
+  }
+  $("a-cancel").onclick = $("a-close").onclick = () => $("assign").close();
+
+  $("aform").onsubmit = async (e) => {
+    e.preventDefault();
+    const opt = $("a-client").selectedOptions[0];
+    const body = mode() === "existing"
+      ? { client_name: opt?.textContent, client_email: opt?.value }
+      : { client_name: $("a-name").value, client_email: $("a-email").value };
+    const [data, ok] = await api(`/api/templates/${current.id}/assign`, body);
+    if (!ok) return ($("a-err").textContent = data.error);
+
+    const url = `${location.origin}/p/${data.clientToken}`;
+    $("a-link").href = $("a-link").textContent = url;
+    $("a-open").href = `/p/${data.ptToken}`;
+    $("a-done-text").textContent = `${body.client_name} has their own copy of ${current.name} and is on your dashboard. Send them this link:`;
+    const msg = `Hi ${body.client_name},\n\nHere's your program "${current.name}". Open it on your phone at the gym and log each set as you go:\n\n${url}\n\n${who.me.name}`;
+    $("a-mail").href = `mailto:${encodeURIComponent(body.client_email)}?subject=${encodeURIComponent("Your program: " + current.name)}&body=${encodeURIComponent(msg)}`;
+    $("aform").hidden = true;
+    $("a-done").hidden = false;
+  };
+
   load();
 </script>
 </body>

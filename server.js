@@ -351,8 +351,8 @@ const IMAGE_TYPES = [
 const MIME = { jpg: "image/jpeg", png: "image/png", gif: "image/gif", webp: "image/webp" };
 
 const PAGES = {
-  "/": "landing.html", "/login": "login.html", "/new": "new.html", "/dash": "dash.html", "/me": "me.html",
-  "/inbox": "inbox.html", "/checkins": "checkins.html", "/templates": "templates.html",
+  "/": "landing.html", "/login": "login.html", "/dash": "dash.html", "/me": "me.html",
+  "/inbox": "inbox.html", "/checkins": "checkins.html", "/programs": "templates.html", "/programs/new": "new.html",
 };
 // Any top-level script in public/ is served, so a new one can't be forgotten here.
 // The name pattern keeps it to files directly in public/, never a path out of it.
@@ -363,6 +363,11 @@ const server = createServer(async (req, res) => {
   const path = url.pathname;
   try {
     if (req.method === "GET" && PAGES[path]) return send(res, 200, page(PAGES[path]), "text/html");
+    const moved = { "/templates": "/programs", "/new": "/programs/new" }[path];
+    if (req.method === "GET" && moved) {
+      res.writeHead(301, { location: moved + url.search });
+      return res.end();
+    }
     if (req.method === "GET" && STATIC_TYPE(path) && existsSync(new URL(`./public${path}`, import.meta.url)))
       return send(res, 200, page(path.slice(1)), STATIC_TYPE(path));
     if (req.method === "GET" && (path === "/readme" || path === "/readme/")) {
@@ -450,10 +455,18 @@ const server = createServer(async (req, res) => {
       return send(res, 200, { me, threads });
     }
 
-    // ---------- templates ----------
-    const tm = path.match(/^\/api\/templates(?:\/(\d+)(\/delete)?)?$/);
+    // ---------- the PT's program library ----------
+    // Stored in the templates table (its name from before programs were written
+    // without a client). Assigning makes the client their own copy, so editing
+    // a library program never changes what a client already has.
+    if (req.method === "GET" && path === "/api/clients") {
+      if (me?.role !== "pt") return send(res, 401, { error: "Log in as a PT." });
+      const clients = db.prepare("SELECT client_name name, client_email email, min(id) first FROM programs WHERE pt_user_id = ? GROUP BY client_email COLLATE NOCASE ORDER BY client_name").all(me.id);
+      return send(res, 200, { clients: clients.map(({ name, email }) => ({ name, email })) });
+    }
+    const tm = path.match(/^\/api\/templates(?:\/(\d+)(\/delete|\/assign)?)?$/);
     if (tm) {
-      if (me?.role !== "pt") return send(res, 401, { error: "Log in as a PT to use templates." });
+      if (me?.role !== "pt") return send(res, 401, { error: "Log in as a PT to see your programs." });
       if (req.method === "GET" && !tm[1]) {
         const rows = db.prepare("SELECT * FROM templates WHERE pt_user_id = ? ORDER BY name COLLATE NOCASE").all(me.id);
         return send(res, 200, { templates: rows.map((t) => ({ id: t.id, name: t.name, created_at: t.created_at, exercises: JSON.parse(t.exercises) })) });
@@ -461,7 +474,7 @@ const server = createServer(async (req, res) => {
       if (req.method === "POST" && !tm[1]) {
         const b = await readJson(req);
         const name = str(b.name, 80), exercises = cleanExercises(b.exercises);
-        if (!name || !exercises.length) return send(res, 400, { error: "Give the template a name and at least one exercise." });
+        if (!name || !exercises.length) return send(res, 400, { error: "Give the program a name and at least one exercise." });
         const { lastInsertRowid: id } = db.prepare("INSERT INTO templates (pt_user_id, name, exercises) VALUES (?,?,?)").run(me.id, name, JSON.stringify(exercises));
         audit(asUser(me), "template", 201, `saved template ${JSON.stringify(name)}`);
         return send(res, 201, { id: Number(id) });
@@ -469,7 +482,16 @@ const server = createServer(async (req, res) => {
       const t = db.prepare("SELECT * FROM templates WHERE id = ? AND pt_user_id = ?").get(Number(tm[1]), me.id);
       if (!t) {
         audit(asUser(me), "template", 404, "no such template");
-        return send(res, 404, { error: "No template there." });
+        return send(res, 404, { error: "No program there." });
+      }
+      if (req.method === "POST" && tm[2] === "/assign") {
+        const b = await readJson(req);
+        const made = createProgram({ title: t.name, client_name: b.client_name, client_email: b.client_email, exercises: JSON.parse(t.exercises) }, me);
+        if (!made) return send(res, 400, { error: "Need the client's name and a valid email." });
+        const found = findProgram(made.ptToken);
+        audit(asProgram(found), "create", 201, `assigned program ${JSON.stringify(t.name)} to ${JSON.stringify(found.program.client_name)}`);
+        push("program", { programId: found.program.id, users: [me.id] });
+        return send(res, 201, made);
       }
       if (req.method === "POST" && tm[2]) {
         db.prepare("DELETE FROM templates WHERE id = ?").run(t.id);
@@ -480,9 +502,9 @@ const server = createServer(async (req, res) => {
       if (req.method === "POST") {
         const b = await readJson(req);
         const name = str(b.name, 80);
-        if (!name) return send(res, 400, { error: "Give the template a name." });
+        if (!name) return send(res, 400, { error: "Give the program a name." });
         const exercises = b.exercises === undefined ? null : cleanExercises(b.exercises);
-        if (exercises && !exercises.length) return send(res, 400, { error: "A template needs at least one exercise." });
+        if (exercises && !exercises.length) return send(res, 400, { error: "A program needs at least one exercise." });
         db.prepare("UPDATE templates SET name = ?, exercises = COALESCE(?, exercises) WHERE id = ?").run(name, exercises && JSON.stringify(exercises), t.id);
         audit(asUser(me), "template", 200, exercises ? `edited template ${JSON.stringify(name)}`
           : `renamed template ${JSON.stringify(t.name)} to ${JSON.stringify(name)}`);

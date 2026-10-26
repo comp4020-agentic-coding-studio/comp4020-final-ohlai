@@ -3,7 +3,7 @@
 // toggle on PT pages: the layout follows the screen.
 import { $, el, api, logout, live } from "/ui.js";
 
-const LINKS = [["/dash", "Dashboard"], ["/inbox", "Inbox"], ["/checkins", "Check-ins"], ["/templates", "Templates"], ["/new", "Write a program"]];
+const LINKS = [["/dash", "Dashboard"], ["/inbox", "Inbox"], ["/checkins", "Check-ins"], ["/programs", "Programs"]];
 
 export function mountSide() {
   const badge = el("span", { className: "badge", hidden: true });

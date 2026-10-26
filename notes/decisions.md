@@ -105,9 +105,10 @@ Write-up in `docs/adr/0003-accounts-and-chat.md`.
 
 Claude's layout calls, waiting on my yes or no: the client detail opens as a
 panel on the right instead of expanding in the list, a "Needs attention" list,
-a 7-day calendar strip, and a recent workouts feed across all clients. Preview
-ideas: inbox, calendar, weekly check-ins, templates, CSV export, nudging quiet
-clients, private notes per client.
+and a recent workouts feed across all clients. The 7-day strip of finished
+workouts was kept when I dropped the calendar (see "Which previews to build").
+Preview ideas: inbox, calendar, weekly check-ins, templates, CSV export, nudging
+quiet clients, private notes per client.
 
 ## 2026-10-26: Which previews to build
 
@@ -160,3 +161,26 @@ clients, private notes per client.
   place of Create program. Editing a template still never changes programs
   already started from it.
 - Asked to put all of today's work on the live site instead of only local.
+
+## 2026-10-26: Programs are written once, then assigned
+
+- **No Write a program tab.** New program lives on the Programs page. It
+  doesn't need its own tab.
+- **Write without a client, assign after.** A PT very often writes a program
+  once and reuses it for lots of clients, so having to pick a client while
+  writing makes no sense. You assign a program to a specific client instead.
+- **Days hold exercises.** In the builder you create a day, then the exercises
+  inside it. Picking a day on every exercise was too much repetition.
+- **Naming.** Options: rename Templates to Programs, or keep Templates. Picked
+  Programs, so "template" is gone from the app.
+- **Editing a program clients already have.** Options: each client keeps their
+  own copy, or edits push to everyone. I first wanted edits to push to
+  everyone, but clients would get confused about why things changed in their
+  history. Picked their copy stays: editing changes it for the next client
+  only.
+- **Who you can assign to.** Options: a client you already have or a new one,
+  or existing clients only. Picked either, with a new client's name and email
+  typed in.
+- Claude's defaults, not asked: the database table is still called
+  `templates` so nothing on the volume gets renamed, and old `/new` and
+  `/templates` links redirect.

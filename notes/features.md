@@ -37,7 +37,10 @@ underneath it as work happens. Only I move a feature to Done.
   them in from My programs. Answers show on the check-ins page and in the
   client's panel on the dashboard. No reminders yet.
 
-### Templates
+### Programs (was Templates and Write a program)
+- 2026-10-26: Merged. A program is written once with no client, then assigned
+  to clients from Programs. The builder has days, with exercises inside each
+  day.
 - 2026-10-26: Save as template in the builder, Start from a template picker,
   Templates page to rename, delete or use.
 - 2026-10-26: Edit opens the template full screen in the builder.

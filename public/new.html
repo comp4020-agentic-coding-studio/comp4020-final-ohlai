@@ -3,169 +3,120 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Write a program</title>
+  <title>New program</title>
   <link rel="stylesheet" href="/style.css" />
 </head>
 <body data-default-view="desktop" class="app">
 <main>
   <header class="apphead">
-    <div><p class="eyebrow">New program</p><h1>Write a program</h1></div>
-    <label class="sr" for="tpl">Start from a template</label>
-    <select id="tpl" class="tpl-pick"><option value="">Start from a template…</option></select>
+    <div><p class="eyebrow" id="eyebrow">Programs</p><h1 id="heading">New program</h1></div>
   </header>
 
+  <!-- A program is written once, with no client, then assigned from Programs. -->
   <form id="f" class="builder">
-    <section class="panel" id="editName" hidden>
-      <div class="panel-head"><h2>Template</h2></div>
-      <label for="editTplName">Template name</label>
-      <input id="editTplName" maxlength="80" />
-    </section>
-
-    <section class="panel" id="clientPanel">
-      <div class="panel-head"><h2>Client</h2></div>
-      <div class="row">
-        <div><label for="title">Program name</label><input id="title" required placeholder="e.g. 4-week strength block" /></div>
-        <div><label for="client">Client name</label><input id="client" required /></div>
-        <div><label for="email">Client email</label><input id="email" type="email" required /></div>
-      </div>
-    </section>
-
     <section class="panel">
-      <div class="panel-head">
-        <h2>Exercises</h2>
-        <button type="button" id="add" class="small">+ Add exercise</button>
-      </div>
-      <div id="list"></div>
+      <label for="name" class="first">Program name</label>
+      <input id="name" required maxlength="80" placeholder="e.g. Push / pull / legs" />
     </section>
 
-    <div class="builder-foot" id="editFoot" hidden>
-      <p id="editErr" class="error" role="alert"></p>
-      <a href="/templates" class="btn">Cancel</a>
-      <button type="button" id="saveEdit" class="primary">Save changes</button>
-    </div>
+    <div id="days" class="days"></div>
+    <button type="button" id="addDay" class="add-day">+ Add a day</button>
 
-    <div class="builder-foot" id="createFoot">
+    <div class="builder-foot">
       <p id="err" class="error" role="alert"></p>
-      <span id="saved" class="muted" role="status"></span>
-      <label class="sr" for="tplName">Template name</label>
-      <input id="tplName" placeholder="Template name" maxlength="80" />
-      <button type="button" id="saveTpl">Save as template</button>
-      <button class="primary" type="submit">Create program</button>
+      <a href="/programs" class="btn">Cancel</a>
+      <button class="primary" type="submit" id="save">Save program</button>
     </div>
   </form>
-
-  <section id="done" class="panel" hidden>
-    <h2>Program created</h2>
-    <p>Your client's link:</p>
-    <p class="share"><a id="clientLink"></a></p>
-    <div class="actions">
-      <a id="mail" class="btn primary">Email it to them</a>
-      <a id="ptLink" class="btn">Open the program</a>
-      <a href="/dash" class="btn">Back to dashboard</a>
-    </div>
-    <p class="muted">It's on your dashboard now. When they open the link they can set a password, and then you can message each other.</p>
-  </section>
 </main>
 
+<template id="dayTpl">
+  <section class="panel day">
+    <div class="day-head">
+      <label class="sr">Day name</label>
+      <input name="day" class="day-name" maxlength="60" aria-label="Day name" />
+      <button type="button" class="small rmday">Remove day</button>
+    </div>
+    <div class="ex-head" aria-hidden="true">
+      <span>Exercise</span><span>Sets</span><span>Reps</span><span>Rest (s)</span><span>Notes</span><span></span>
+    </div>
+    <ol class="exlist"></ol>
+    <button type="button" class="small addex">+ Add exercise</button>
+  </section>
+</template>
+
 <template id="exTpl">
-  <div class="card ex">
-    <div class="row">
-      <div class="narrow"><label>Day</label><input name="day" value="Day 1" /></div>
-      <div><label>Exercise</label><input name="name" placeholder="Back squat" /></div>
-    </div>
-    <div class="row">
-      <div><label>Sets</label><input name="sets" type="number" min="1" max="20" value="3" /></div>
-      <div><label>Reps</label><input name="reps" value="8-10" /></div>
-      <div><label>Rest (s)</label><input name="rest" type="number" min="0" max="600" step="15" value="90" /></div>
-      <div class="narrow"><label>&nbsp;</label><button type="button" class="rm" aria-label="Remove exercise">✕</button></div>
-    </div>
-    <label>Notes</label><input name="notes" placeholder="Tempo, rest, cues" />
-  </div>
+  <li class="exrow">
+    <input name="name" aria-label="Exercise" placeholder="Back squat" maxlength="200" />
+    <input name="sets" aria-label="Sets" type="number" min="1" max="20" value="3" />
+    <input name="reps" aria-label="Reps" value="8-10" maxlength="20" />
+    <input name="rest" aria-label="Rest in seconds" type="number" min="0" max="600" step="15" value="90" />
+    <input name="notes" aria-label="Notes" placeholder="Tempo, cues" maxlength="500" />
+    <button type="button" class="rm" aria-label="Remove exercise">✕</button>
+  </li>
 </template>
 
 <script src="/view.js"></script>
 <script type="module">
-  import { $, el, api, toLogin } from "/ui.js";
+  import { $, api, toLogin } from "/ui.js";
   import { mountSide } from "/side.js";
   const [who, loggedIn] = await api("/api/me");
   if (!loggedIn || who.me.role !== "pt") toLogin();
   mountSide();
-  const list = $("list");
-  const tpl = $("exTpl");
-  function addEx(values) {
-    const node = tpl.content.cloneNode(true);
-    const last = list.querySelector(".ex:last-child [name=day]");
-    if (last) node.querySelector("[name=day]").value = last.value;
-    for (const [k, v] of Object.entries(values ?? {})) {
+  for (const a of document.querySelectorAll(".side li a")) a.ariaCurrent = a.pathname === "/programs" ? "page" : null;
+
+  // Days hold their exercises, so the day is typed once, not on every row.
+  function addEx(day, values = {}) {
+    const node = $("exTpl").content.cloneNode(true);
+    for (const [k, v] of Object.entries(values)) {
       const input = node.querySelector(`[name=${k}]`);
       if (input) input.value = v;
     }
-    node.querySelector(".rm").onclick = (e) => e.target.closest(".ex").remove();
-    list.append(node);
+    const li = node.querySelector("li");
+    node.querySelector(".rm").onclick = () => li.remove();
+    day.querySelector(".exlist").append(node);
+    return li;
   }
-  $("add").onclick = () => addEx();
-  const exercises = () => [...list.querySelectorAll(".ex")].map((el) =>
-    Object.fromEntries([...el.querySelectorAll("input")].map((i) => [i.name, i.value])));
+  function addDay(name, exercises = []) {
+    const node = $("dayTpl").content.cloneNode(true);
+    const day = node.querySelector(".day");
+    day.querySelector(".day-name").value = name ?? `Day ${$("days").children.length + 1}`;
+    day.querySelector(".rmday").onclick = () => day.remove();
+    day.querySelector(".addex").onclick = () => addEx(day).querySelector("input").focus();
+    $("days").append(node);
+    for (const e of exercises) addEx(day, e);
+    if (!exercises.length) addEx(day);
+    return day;
+  }
+  $("addDay").onclick = () => addDay().querySelector(".day-name").select();
 
-  // Templates: picking one copies its exercises in. The program is its own copy
-  // from then on, so editing the template later never changes it.
-  const [{ templates = [] }] = await api("/api/templates");
-  $("tpl").append(...templates.map((t) => el("option", { value: t.id, textContent: `${t.name} (${t.exercises.length} exercises)` })));
-  $("tpl").hidden = !templates.length;
-  const start = new URLSearchParams(location.search).get("template");
-  function useTemplate(id) {
-    const t = templates.find((x) => String(x.id) === String(id));
-    if (!t) return;
-    if (exercises().some((e) => e.name) && !confirm(`Replace the exercises with "${t.name}"?`)) return ($("tpl").value = "");
-    list.replaceChildren();
-    for (const e of t.exercises) addEx(e);
-    if (!$("title").value) $("title").value = t.name;
-  }
-  $("tpl").onchange = (e) => useTemplate(e.target.value);
-  // Editing a template uses the same builder, minus the client and with Save.
-  const editing = templates.find((t) => String(t.id) === new URLSearchParams(location.search).get("edit"));
+  // Flattened back to one list with a day on each exercise, which is how the
+  // server stores a program.
+  const exercises = () => [...$("days").children].flatMap((day) => {
+    const name = day.querySelector(".day-name").value.trim() || "Day";
+    return [...day.querySelectorAll(".exrow")].map((row) => ({
+      day: name, ...Object.fromEntries([...row.querySelectorAll("input")].map((i) => [i.name, i.value])),
+    }));
+  });
+
+  // /programs/new?edit=<id> opens a saved program in the same builder.
+  const editId = new URLSearchParams(location.search).get("edit");
+  const editing = editId && (await api("/api/templates"))[0].templates?.find((t) => String(t.id) === editId);
   if (editing) {
     document.title = `Edit ${editing.name}`;
-    document.querySelector(".apphead .eyebrow").textContent = "Template";
-    document.querySelector(".apphead h1").textContent = `Edit ${editing.name}`;
-    $("tpl").hidden = true;
-    $("clientPanel").remove(); // a template has no client
-    for (const a of document.querySelectorAll(".side li a")) a.ariaCurrent = a.pathname === "/templates" ? "page" : null;
-    $("createFoot").hidden = true;
-    $("editName").hidden = $("editFoot").hidden = false;
-    $("editTplName").value = editing.name;
-    for (const e of editing.exercises) addEx(e);
-    $("saveEdit").onclick = async () => {
-      const [data, ok] = await api(`/api/templates/${editing.id}`, { name: $("editTplName").value, exercises: exercises() });
-      if (!ok) return ($("editErr").textContent = data.error);
-      location.href = "/templates";
-    };
-  } else if (start) ($("tpl").value = start), useTemplate(start);
-  else addEx();
-
-  $("saveTpl").onclick = async () => {
-    const name = $("tplName").value.trim() || $("title").value.trim();
-    const [data, ok] = await api("/api/templates", { name, exercises: exercises() });
-    $("err").textContent = ok ? "" : data.error;
-    $("saved").textContent = ok ? `Saved "${name}" to your templates.` : "";
-    if (ok) $("tplName").value = "";
-  };
+    $("heading").textContent = `Edit ${editing.name}`;
+    $("save").textContent = "Save changes";
+    $("name").value = editing.name;
+    const days = [...new Set(editing.exercises.map((e) => e.day))];
+    for (const d of days) addDay(d, editing.exercises.filter((e) => e.day === d));
+  } else addDay("Day 1");
 
   $("f").onsubmit = async (e) => {
     e.preventDefault();
-    const v = (id) => $(id).value;
-    const [data, ok] = await api("/api/programs", { title: v("title"), client_name: v("client"), client_email: v("email"), exercises: exercises() });
+    const body = { name: $("name").value, exercises: exercises() };
+    const [data, ok] = await api(editing ? `/api/templates/${editing.id}` : "/api/templates", body);
     if (!ok) return ($("err").textContent = data.error);
-
-    const clientUrl = `${location.origin}/p/${data.clientToken}`;
-    const a = $("clientLink");
-    a.href = a.textContent = clientUrl;
-    $("ptLink").href = `/p/${data.ptToken}`;
-    const body = `Hi ${v("client")},\n\nHere's your program "${v("title")}". Open it on your phone at the gym and log each set as you go:\n\n${clientUrl}\n\n${who.me.name}`;
-    $("mail").href =
-      `mailto:${encodeURIComponent(v("email"))}?subject=${encodeURIComponent("Your program: " + v("title"))}&body=${encodeURIComponent(body)}`;
-    e.target.hidden = true;
-    $("done").hidden = false;
+    location.href = `/programs#p${editing?.id ?? data.id}`;
   };
 </script>
 </body>

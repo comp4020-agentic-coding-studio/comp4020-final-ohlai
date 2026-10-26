@@ -15,7 +15,7 @@
     </div>
     <input type="search" id="q" placeholder="Search clients" aria-label="Search clients" />
     <button type="button" popovertarget="pv-export">Export <span class="pv-tag">Preview</span></button>
-    <a href="/new" class="btn primary">New program</a>
+    <a href="/programs" class="btn primary">Assign a program</a>
   </header>
 
   <section class="tiles" id="stats" aria-label="This week"></section>
@@ -117,8 +117,8 @@
     $("rows").replaceChildren(...(shown.length ? shown.map(row) : [el("tr", {}, el("td", { colSpan: 5, className: "empty" },
       c.length ? el("span", { className: "muted", textContent: "No clients match." }) : el("span", {},
         el("strong", { textContent: "No clients yet. " }),
-        el("span", { className: "muted", textContent: "Write a program and send your client the link. They show up here. " }),
-        el("a", { href: "/new", textContent: "Write a program" }))))]));
+        el("span", { className: "muted", textContent: "Assign a program to a client and send them the link. They show up here. " }),
+        el("a", { href: "/programs", textContent: "Go to your programs" }))))]));
 
     // Needs attention: the same flags as the table, written out.
     const items = c.flatMap((x) => [

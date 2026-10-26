@@ -51,15 +51,17 @@ there or the progress line means nothing.
 
 ## How to use it
 
-**As a PT.** Go to the home page and sign up. On your dashboard, click New
-program, write the days and exercises, and send the client link with the Email
-button (it opens your own mail app). Your client shows up on the dashboard
-straight away. Click a client to see their week, recent workouts and which lifts
+**As a PT.** Go to the home page and sign up. In Programs, click New program,
+add a day, and add that day's exercises under it. Save it, then press Assign to
+client on it, as many times as you have clients for it. Pick a client you
+already have or type a new one's name and email, and send them the link with
+the Email button (it opens your own mail app). Each client gets their own copy,
+so editing the program later only changes it for the next client. Your client
+shows up on the dashboard straight away. Click a client to see their week, recent workouts and which lifts
 are moving, and click a lift to see its chart. Once your client has set a
 password, Message opens your chat with them. The Inbox has every client
 conversation in one list. Check-ins is where you write the weekly questions
-your clients answer and read what they said. Save a program as a template in
-the builder, and start the next client from it.
+your clients answer and read what they said.
 
 **As a client.** Open the link your PT sent you on your phone. Pick a workout,
 tick each set as you finish it (rows are filled in from last time), and press

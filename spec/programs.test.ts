@@ -117,6 +117,22 @@ it("templates belong to the PT who saved them", async () => {
   const edited = await (await api("/api/templates", undefined, pt)).json();
   expect(edited.templates).toMatchObject([{ id, name: "PPL v2", exercises: [{ name: "Incline Bench", sets: 4 }] }]);
   expect((await api("/api/templates")).status).toBe(401);
+  // Assigning gives the client their own copy; editing the library program after
+  // doesn't change it, and another PT can't assign it.
+  const assign = { client_name: "Ana", client_email: `ana-${unique()}@example.com` };
+  expect((await api(`/api/templates/${id}/assign`, assign, other)).status).toBe(404);
+  expect((await api(`/api/templates/${id}/assign`, { client_name: "Ana" }, pt)).status).toBe(400);
+  const assigned = await api(`/api/templates/${id}/assign`, assign, pt);
+  expect(assigned.status).toBe(201);
+  const { clientToken } = await assigned.json();
+  await api(`/api/templates/${id}`, { name: "PPL v3", exercises: [{ day: "Legs", name: "Squat" }] }, pt);
+  const copy = await (await api(`/api/p/${clientToken}`)).json();
+  expect(copy.program).toMatchObject({ title: "PPL v2", client_name: "Ana" });
+  expect(copy.exercises.map((e: { name: string }) => e.name)).toEqual(["Incline Bench"]);
+  const clients = await (await api("/api/clients", undefined, pt)).json();
+  expect(clients.clients).toEqual([{ name: "Ana", email: assign.client_email }]);
+  expect((await (await api("/api/clients", undefined, other)).json()).clients).toEqual([]);
+
   expect((await api(`/api/templates/${id}/delete`, {}, pt)).status).toBe(200);
 });
 
