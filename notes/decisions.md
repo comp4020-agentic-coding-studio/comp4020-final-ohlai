@@ -1,7 +1,8 @@
 # Decision log
 
 Newest at the bottom. Each entry: what came up, the options, what I picked and
-why. Claude asks me before deciding anything here, then writes it down.
+why. Every decision I make goes here, asked about or not. If the why isn't
+clear, Claude asks me about that decision before writing it.
 
 ## 2026-10-19: How the logs say who did what (crit 10)
 
@@ -83,3 +84,79 @@ Write-up in `docs/adr/0003-accounts-and-chat.md`.
   padding, or in the top bar during a workout. Picked bottom left on the phone,
   where it only covers the set number. The PT's desktop view keeps it bottom
   right. A red dot shows when a message arrives while it's closed.
+
+## 2026-10-26: Record every decision, and ask why
+
+- Asked for every decision I make to be recorded in the repo, not just the
+  ones Claude asks me about. Where my reasoning isn't clear, Claude asks me
+  about that specific decision. Added to "Working with me" in `CLAUDE.md`.
+
+## 2026-10-26: The PT dashboard should be a desktop web app
+
+- **What came up.** The dashboard looked like the phone layout stretched to a
+  desktop screen. A PT managing several clients is at a desk, so it should look
+  like a full web dashboard (sidebar, stat tiles, tables), like the example I
+  shared.
+- **Previews.** Claude can add the front end of features it thinks fit, with
+  no backend, and I decide which are worth building. They're marked "Preview"
+  on the page.
+- Why: follows from the README's "fits each user where they are". The PT's
+  screen is a desktop, so the dashboard should use it.
+
+Claude's layout calls, waiting on my yes or no: the client detail opens as a
+panel on the right instead of expanding in the list, a "Needs attention" list,
+a 7-day calendar strip, and a recent workouts feed across all clients. Preview
+ideas: inbox, calendar, weekly check-ins, templates, CSV export, nudging quiet
+clients, private notes per client.
+
+## 2026-10-26: Which previews to build
+
+- **Inbox: build it.** It's the way to manage chats on a desktop, one list of
+  every client conversation instead of opening each client's chat.
+- **Check-ins: build it.** Gives me a sense of how clients are going between
+  workouts.
+- **Templates: build it.** A no-brainer, nobody wants to write push / pull /
+  legs again for every client.
+- **Calendar: dropped.** I don't need to know ahead of time when a client plans
+  to train. That's too personal and unnecessary. It might come back later for
+  scheduling a call or meeting if I add calls, but not for workout sessions.
+- **"Training now": keep it.** A client mid-workout might message with a
+  question, so it helps to know. The client should probably be able to turn it
+  off. That's a preview on the client's My programs page for now.
+- **Export, nudge quiet clients, private notes:** stay as previews, undecided.
+
+## 2026-10-26: How check-ins and templates work
+
+- **Check-in questions.** Options: the PT writes their own, a fixed set with no
+  body data, or a fixed set with bodyweight and photos. Picked the PT writes
+  their own (1 to 5 or written answers), starting from a default set. A rehab
+  PT asks about pain, a strength coach about sleep, which fits "good = fits each
+  user".
+- **Templates.** Options: save and start from in the builder, or also save from
+  a client's live program. Picked save and start from, with a Templates page to
+  rename and delete. A program is a copy of its template, so editing a template
+  never changes a client's program.
+- Claude's defaults, not asked: check-ins have no schedule or reminder, the
+  client checks in whenever from My programs. Up to 8 questions. Each check-in
+  keeps the questions it was answered against, so editing questions doesn't
+  rewrite old answers. Built the "hide Training now" setting as a preview, not
+  for real, because I said "perhaps".
+
+## 2026-10-26: No mobile/desktop toggle on PT pages, builder in the app
+
+- **Toggle.** Removed from the dashboard, builder and every PT page. On a
+  desktop you want the desktop view and on a phone the phone view, so the
+  button is clutter for the option of a worse experience. The layout follows
+  the screen. The PT program view shares its page with the client, so it keeps
+  the toggle for now.
+- **Builder.** Moved inside the dashboard app with the sidebar, so navigation
+  stays in one place.
+
+## 2026-10-26: Editing a template
+
+- Asked for an Edit button on each template that opens it full screen, the
+  same way as writing a new program. It uses the builder itself (`/new?edit=`),
+  with the template name in place of the client details and Save changes in
+  place of Create program. Editing a template still never changes programs
+  already started from it.
+- Asked to put all of today's work on the live site instead of only local.

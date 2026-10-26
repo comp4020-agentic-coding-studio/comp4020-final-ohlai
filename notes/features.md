@@ -21,12 +21,36 @@ underneath it as work happens. Only I move a feature to Done.
   card opens into the detail, and each lift links to its chart.
 - 2026-10-19: Old programs join a dashboard when their PT opens the PT link
   logged in. For Jack on Fly: sign up, open his PT link, Add to my dashboard.
+- 2026-10-26: Redesigned as a desktop web dashboard (sidebar, tiles, table,
+  detail panel). Front-end-only previews on the page for me to pick from.
 
 ### Chat between PT and client
 - 2026-10-19: One thread per PT and client, text and photos, live. Video calls
   left for later (see below).
 
+### Inbox
+- 2026-10-26: All client chats in one place on desktop, newest first, unread
+  count in the sidebar. Built from the preview.
+
+### Weekly check-ins
+- 2026-10-26: The PT writes the questions (1 to 5 or written). The client fills
+  them in from My programs. Answers show on the check-ins page and in the
+  client's panel on the dashboard. No reminders yet.
+
+### Templates
+- 2026-10-26: Save as template in the builder, Start from a template picker,
+  Templates page to rename, delete or use.
+- 2026-10-26: Edit opens the template full screen in the builder.
+
 ## Next
+
+### Client can hide "Training now"
+- 2026-10-26: Preview on My programs. A client should be able to stop their PT
+  seeing when they're mid-workout.
+
+### Calendar for calls
+- 2026-10-26: Dropped as a training calendar (too personal). Might come back
+  for scheduling calls or meetings once calls exist.
 
 ### Pick a niche
 - 2026-10-19: Crit feedback: pick a sport or a subset of people. Designing for

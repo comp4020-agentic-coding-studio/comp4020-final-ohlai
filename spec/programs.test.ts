@@ -99,3 +99,57 @@ it("a client sets a password from their link, then only their own PT can message
   const me = await (await api("/api/me", undefined, client)).text();
   expect(me).not.toContain("pt_token");
 });
+
+it("templates belong to the PT who saved them", async () => {
+  const pt = await signupPT();
+  const other = await signupPT("Other PT");
+  const saved = await api("/api/templates", { name: "PPL", exercises: [{ day: "Push", name: "Bench", sets: 3, reps: "8" }] }, pt);
+  expect(saved.status).toBe(201);
+  const { id } = await saved.json();
+  const mine = await (await api("/api/templates", undefined, pt)).json();
+  expect(mine.templates).toMatchObject([{ id, name: "PPL", exercises: [{ name: "Bench" }] }]);
+  expect((await (await api("/api/templates", undefined, other)).json()).templates).toEqual([]);
+  expect((await api(`/api/templates/${id}/delete`, {}, other)).status).toBe(404);
+  // Editing replaces the exercises; another PT can't.
+  const edit = { name: "PPL v2", exercises: [{ day: "Push", name: "Incline Bench", sets: 4, reps: "6-8" }] };
+  expect((await api(`/api/templates/${id}`, edit, other)).status).toBe(404);
+  expect((await api(`/api/templates/${id}`, edit, pt)).status).toBe(200);
+  const edited = await (await api("/api/templates", undefined, pt)).json();
+  expect(edited.templates).toMatchObject([{ id, name: "PPL v2", exercises: [{ name: "Incline Bench", sets: 4 }] }]);
+  expect((await api("/api/templates")).status).toBe(401);
+  expect((await api(`/api/templates/${id}/delete`, {}, pt)).status).toBe(200);
+});
+
+it("a client's check-in reaches their own PT and nobody else, and shows in the inbox list", async () => {
+  const { pt, clientToken } = await program();
+  const claimed = await api(`/api/p/${clientToken}/claim`, { password: "password123" });
+  const client = cookieOf(claimed);
+  const { program: p } = await claimed.json();
+
+  expect((await api("/api/checkins", { questions: [{ text: "Knee pain?", kind: "scale" }, { text: "Notes", kind: "text" }] }, pt)).status).toBe(200);
+  const form = await (await api(`/api/checkin/${p.pt_user_id}`, undefined, client)).json();
+  expect(form.questions.map((q: { text: string }) => q.text)).toEqual(["Knee pain?", "Notes"]);
+  expect((await api(`/api/checkin/${p.pt_user_id}`, { answers: [null, ""] }, client)).status).toBe(400);
+  expect((await api(`/api/checkin/${p.pt_user_id}`, { answers: [2, "Sore after legs"] }, client)).status).toBe(201);
+
+  const seen = await (await api("/api/checkins", undefined, pt)).json();
+  expect(seen.checkins).toMatchObject([{ client_id: p.client_user_id, answers: [2, "Sore after legs"] }]);
+  const stranger = await signupPT("Stranger");
+  expect((await (await api("/api/checkins", undefined, stranger)).json()).checkins).toEqual([]);
+  expect((await api(`/api/checkin/${(await (await api("/api/me", undefined, stranger)).json()).me.id}`, { answers: [1] }, client)).status).toBe(404);
+  expect((await api("/api/checkins", undefined, client)).status).toBe(401);
+
+  const inbox = await (await api("/api/inbox", undefined, pt)).json();
+  expect(inbox.threads.map((t: { id: number }) => t.id)).toEqual([p.client_user_id]);
+  expect((await (await api("/api/inbox", undefined, stranger)).json()).threads).toEqual([]);
+});
+
+it("serves every script the pages load", async () => {
+  const { readdirSync, readFileSync } = await import("node:fs");
+  const scripts = new Set<string>();
+  for (const f of readdirSync("public").filter((f) => /\.(html|js)$/.test(f)))
+    for (const m of readFileSync(`public/${f}`, "utf8").matchAll(/["'](\/[\w-]+\.js)["']/g)) scripts.add(m[1]);
+  expect(scripts.size).toBeGreaterThan(3);
+  for (const s of scripts) expect((await fetch(new URL(s, baseUrl))).status, s).toBe(200);
+  expect((await fetch(new URL("/server.js", baseUrl))).status).toBe(404); // only public/
+});

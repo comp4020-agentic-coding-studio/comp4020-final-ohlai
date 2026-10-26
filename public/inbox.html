@@ -1,0 +1,82 @@
+<!doctype html>
+<html lang="en-AU" data-style="mono">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Inbox</title>
+  <link rel="stylesheet" href="/style.css" />
+</head>
+<body data-default-view="desktop" class="app">
+<main class="inbox">
+  <section class="panel threads">
+    <div class="panel-head"><h1>Inbox</h1></div>
+    <input type="search" id="q" placeholder="Search clients" aria-label="Search clients" />
+    <ul id="threads"></ul>
+  </section>
+  <section class="panel convo" aria-live="polite">
+    <div class="panel-head" id="head"><h2 id="who">Pick a conversation</h2><span id="links"></span></div>
+    <div id="chat"><p class="muted">Every client who has set a password shows up on the left, newest message first.</p></div>
+  </section>
+</main>
+
+<script src="/view.js"></script>
+<script type="module">
+  import { $, el, api, ago, fmtTime, utc, toLogin, live } from "/ui.js";
+  import { mountSide } from "/side.js";
+  import { mountChat } from "/chat.js";
+  mountSide();
+
+  let threads = [], chat = null;
+  const current = () => Number(location.hash.slice(1)) || null;
+
+  async function load() {
+    const [data, ok] = await api("/api/inbox");
+    if (!ok) return toLogin();
+    threads = data.threads;
+    if (!current() && threads[0]?.last) history.replaceState(null, "", `#${threads[0].id}`);
+    list();
+    open();
+  }
+
+  // A message from today shows its time, anything older how long ago.
+  const when = (t) => (utc(t).toDateString() === new Date().toDateString() ? fmtTime(utc(t)) : ago(t));
+
+  function list() {
+    const q = $("q").value.trim().toLowerCase();
+    const shown = threads.filter((t) => !q || t.name.toLowerCase().includes(q));
+    $("threads").replaceChildren(...(shown.length ? shown.map((t) => el("li", {},
+      el("a", { href: `#${t.id}`, className: "thread-row", ariaCurrent: t.id === current() ? "true" : null },
+        el("span", { className: "avatar", ariaHidden: "true", textContent: t.name[0] }),
+        el("span", { className: "thread-text" },
+          el("span", { className: "thread-top" },
+            el("strong", { textContent: t.name }),
+            el("small", { className: "muted", textContent: t.last ? when(t.last.created_at) : "" })),
+          el("span", { className: t.unread ? "preview unread" : "preview muted",
+            textContent: !t.last ? "No messages yet" : `${t.last.sender_id === t.id ? "" : "You: "}${t.last.image ? "Photo" : t.last.body}` })),
+        t.unread ? el("span", { className: "badge", textContent: t.unread }) : null)))
+      : [el("li", { className: "muted pad", textContent: threads.length ? "No clients match." : "No conversations yet. A client shows up here once they set a password from their link." })]));
+  }
+
+  // Opening a thread marks it read on the server, so the list refreshes after.
+  function open() {
+    const t = threads.find((x) => x.id === current());
+    if (!t) return;
+    $("who").textContent = t.name;
+    $("links").replaceChildren(el("span", { className: "muted", textContent: t.titles }));
+    if (chat?.id !== t.id) {
+      chat = { id: t.id, ...mountChat($("chat"), t.id, { onLoad: () => t.unread && refreshList() }) };
+      chat.load().then(() => chat.focus());
+    }
+  }
+  async function refreshList() {
+    const [data, ok] = await api("/api/inbox");
+    if (ok) (threads = data.threads), list();
+  }
+
+  addEventListener("hashchange", () => (list(), open()));
+  $("q").oninput = list;
+  load();
+  live("/api/events", (e) => e.type === "chat" && (chat?.load(), refreshList()));
+</script>
+</body>
+</html>

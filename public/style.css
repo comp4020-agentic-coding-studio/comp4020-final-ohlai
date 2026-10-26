@@ -237,33 +237,118 @@ a.back { display: inline-grid; place-items: center; text-decoration: none; }
 a.card.link { display: flex; justify-content: space-between; align-items: center; gap: 12px; color: var(--ink); text-decoration: none; }
 .actions.top { gap: 8px; }
 
-/* dashboard: one expandable card per client */
-.clients { margin-top: 12px; }
-.client summary { list-style: none; cursor: pointer; display: grid; gap: 10px 16px; grid-template-columns: 1fr 1fr; align-items: center; }
-.client summary::-webkit-details-marker { display: none; }
-.client summary .who { grid-column: 1 / -1; display: flex; flex-direction: column; }
-.client summary .who strong { font-size: 1.15rem; }
-.client summary .who strong::after { content: " ▸"; color: var(--muted); font-weight: 400; }
-.client[open] summary .who strong::after { content: " ▾"; }
-.cell small { display: block; color: var(--muted); font-size: 0.78rem; }
+/* ---------- PT dashboard: a desktop app, not a stretched phone ----------
+   Sidebar, then the main column; a client's detail opens as a panel on the
+   right so the table stays in view. */
+/* PT pages have no mobile/desktop toggle: the layout follows the screen. */
+body.app { display: grid; grid-template-columns: 232px minmax(0, 1fr) auto; min-height: 100vh; }
+body.app main { max-width: none; width: 100%; padding: 20px 28px 48px; }
+.side { position: sticky; top: 0; height: 100vh; display: flex; flex-direction: column; gap: 4px; padding: 20px 14px; background: var(--card); border-right: 1px solid var(--line); }
+.side .brand { padding: 4px 10px 16px; }
+.side ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 2px; }
+.side a:not(.brand), .side li button { display: flex; align-items: center; justify-content: space-between; gap: 8px; width: 100%; padding: 9px 10px; border-radius: 10px; color: var(--ink); text-decoration: none; font-weight: 500; font-size: 0.95rem; background: none; text-align: left; }
+.side li a:hover, .side li button:hover { background: var(--soft); }
+.side a[aria-current="page"] { background: var(--soft); font-weight: 600; }
+.side-label { margin: 18px 10px 4px; font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); }
+.side-foot { margin-top: auto; display: grid; gap: 10px; padding: 12px 10px 0; border-top: 1px solid var(--line); }
+.side-foot .toggles { order: 0; width: auto; justify-content: flex-start; }
+.pv-tag { font-family: "Share Tech Mono", ui-monospace, monospace; font-size: 0.68rem; font-weight: 400; text-transform: uppercase; letter-spacing: 0.04em; padding: 1px 6px; border: 1px dashed var(--muted); border-radius: 6px; color: var(--muted); vertical-align: middle; }
+
+.apphead { display: flex; align-items: center; gap: 10px; margin-bottom: 18px; }
+.apphead > div { flex: 1; }
+.apphead .eyebrow { font-size: 0.78rem; }
+.apphead h1 { font-size: 1.6rem; letter-spacing: -0.02em; }
+.apphead input[type="search"] { width: 240px; padding: 10px 14px; background: var(--card); border: 1px solid var(--line); }
+.apphead button, .apphead .btn { padding: 10px 14px; white-space: nowrap; }
+.apphead button { background: var(--card); border: 1px solid var(--line); }
+
+.tiles { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 14px; margin-bottom: 14px; }
+.tile, .panel { background: var(--card); border-radius: 18px; box-shadow: var(--shadow); border: 1px solid var(--line); }
+.tile { padding: 16px 18px; display: grid; gap: 2px; }
+.tile small { color: var(--muted); font-size: 0.85rem; }
+.tile strong { font-family: "Share Tech Mono", ui-monospace, monospace; font-weight: 400; font-size: 2.1rem; line-height: 1.15; }
+.tile .muted { font-size: 0.82rem; }
+
+.dashgrid { display: grid; grid-template-columns: minmax(0, 2fr) minmax(280px, 1fr); gap: 14px; align-items: start; }
+.col { display: grid; gap: 14px; }
+.panel { padding: 16px 18px; }
+.panel-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 10px; }
+.panel-head h2 { margin: 0; font-size: 1.05rem; white-space: nowrap; }
+.panel .foot { margin: 12px 0 0; }
+button.small, .chips button { white-space: nowrap; font-size: 0.82rem; padding: 6px 10px; font-weight: 500; }
+.chips { display: flex; gap: 6px; }
+.chips button[aria-pressed="true"] { background: var(--ink); color: var(--bg); }
+
+.ctable { width: 100%; border-collapse: collapse; font-size: 0.93rem; }
+.ctable th { text-align: left; font-weight: 500; color: var(--muted); font-size: 0.78rem; padding: 6px 10px; border-bottom: 1px solid var(--line); }
+.ctable td { padding: 10px; border-bottom: 1px solid var(--line); vertical-align: middle; white-space: nowrap; }
+.ctable tr:last-child td { border-bottom: 0; }
+.ctable tbody tr { cursor: pointer; }
+.ctable tbody tr:hover td, .ctable tbody tr.on td { background: var(--soft); }
+.ctable tbody tr.on td:first-child { box-shadow: inset 3px 0 0 var(--ink); }
+.ctable td.empty { text-align: center; padding: 32px 16px; white-space: normal; }
+.who { display: flex; align-items: center; gap: 10px; padding: 0; background: none; text-align: left; font-weight: 400; }
+.who > span:last-child { display: grid; }
+.who .muted { font-size: 0.82rem; }
+.avatar { display: inline-grid; place-items: center; width: 34px; height: 34px; flex: none; border-radius: 50%; background: var(--soft); font-weight: 600; }
+.avatar.big { width: 48px; height: 48px; font-size: 1.2rem; }
+.num { font-family: "Share Tech Mono", ui-monospace, monospace; }
+.live { font-weight: 600; }
+.live::before { content: ""; display: inline-block; width: 8px; height: 8px; margin-right: 6px; border-radius: 50%; background: var(--trend); vertical-align: 1px; }
 .dots { display: inline-flex; gap: 4px; margin-left: 8px; vertical-align: middle; }
 .dots i { width: 9px; height: 9px; border-radius: 50%; background: var(--line); }
 .dots i.on { background: var(--ink); }
-.more { display: grid; gap: 0 32px; margin-top: 16px; border-top: 1px solid var(--line); padding-top: 4px; }
-.more h3 { font-size: 0.95rem; margin: 14px 0 6px; }
-.more h4 { font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.04em; color: var(--muted); margin: 10px 0 4px; }
-.more .actions { grid-column: 1 / -1; }
-/* The wide layout needs the room, whichever view is picked. */
-@media (min-width: 760px) {
-  body[data-view="desktop"] .client summary { grid-template-columns: 2fr 1fr 1fr 1fr 1fr; }
-  body[data-view="desktop"] .client summary .who { grid-column: auto; }
-  body[data-view="desktop"] .more { grid-template-columns: 1fr 1fr; }
+
+.feed { list-style: none; margin: 0; padding: 0; }
+.feed li { display: flex; align-items: baseline; gap: 10px; padding: 9px 0; border-bottom: 1px solid var(--line); font-size: 0.92rem; }
+.feed li:last-child { border-bottom: 0; }
+.feed li > :last-child:not(:first-child) { margin-left: auto; }
+.linkish { padding: 0; background: none; font-weight: 600; color: var(--ink); text-decoration: underline; text-underline-offset: 3px; text-decoration-color: var(--line); }
+.week { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 6px; }
+.wday { display: grid; align-content: start; gap: 4px; min-height: 96px; padding: 6px; border-radius: 10px; background: var(--soft); }
+.wday small { color: var(--muted); font-size: 0.72rem; }
+.wday:last-child small { color: var(--ink); font-weight: 600; }
+.wchip { display: grid; padding: 4px 6px; border-radius: 8px; background: var(--card); font-size: 0.72rem; text-align: left; font-weight: 400; line-height: 1.25; }
+.wchip span { color: var(--muted); }
+
+.detail { position: sticky; top: 0; height: 100vh; overflow-y: auto; width: 380px; padding: 20px; background: var(--card); border-left: 1px solid var(--line); }
+.detail-head { display: flex; align-items: center; gap: 12px; }
+.detail-head > div { flex: 1; display: grid; }
+.detail-head h2 { margin: 0; }
+.detail-head button { width: 40px; height: 40px; padding: 0; border-radius: 50%; }
+.detail h3 { font-size: 0.95rem; margin: 18px 0 6px; display: flex; justify-content: space-between; align-items: baseline; }
+.detail h3 a { font-weight: 400; font-size: 0.85rem; }
+.detail h4 { font-size: 0.78rem; text-transform: uppercase; letter-spacing: 0.04em; color: var(--muted); margin: 10px 0 4px; }
+.detail textarea { resize: vertical; }
+
+.pv { max-width: 420px; padding: 20px 22px; border: 1px solid var(--line); border-radius: 18px; background: var(--card); color: var(--ink); box-shadow: 0 30px 80px -30px rgba(0, 0, 0, 0.5); }
+.pv::backdrop { background: rgba(0, 0, 0, 0.25); }
+.pv h3 { margin: 0 0 8px; }
+.pv h3::after { content: "Preview, not built"; margin-left: 10px; font: 400 0.7rem "Share Tech Mono", ui-monospace, monospace; text-transform: uppercase; color: var(--muted); }
+.pv p { margin: 0 0 10px; color: var(--muted); }
+.mock { opacity: 0.7; }
+
+/* With a client open there's no room for two columns beside the panel. */
+body.app:has(#detail:not([hidden])) .dashgrid { grid-template-columns: 1fr; }
+.detail .plain li { font-size: 0.93rem; }
+
+/* Not designed for a phone (see CLAUDE.md), just kept usable on a small screen. */
+@media (max-width: 1100px) {
+  .dashgrid { grid-template-columns: 1fr; }
+  .tiles { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
-.dashstats { flex-wrap: wrap; }
-.dashstats > div { min-width: 130px; }
-.topbar .newbtn { order: 1; }
+@media (max-width: 760px) {
+  body.app { display: block; }
+  body.app main { padding: 12px 16px 48px; }
+  .side { position: static; height: auto; flex-direction: row; flex-wrap: wrap; align-items: center; border: 0; padding: 12px 16px; }
+  .side ul { display: flex; flex-wrap: wrap; gap: 4px; width: 100%; order: 3; }
+  .side-foot { margin: 0 0 0 auto; border: 0; padding: 0; display: flex; align-items: center; }
+  .apphead { flex-wrap: wrap; }
+  .ctable th:nth-child(n+3), .ctable td:nth-child(n+3) { display: none; }
+  .detail { position: fixed; inset: 0 0 0 auto; width: min(380px, 100%); z-index: 10; }
+  .inbox { grid-template-columns: 1fr !important; }
+}
 .empty { text-align: center; padding: 32px 16px; }
-[data-style="mono"] .stats > div:first-child strong { color: var(--ink); }
 
 /* chat */
 .chatpage main { padding-bottom: 96px; }
@@ -334,3 +419,64 @@ body[data-view="desktop"] .drawer { inset: auto 24px 0 auto; margin: 0; height: 
 .pad { padding: 16px; }
 @keyframes drawer-up { from { transform: translateY(100%); } }
 @media (prefers-reduced-motion: reduce) { .drawer[open] { animation: none; } }
+
+/* inbox: threads on the left, the open conversation on the right */
+.inbox { display: grid; grid-template-columns: 320px minmax(0, 1fr); gap: 14px; height: 100vh; padding-bottom: 20px !important; }
+.inbox .panel { display: flex; flex-direction: column; min-height: 0; }
+.threads h1 { font-size: 1.4rem; }
+.threads input[type="search"] { margin-bottom: 8px; }
+#threads { list-style: none; margin: 0 -8px; padding: 0; overflow-y: auto; }
+.thread-row { display: flex; align-items: center; gap: 10px; padding: 10px 8px; border-radius: 12px; color: var(--ink); text-decoration: none; }
+.thread-row:hover, .thread-row[aria-current] { background: var(--soft); }
+.thread-text { flex: 1; min-width: 0; display: grid; }
+.thread-top { display: flex; justify-content: space-between; gap: 8px; }
+.preview { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-size: 0.88rem; }
+.preview.unread { font-weight: 600; }
+.convo #chat { flex: 1; min-height: 0; display: flex; flex-direction: column; }
+.convo .thread { flex: 1; overflow-y: auto; margin: 0; padding: 8px 4px; }
+.convo .thread li.theirs { background: var(--soft); box-shadow: none; }
+.convo .compose { padding: 10px 0 0; background: none; }
+.side .badge { font-size: 0.75rem; padding: 1px 8px; }
+
+/* check-ins */
+.checkins-grid { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
+.checkin dl { display: grid; grid-template-columns: 1fr auto; gap: 6px 16px; margin: 6px 0 0; }
+.checkin dt { color: var(--muted); font-size: 0.9rem; }
+.checkin dd { margin: 0; text-align: right; font-size: 0.92rem; }
+.checkin dd:not(.scale) { grid-column: 1 / -1; text-align: left; white-space: pre-wrap; padding: 2px 0 6px; }
+.scale { display: flex; align-items: center; gap: 3px; justify-content: flex-end; }
+.scale i { width: 14px; height: 6px; border-radius: 3px; background: var(--line); }
+.scale i.on { background: var(--ink); }
+.panel details summary { cursor: pointer; color: var(--muted); margin-top: 10px; }
+.panel details .checkin { border-top: 1px solid var(--line); margin-top: 10px; padding-top: 10px; }
+.qs { list-style: none; padding-left: 0; margin: 10px 0; display: grid; gap: 8px; }
+.q { display: grid !important; grid-template-columns: 1fr 110px auto; gap: 6px; align-items: center; }
+.q input { width: 100%; }
+.q select { width: 100%; }
+.q button { padding: 8px 12px; }
+#qform .primary { margin-top: 12px; }
+.checkin-form fieldset { border: 0; margin: 12px 0; }
+.checkin-form legend { font-weight: 600; padding: 0; float: left; width: 100%; margin-bottom: 10px; }
+.checkin-form .card label { color: var(--ink); font-weight: 600; font-size: 1rem; margin: 0 0 8px; }
+.scale-pick { clear: both; display: grid; grid-template-columns: repeat(5, 1fr); gap: 8px; }
+.scale-pick label { margin: 0; position: relative; }
+.scale-pick input { position: absolute; opacity: 0; inset: 0; }
+.scale-pick span { display: grid; place-items: center; height: 48px; border-radius: 12px; background: var(--soft); color: var(--ink); font-weight: 600; font-size: 1.1rem; }
+.scale-pick input:checked + span { background: var(--ink); color: var(--bg); }
+.scale-pick input:focus-visible + span { outline: 3px solid var(--accent); outline-offset: 2px; }
+.scale-ends { display: flex; justify-content: space-between; font-size: 0.78rem; margin-top: 4px; }
+
+/* templates and the builder inside the PT app */
+.tgrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 14px; margin-top: 14px; }
+.tcard .tname { font-size: 1.1rem; font-weight: 600; border-color: transparent; padding: 4px 6px; margin: -4px -6px 2px; width: calc(100% + 12px); }
+.tcard .tname:hover, .tcard .tname:focus { border-color: var(--line); }
+.tday h4 { font-size: 0.78rem; text-transform: uppercase; letter-spacing: 0.04em; color: var(--muted); margin: 12px 0 4px; }
+.tcard .plain li { display: flex; justify-content: space-between; font-size: 0.92rem; }
+.tpl-pick { width: auto; min-width: 240px; background: var(--card); }
+.builder { display: grid; gap: 14px; }
+.builder .panel .row label:first-child, .builder .panel .row > div > label { margin-top: 0; }
+body.app #list { display: grid; grid-template-columns: repeat(auto-fill, minmax(380px, 1fr)); gap: 12px; }
+body.app #list .card { margin: 0; background: var(--soft); box-shadow: none; }
+.builder-foot { display: flex; align-items: center; gap: 10px; justify-content: flex-end; position: sticky; bottom: 0; padding: 12px 0; background: var(--bg); }
+.builder-foot .error { margin: 0 auto 0 0; }
+.builder-foot input { width: 220px; background: var(--card); }

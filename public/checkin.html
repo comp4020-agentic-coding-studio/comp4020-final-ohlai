@@ -1,0 +1,59 @@
+<!doctype html>
+<html lang="en-AU" data-style="mono">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Check in</title>
+  <link rel="stylesheet" href="/style.css" />
+</head>
+<body data-default-view="mobile">
+<main>
+  <div class="topbar">
+    <a class="back btn" href="/me" aria-label="Back">←</a>
+    <h1 id="title">Check in</h1>
+    <span class="toggles"><button type="button" class="view-toggle"></button></span>
+  </div>
+  <p class="sub" id="sub"></p>
+  <form id="f" class="checkin-form"></form>
+  <section id="done" class="card" hidden>
+    <h2>Sent</h2>
+    <p class="muted" id="doneText"></p>
+    <a href="/me" class="btn primary">Back to my programs</a>
+  </section>
+</main>
+
+<script src="/view.js"></script>
+<script type="module">
+  import { $, el, api, ago, toLogin } from "/ui.js";
+  const pt = location.pathname.split("/").pop();
+  const [data, ok] = await api(`/api/checkin/${pt}`);
+  if (!ok) data.error === "No check-in with that PT." ? ($("title").textContent = data.error) : toLogin();
+  else {
+    $("title").textContent = `Check in with ${data.pt.name}`;
+    $("sub").textContent = data.last ? `Your last check-in was ${ago(data.last.at).toLowerCase()}.` : "Takes a minute. Skip anything you'd rather not answer.";
+    const answers = data.questions.map(() => null);
+    $("f").replaceChildren(
+      ...data.questions.map((q, i) => q.kind === "scale"
+        ? el("fieldset", { className: "card" },
+          el("legend", { textContent: q.text }),
+          el("div", { className: "scale-pick" }, ...[1, 2, 3, 4, 5].map((n) => el("label", {},
+            el("input", { type: "radio", name: `q${i}`, value: n, onchange: () => (answers[i] = n) }),
+            el("span", { textContent: n })))),
+          el("div", { className: "scale-ends muted" }, el("span", { textContent: "Low" }), el("span", { textContent: "High" })))
+        : el("div", { className: "card" },
+          el("label", { htmlFor: `q${i}`, textContent: q.text }),
+          el("textarea", { id: `q${i}`, rows: 3, maxLength: 2000, oninput: (e) => (answers[i] = e.target.value) }))),
+      el("p", { id: "err", className: "error", role: "alert" }),
+      el("button", { type: "submit", className: "primary wide", textContent: `Send to ${data.pt.name}` }));
+    $("f").onsubmit = async (e) => {
+      e.preventDefault();
+      const [res, sent] = await api(`/api/checkin/${pt}`, { answers });
+      if (!sent) return ($("err").textContent = res.error);
+      $("f").hidden = true;
+      $("doneText").textContent = `${data.pt.name} sees it on their dashboard.`;
+      $("done").hidden = false;
+    };
+  }
+</script>
+</body>
+</html>

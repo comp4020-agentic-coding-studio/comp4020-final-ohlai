@@ -56,12 +56,16 @@ program, write the days and exercises, and send the client link with the Email
 button (it opens your own mail app). Your client shows up on the dashboard
 straight away. Click a client to see their week, recent workouts and which lifts
 are moving, and click a lift to see its chart. Once your client has set a
-password, Message opens your chat with them.
+password, Message opens your chat with them. The Inbox has every client
+conversation in one list. Check-ins is where you write the weekly questions
+your clients answer and read what they said. Save a program as a template in
+the builder, and start the next client from it.
 
 **As a client.** Open the link your PT sent you on your phone. Pick a workout,
 tick each set as you finish it (rows are filled in from last time), and press
 Finish. Set a password in the box at the top if you want to log in from another
-device or message your PT. After that you can log in from the home page.
+device or message your PT. After that you can log in from the home page, and
+My programs has your PT's weekly check-in.
 
 ## What I chose not to build
 

@@ -3,31 +3,58 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Build a program</title>
+  <title>Write a program</title>
   <link rel="stylesheet" href="/style.css" />
 </head>
-<body data-default-view="desktop">
+<body data-default-view="desktop" class="app">
 <main>
-  <div class="topbar"><a class="back btn" href="/dash" aria-label="Back to dashboard">←</a><h1>Build a program</h1><span class="toggles"><button type="button" class="view-toggle"></button></span></div>
-  <p class="sub">Write the program, send it to your client, watch their sets come in.</p>
+  <header class="apphead">
+    <div><p class="eyebrow">New program</p><h1>Write a program</h1></div>
+    <label class="sr" for="tpl">Start from a template</label>
+    <select id="tpl" class="tpl-pick"><option value="">Start from a template…</option></select>
+  </header>
 
-  <form id="f">
-    <label for="title">Program name</label>
-    <input id="title" required placeholder="e.g. 4-week strength block" />
-    <label for="client">Client name</label>
-    <input id="client" required />
-    <label for="email">Client email</label>
-    <input id="email" type="email" required />
+  <form id="f" class="builder">
+    <section class="panel" id="editName" hidden>
+      <div class="panel-head"><h2>Template</h2></div>
+      <label for="editTplName">Template name</label>
+      <input id="editTplName" maxlength="80" />
+    </section>
 
-    <h2>Exercises</h2>
-    <div id="list"></div>
-    <button type="button" id="add">+ Add exercise</button>
+    <section class="panel" id="clientPanel">
+      <div class="panel-head"><h2>Client</h2></div>
+      <div class="row">
+        <div><label for="title">Program name</label><input id="title" required placeholder="e.g. 4-week strength block" /></div>
+        <div><label for="client">Client name</label><input id="client" required /></div>
+        <div><label for="email">Client email</label><input id="email" type="email" required /></div>
+      </div>
+    </section>
 
-    <p id="err" class="error" role="alert"></p>
-    <button class="primary" type="submit">Create program</button>
+    <section class="panel">
+      <div class="panel-head">
+        <h2>Exercises</h2>
+        <button type="button" id="add" class="small">+ Add exercise</button>
+      </div>
+      <div id="list"></div>
+    </section>
+
+    <div class="builder-foot" id="editFoot" hidden>
+      <p id="editErr" class="error" role="alert"></p>
+      <a href="/templates" class="btn">Cancel</a>
+      <button type="button" id="saveEdit" class="primary">Save changes</button>
+    </div>
+
+    <div class="builder-foot" id="createFoot">
+      <p id="err" class="error" role="alert"></p>
+      <span id="saved" class="muted" role="status"></span>
+      <label class="sr" for="tplName">Template name</label>
+      <input id="tplName" placeholder="Template name" maxlength="80" />
+      <button type="button" id="saveTpl">Save as template</button>
+      <button class="primary" type="submit">Create program</button>
+    </div>
   </form>
 
-  <section id="done" hidden>
+  <section id="done" class="panel" hidden>
     <h2>Program created</h2>
     <p>Your client's link:</p>
     <p class="share"><a id="clientLink"></a></p>
@@ -58,43 +85,87 @@
 
 <script src="/view.js"></script>
 <script type="module">
-  import { api, toLogin } from "/ui.js";
+  import { $, el, api, toLogin } from "/ui.js";
+  import { mountSide } from "/side.js";
   const [who, loggedIn] = await api("/api/me");
   if (!loggedIn || who.me.role !== "pt") toLogin();
-  const list = document.getElementById("list");
-  const tpl = document.getElementById("exTpl");
-  function addEx() {
+  mountSide();
+  const list = $("list");
+  const tpl = $("exTpl");
+  function addEx(values) {
     const node = tpl.content.cloneNode(true);
     const last = list.querySelector(".ex:last-child [name=day]");
     if (last) node.querySelector("[name=day]").value = last.value;
+    for (const [k, v] of Object.entries(values ?? {})) {
+      const input = node.querySelector(`[name=${k}]`);
+      if (input) input.value = v;
+    }
     node.querySelector(".rm").onclick = (e) => e.target.closest(".ex").remove();
     list.append(node);
   }
-  document.getElementById("add").onclick = addEx;
-  addEx();
+  $("add").onclick = () => addEx();
+  const exercises = () => [...list.querySelectorAll(".ex")].map((el) =>
+    Object.fromEntries([...el.querySelectorAll("input")].map((i) => [i.name, i.value])));
 
-  document.getElementById("f").onsubmit = async (e) => {
+  // Templates: picking one copies its exercises in. The program is its own copy
+  // from then on, so editing the template later never changes it.
+  const [{ templates = [] }] = await api("/api/templates");
+  $("tpl").append(...templates.map((t) => el("option", { value: t.id, textContent: `${t.name} (${t.exercises.length} exercises)` })));
+  $("tpl").hidden = !templates.length;
+  const start = new URLSearchParams(location.search).get("template");
+  function useTemplate(id) {
+    const t = templates.find((x) => String(x.id) === String(id));
+    if (!t) return;
+    if (exercises().some((e) => e.name) && !confirm(`Replace the exercises with "${t.name}"?`)) return ($("tpl").value = "");
+    list.replaceChildren();
+    for (const e of t.exercises) addEx(e);
+    if (!$("title").value) $("title").value = t.name;
+  }
+  $("tpl").onchange = (e) => useTemplate(e.target.value);
+  // Editing a template uses the same builder, minus the client and with Save.
+  const editing = templates.find((t) => String(t.id) === new URLSearchParams(location.search).get("edit"));
+  if (editing) {
+    document.title = `Edit ${editing.name}`;
+    document.querySelector(".apphead .eyebrow").textContent = "Template";
+    document.querySelector(".apphead h1").textContent = `Edit ${editing.name}`;
+    $("tpl").hidden = true;
+    $("clientPanel").remove(); // a template has no client
+    for (const a of document.querySelectorAll(".side li a")) a.ariaCurrent = a.pathname === "/templates" ? "page" : null;
+    $("createFoot").hidden = true;
+    $("editName").hidden = $("editFoot").hidden = false;
+    $("editTplName").value = editing.name;
+    for (const e of editing.exercises) addEx(e);
+    $("saveEdit").onclick = async () => {
+      const [data, ok] = await api(`/api/templates/${editing.id}`, { name: $("editTplName").value, exercises: exercises() });
+      if (!ok) return ($("editErr").textContent = data.error);
+      location.href = "/templates";
+    };
+  } else if (start) ($("tpl").value = start), useTemplate(start);
+  else addEx();
+
+  $("saveTpl").onclick = async () => {
+    const name = $("tplName").value.trim() || $("title").value.trim();
+    const [data, ok] = await api("/api/templates", { name, exercises: exercises() });
+    $("err").textContent = ok ? "" : data.error;
+    $("saved").textContent = ok ? `Saved "${name}" to your templates.` : "";
+    if (ok) $("tplName").value = "";
+  };
+
+  $("f").onsubmit = async (e) => {
     e.preventDefault();
-    const v = (id) => document.getElementById(id).value;
-    const exercises = [...list.querySelectorAll(".ex")].map((el) =>
-      Object.fromEntries([...el.querySelectorAll("input")].map((i) => [i.name, i.value])));
-    const res = await fetch("/api/programs", {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({ title: v("title"), client_name: v("client"), client_email: v("email"), exercises }),
-    });
-    const data = await res.json();
-    if (!res.ok) return (document.getElementById("err").textContent = data.error);
+    const v = (id) => $(id).value;
+    const [data, ok] = await api("/api/programs", { title: v("title"), client_name: v("client"), client_email: v("email"), exercises: exercises() });
+    if (!ok) return ($("err").textContent = data.error);
 
     const clientUrl = `${location.origin}/p/${data.clientToken}`;
-    const a = document.getElementById("clientLink");
+    const a = $("clientLink");
     a.href = a.textContent = clientUrl;
-    document.getElementById("ptLink").href = `/p/${data.ptToken}`;
+    $("ptLink").href = `/p/${data.ptToken}`;
     const body = `Hi ${v("client")},\n\nHere's your program "${v("title")}". Open it on your phone at the gym and log each set as you go:\n\n${clientUrl}\n\n${who.me.name}`;
-    document.getElementById("mail").href =
+    $("mail").href =
       `mailto:${encodeURIComponent(v("email"))}?subject=${encodeURIComponent("Your program: " + v("title"))}&body=${encodeURIComponent(body)}`;
     e.target.hidden = true;
-    document.getElementById("done").hidden = false;
+    $("done").hidden = false;
   };
 </script>
 </body>

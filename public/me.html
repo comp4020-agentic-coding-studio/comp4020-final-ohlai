@@ -16,13 +16,20 @@
     </span>
   </div>
   <div id="programs"></div>
-  <h2>Messages</h2>
+  <h2>Your PT</h2>
   <div id="pts"></div>
+  <h2>Privacy</h2>
+  <div class="card notice">
+    <label><input type="checkbox" checked disabled /> Show my PT when I'm training
+      <span class="pv-tag">Preview</span></label>
+    <p class="muted">Your PT sees "Training now" while a workout is open, so they know you might message with a
+      question. This would let you turn it off. Not built yet.</p>
+  </div>
 </main>
 
 <script src="/view.js"></script>
 <script type="module">
-  import { $, el, api, logout, toLogin, live } from "/ui.js";
+  import { $, el, api, ago, logout, toLogin, live } from "/ui.js";
   $("logout").onclick = logout;
 
   async function load() {
@@ -34,10 +41,12 @@
       el("a", { href: `/p/${p.client_token}`, className: "card link" },
         el("strong", { textContent: p.title }),
         el("span", { className: "muted", textContent: `From ${p.pt_name}` }))));
-    $("pts").replaceChildren(...(data.pts.length ? data.pts.map((pt) =>
-      el("a", { href: `/chat/${pt.id}`, className: "card link" },
-        el("strong", { textContent: pt.name }),
-        pt.unread ? el("span", { className: "badge", textContent: `${pt.unread} new` }) : el("span", { className: "muted", textContent: "Ask about your program" })))
+    $("pts").replaceChildren(...(data.pts.length ? data.pts.map((pt) => el("div", { className: "card" },
+      el("strong", { textContent: pt.name }),
+      el("div", { className: "actions" },
+        el("a", { href: `/chat/${pt.id}`, className: "btn" }, "Message", pt.unread ? el("span", { className: "badge", textContent: ` ${pt.unread} new` }) : null),
+        el("a", { href: `/checkin/${pt.id}`, className: "btn primary", textContent: "Weekly check-in" })),
+      el("p", { className: "muted", textContent: pt.checked_in ? `Last check-in ${ago(pt.checked_in).toLowerCase()}.` : "You haven't checked in yet." })))
       : [el("p", { className: "muted", textContent: "Your PT hasn't set up their account yet, so there's no one to message." })]));
   }
   load();

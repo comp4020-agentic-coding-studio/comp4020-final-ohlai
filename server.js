@@ -1,5 +1,5 @@
 import { createServer } from "node:http";
-import { readFileSync, writeFileSync, mkdirSync } from "node:fs";
+import { readFileSync, writeFileSync, mkdirSync, existsSync } from "node:fs";
 import { randomBytes, scryptSync, timingSafeEqual } from "node:crypto";
 import { DatabaseSync } from "node:sqlite";
 import { trend } from "./public/progress.js";
@@ -108,6 +108,40 @@ db.exec(`
     line TEXT NOT NULL
   );
 `);
+// Templates and weekly check-ins. A template is a copy, never linked to the
+// programs started from it, so editing one can't change a client's program.
+// Check-in questions are the PT's own (users.checkin_questions, JSON), and each
+// check-in keeps the questions it was answered against.
+db.exec(`
+  CREATE TABLE IF NOT EXISTS templates (
+    id INTEGER PRIMARY KEY,
+    pt_user_id INTEGER NOT NULL REFERENCES users(id),
+    name TEXT NOT NULL,
+    exercises TEXT NOT NULL,
+    created_at TEXT NOT NULL DEFAULT (datetime('now'))
+  );
+  CREATE TABLE IF NOT EXISTS checkins (
+    id INTEGER PRIMARY KEY,
+    pt_id INTEGER NOT NULL REFERENCES users(id),
+    client_id INTEGER NOT NULL REFERENCES users(id),
+    questions TEXT NOT NULL,
+    answers TEXT NOT NULL,
+    created_at TEXT NOT NULL DEFAULT (datetime('now'))
+  );
+`);
+if (!hasColumn("users", "checkin_questions")) db.exec("ALTER TABLE users ADD COLUMN checkin_questions TEXT");
+const DEFAULT_QUESTIONS = [
+  { text: "How's your energy been this week?", kind: "scale" },
+  { text: "How are you sleeping?", kind: "scale" },
+  { text: "How sore have you been?", kind: "scale" },
+  { text: "Anything I should know?", kind: "text" },
+];
+const questionsOf = (ptId) =>
+  JSON.parse(db.prepare("SELECT checkin_questions q FROM users WHERE id = ?").get(ptId)?.q ?? "null") ?? DEFAULT_QUESTIONS;
+const checkinRow = (c) => ({ id: c.id, client_id: c.client_id, at: c.created_at, questions: JSON.parse(c.questions), answers: JSON.parse(c.answers) });
+const lastCheckin = (pt, client) =>
+  (c => c ? checkinRow(c) : null)(db.prepare("SELECT * FROM checkins WHERE pt_id = ? AND client_id = ? ORDER BY id DESC").get(pt, client));
+
 const insertEvent = db.prepare("INSERT INTO events (at, program_id, role, who, action, status, line) VALUES (?,?,?,?,?,?,?)");
 
 // One readable line per event, e.g. `client "Jack" p3 logged Squat set 1: 5 x 100kg`.
@@ -152,7 +186,7 @@ function push(type, { programId = null, users = [] }) {
   const msg = `data: ${JSON.stringify({ type, programId })}\n\n`;
   let sent = 0;
   for (const s of subs) if ((programId && s.programId === programId) || users.includes(s.userId)) { s.res.write(msg); sent++; }
-  const about = type === "chat" ? `chat between u${users[0]} and u${users[1]}` : `program p${programId}`;
+  const about = type !== "program" ? `${type} between u${users[0]} and u${users[1]}` : `program p${programId}`;
   audit(SERVER, "broadcast", 200, `sent ${type} update for ${about} to ${sent} connection${sent === 1 ? "" : "s"}`);
 }
 
@@ -213,12 +247,9 @@ function unread(me, other) {
     .get(me, other, other, me, other, last).n;
 }
 
-function createProgram(body, pt) {
-  const title = str(body.title), client = str(body.client_name);
-  const email = str(body.client_email);
-  const exercises = Array.isArray(body.exercises) ? body.exercises : [];
-  if (!title || !client || !email || !EMAIL.test(email)) return null;
-  const clean = exercises
+// The exercises a PT typed, trimmed and capped. Programs and templates share it.
+const cleanExercises = (exercises) =>
+  (Array.isArray(exercises) ? exercises : [])
     .map((e) => ({
       day: str(e.day, 60) ?? "Day 1",
       name: str(e.name),
@@ -228,6 +259,12 @@ function createProgram(body, pt) {
       rest: Math.min(Math.max(parseInt(e.rest) || 90, 0), 600),
     }))
     .filter((e) => e.name);
+
+function createProgram(body, pt) {
+  const title = str(body.title), client = str(body.client_name);
+  const email = str(body.client_email);
+  if (!title || !client || !email || !EMAIL.test(email)) return null;
+  const clean = cleanExercises(body.exercises);
   if (!clean.length) return null;
 
   const ptToken = token(), clientToken = token();
@@ -299,6 +336,7 @@ function dashRow(p) {
     recent: done.slice(-5).reverse().map((s) => ({ day: s.day, at: s.started_at, sets: f.logs.filter((l) => l.session_id === s.id).length })),
     lifts: f.exercises.map((e) => ({ id: e.id, name: e.name, day: e.day, status: trend(e.reps, bySession(e.id)) })),
     unread: p.client_user_id ? unread(p.pt_user_id, p.client_user_id) : 0,
+    checkin: p.client_user_id ? lastCheckin(p.pt_user_id, p.client_user_id) : null,
   };
 }
 
@@ -312,15 +350,21 @@ const IMAGE_TYPES = [
 ];
 const MIME = { jpg: "image/jpeg", png: "image/png", gif: "image/gif", webp: "image/webp" };
 
-const PAGES = { "/": "landing.html", "/login": "login.html", "/new": "new.html", "/dash": "dash.html", "/me": "me.html" };
-const STATIC = { "/style.css": "text/css", "/view.js": "text/javascript", "/ui.js": "text/javascript", "/progress.js": "text/javascript", "/chat.js": "text/javascript" };
+const PAGES = {
+  "/": "landing.html", "/login": "login.html", "/new": "new.html", "/dash": "dash.html", "/me": "me.html",
+  "/inbox": "inbox.html", "/checkins": "checkins.html", "/templates": "templates.html",
+};
+// Any top-level script in public/ is served, so a new one can't be forgotten here.
+// The name pattern keeps it to files directly in public/, never a path out of it.
+const STATIC_TYPE = (path) => (path === "/style.css" ? "text/css" : /^\/[\w-]+\.js$/.test(path) ? "text/javascript" : null);
 
 const server = createServer(async (req, res) => {
   const url = new URL(req.url, "http://x");
   const path = url.pathname;
   try {
     if (req.method === "GET" && PAGES[path]) return send(res, 200, page(PAGES[path]), "text/html");
-    if (req.method === "GET" && STATIC[path]) return send(res, 200, page(path.slice(1)), STATIC[path]);
+    if (req.method === "GET" && STATIC_TYPE(path) && existsSync(new URL(`./public${path}`, import.meta.url)))
+      return send(res, 200, page(path.slice(1)), STATIC_TYPE(path));
     if (req.method === "GET" && (path === "/readme" || path === "/readme/")) {
       // ponytail: README served verbatim in <pre>; render markdown properly if it starts to matter
       const md = esc(readFileSync(new URL("./README.md", import.meta.url), "utf8"));
@@ -328,6 +372,7 @@ const server = createServer(async (req, res) => {
     }
     if (req.method === "GET" && /^\/p\/[\w-]+$/.test(path)) return send(res, 200, page("program.html"), "text/html");
     if (req.method === "GET" && /^\/chat\/\d+$/.test(path)) return send(res, 200, page("chat.html"), "text/html");
+    if (req.method === "GET" && /^\/checkin\/\d+$/.test(path)) return send(res, 200, page("checkin.html"), "text/html");
     if (req.method === "GET" && /^\/fonts\/[\w-]+\.woff2$/.test(path)) {
       res.writeHead(200, { "content-type": "font/woff2", "cache-control": "public, max-age=31536000, immutable" });
       return res.end(page(path.slice(1)));
@@ -375,7 +420,7 @@ const server = createServer(async (req, res) => {
         .prepare("SELECT title, client_token, pt_name, pt_user_id FROM programs WHERE client_user_id = ? ORDER BY id DESC")
         .all(me.id);
       const pts = [...new Map(programs.filter((p) => p.pt_user_id).map((p) => [p.pt_user_id, p.pt_name])).entries()]
-        .map(([id, name]) => ({ id, name, unread: unread(me.id, id) }));
+        .map(([id, name]) => ({ id, name, unread: unread(me.id, id), checked_in: lastCheckin(id, me.id)?.at ?? null }));
       return send(res, 200, { me, programs, pts });
     }
     if (req.method === "GET" && path === "/api/events") {
@@ -391,6 +436,103 @@ const server = createServer(async (req, res) => {
       // Whoever has gone longest without training comes first.
       rows.sort((a, b) => (a.last_workout ?? "").localeCompare(b.last_workout ?? ""));
       return send(res, 200, { me, clients: rows });
+    }
+
+    // ---------- inbox: every conversation a PT has, newest first ----------
+    if (req.method === "GET" && path === "/api/inbox") {
+      if (me?.role !== "pt") return send(res, 401, { error: "Log in as a PT to see your inbox." });
+      const people = db.prepare(`
+        SELECT u.id, u.name, (SELECT group_concat(title, ', ') FROM programs WHERE pt_user_id = ? AND client_user_id = u.id) titles
+        FROM users u WHERE u.id IN (SELECT client_user_id FROM programs WHERE pt_user_id = ?)`).all(me.id, me.id);
+      const lastMsg = db.prepare("SELECT sender_id, body, image, created_at FROM messages WHERE pt_id = ? AND client_id = ? ORDER BY id DESC");
+      const threads = people.map((u) => ({ ...u, last: lastMsg.get(me.id, u.id) ?? null, unread: unread(me.id, u.id) }));
+      threads.sort((a, b) => (b.last?.created_at ?? "").localeCompare(a.last?.created_at ?? ""));
+      return send(res, 200, { me, threads });
+    }
+
+    // ---------- templates ----------
+    const tm = path.match(/^\/api\/templates(?:\/(\d+)(\/delete)?)?$/);
+    if (tm) {
+      if (me?.role !== "pt") return send(res, 401, { error: "Log in as a PT to use templates." });
+      if (req.method === "GET" && !tm[1]) {
+        const rows = db.prepare("SELECT * FROM templates WHERE pt_user_id = ? ORDER BY name COLLATE NOCASE").all(me.id);
+        return send(res, 200, { templates: rows.map((t) => ({ id: t.id, name: t.name, created_at: t.created_at, exercises: JSON.parse(t.exercises) })) });
+      }
+      if (req.method === "POST" && !tm[1]) {
+        const b = await readJson(req);
+        const name = str(b.name, 80), exercises = cleanExercises(b.exercises);
+        if (!name || !exercises.length) return send(res, 400, { error: "Give the template a name and at least one exercise." });
+        const { lastInsertRowid: id } = db.prepare("INSERT INTO templates (pt_user_id, name, exercises) VALUES (?,?,?)").run(me.id, name, JSON.stringify(exercises));
+        audit(asUser(me), "template", 201, `saved template ${JSON.stringify(name)}`);
+        return send(res, 201, { id: Number(id) });
+      }
+      const t = db.prepare("SELECT * FROM templates WHERE id = ? AND pt_user_id = ?").get(Number(tm[1]), me.id);
+      if (!t) {
+        audit(asUser(me), "template", 404, "no such template");
+        return send(res, 404, { error: "No template there." });
+      }
+      if (req.method === "POST" && tm[2]) {
+        db.prepare("DELETE FROM templates WHERE id = ?").run(t.id);
+        audit(asUser(me), "template", 200, `deleted template ${JSON.stringify(t.name)}`);
+        return send(res, 200, {});
+      }
+      // Rename, or edit: exercises are only replaced when the body sends them.
+      if (req.method === "POST") {
+        const b = await readJson(req);
+        const name = str(b.name, 80);
+        if (!name) return send(res, 400, { error: "Give the template a name." });
+        const exercises = b.exercises === undefined ? null : cleanExercises(b.exercises);
+        if (exercises && !exercises.length) return send(res, 400, { error: "A template needs at least one exercise." });
+        db.prepare("UPDATE templates SET name = ?, exercises = COALESCE(?, exercises) WHERE id = ?").run(name, exercises && JSON.stringify(exercises), t.id);
+        audit(asUser(me), "template", 200, exercises ? `edited template ${JSON.stringify(name)}`
+          : `renamed template ${JSON.stringify(t.name)} to ${JSON.stringify(name)}`);
+        return send(res, 200, {});
+      }
+    }
+
+    // ---------- weekly check-ins ----------
+    // The PT's side: their questions, and every check-in from their clients.
+    if (path === "/api/checkins") {
+      if (me?.role !== "pt") return send(res, 401, { error: "Log in as a PT to see check-ins." });
+      if (req.method === "GET") {
+        const clients = db.prepare("SELECT DISTINCT u.id, u.name FROM users u JOIN programs p ON p.client_user_id = u.id WHERE p.pt_user_id = ? ORDER BY u.name").all(me.id);
+        const checkins = db.prepare("SELECT * FROM checkins WHERE pt_id = ? ORDER BY id DESC LIMIT 200").all(me.id).map(checkinRow);
+        return send(res, 200, { me, questions: questionsOf(me.id), clients, checkins });
+      }
+      if (req.method === "POST") {
+        const raw = (await readJson(req)).questions;
+        const qs = (Array.isArray(raw) ? raw : [])
+          .map((q) => ({ text: str(q?.text, 200), kind: q?.kind === "text" ? "text" : "scale" }))
+          .filter((q) => q.text);
+        if (!qs.length || qs.length > 8) return send(res, 400, { error: "Write between 1 and 8 questions." });
+        db.prepare("UPDATE users SET checkin_questions = ? WHERE id = ?").run(JSON.stringify(qs), me.id);
+        audit(asUser(me), "checkin", 200, `set ${qs.length} check-in questions`);
+        return send(res, 200, { questions: qs });
+      }
+    }
+    // The client's side: their PT's questions, and sending answers.
+    const ck = path.match(/^\/api\/checkin\/(\d+)$/);
+    if (ck) {
+      const pt = Number(ck[1]);
+      if (me?.role !== "client" || !paired(pt, me.id)) {
+        audit(asUser(me), "checkin", 404, "no check-in with that PT");
+        return send(res, 404, { error: "No check-in with that PT." });
+      }
+      const ptName = db.prepare("SELECT name FROM users WHERE id = ?").get(pt).name;
+      if (req.method === "GET") return send(res, 200, { me, pt: { id: pt, name: ptName }, questions: questionsOf(pt), last: lastCheckin(pt, me.id) });
+      if (req.method === "POST") {
+        const questions = questionsOf(pt);
+        const raw = (await readJson(req)).answers;
+        const answers = questions.map((q, i) => {
+          const a = Array.isArray(raw) ? raw[i] : null;
+          return q.kind === "scale" ? (Number.isInteger(a) && a >= 1 && a <= 5 ? a : null) : (str(a, 2000) ?? "");
+        });
+        if (answers.every((a) => a === null || a === "")) return send(res, 400, { error: "Answer at least one question." });
+        db.prepare("INSERT INTO checkins (pt_id, client_id, questions, answers) VALUES (?,?,?,?)").run(pt, me.id, JSON.stringify(questions), JSON.stringify(answers));
+        audit(asUser(me), "checkin", 201, `sent a check-in to ${JSON.stringify(ptName)}`);
+        push("checkin", { users: [pt, me.id] });
+        return send(res, 201, {});
+      }
     }
 
     // ---------- chat ----------

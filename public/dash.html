@@ -3,113 +3,220 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Your clients</title>
+  <title>Dashboard</title>
   <link rel="stylesheet" href="/style.css" />
 </head>
-<body data-default-view="desktop">
+<body data-default-view="desktop" class="app">
 <main>
-  <div class="topbar">
-    <h1 id="hi">Your clients</h1>
-    <a href="/new" class="btn primary newbtn">New program</a>
-    <span class="toggles">
-      <button type="button" class="view-toggle"></button>
-      <button type="button" id="logout">Log out</button>
-    </span>
+  <header class="apphead">
+    <div>
+      <p class="eyebrow" id="today"></p>
+      <h1 id="hi">Dashboard</h1>
+    </div>
+    <input type="search" id="q" placeholder="Search clients" aria-label="Search clients" />
+    <button type="button" popovertarget="pv-export">Export <span class="pv-tag">Preview</span></button>
+    <a href="/new" class="btn primary">New program</a>
+  </header>
+
+  <section class="tiles" id="stats" aria-label="This week"></section>
+
+  <div class="dashgrid">
+    <div class="col">
+    <section class="panel">
+      <div class="panel-head">
+        <h2>Clients</h2>
+        <div class="chips" role="group" aria-label="Show">
+          <button type="button" data-filter="all" aria-pressed="true">All</button>
+          <button type="button" data-filter="attention" aria-pressed="false">Needs attention</button>
+          <button type="button" data-filter="training" aria-pressed="false">Training now</button>
+        </div>
+      </div>
+      <table class="ctable">
+        <thead><tr><th>Client</th><th>Last workout</th><th>Last 7 days</th><th>Lifts</th><th>Messages</th></tr></thead>
+        <tbody id="rows"></tbody>
+      </table>
+      <p class="muted foot">Got a program from before you had an account? Open its PT link while you're logged in
+        and add it here.</p>
+    </section>
+
+    <section class="panel">
+      <div class="panel-head"><h2>Recent workouts</h2></div>
+      <ul class="feed" id="recent"></ul>
+    </section>
+    </div>
+
+    <div class="col">
+    <section class="panel">
+      <div class="panel-head">
+        <h2>Needs attention</h2>
+        <button type="button" class="small" popovertarget="pv-nudge">Nudge quiet clients <span class="pv-tag">Preview</span></button>
+      </div>
+      <ul class="feed" id="attention"></ul>
+    </section>
+
+    <section class="panel">
+      <div class="panel-head"><h2>Last 7 days</h2><span class="muted">Finished workouts</span></div>
+      <div class="week" id="week"></div>
+    </section>
+    </div>
   </div>
-  <div class="stats dashstats" id="stats"></div>
-  <div id="clients" class="clients"></div>
-  <p class="muted">Got a program from before you had an account? Open its PT link while you're logged in
-    and add it here.</p>
   <p id="err" class="error" role="alert"></p>
 </main>
 
+<aside class="detail" id="detail" hidden aria-labelledby="d-name"></aside>
+
+<div popover id="pv-export" class="pv">
+  <h3>Export</h3>
+  <p>Download your clients and their logged sets as a spreadsheet (CSV), for your own records or a client
+    review.</p>
+</div>
+<div popover id="pv-nudge" class="pv">
+  <h3>Nudge quiet clients</h3>
+  <p>One click sends every client who hasn't trained in 7 days a short chat message you've written once.</p>
+</div>
+
 <script src="/view.js"></script>
 <script type="module">
-  import { $, el, api, ago, fmtDay, utc, logout, toLogin, live } from "/ui.js";
-  $("logout").onclick = logout;
+  import { $, el, api, ago, fmtDay, utc, toLogin, live } from "/ui.js";
+  import { mountSide } from "/side.js";
+  import { checkinCard } from "/checkin-card.js";
+  mountSide();
+  $("today").textContent = new Date().toLocaleDateString("en-AU", { weekday: "long", day: "numeric", month: "long" });
 
   const STATUS = { up: "Moving up", stalled: "Stalled", steady: "Steady", new: "Too early" };
-  const opened = new Set(); // which clients are expanded, kept across live refreshes
+  const DAY = 864e5;
+  const quiet = (x) => !x.last_workout || Date.now() - utc(x.last_workout) > 7 * DAY;
+  const stalled = (x) => x.lifts.filter((l) => l.status === "stalled").length;
+  const needs = (x) => quiet(x) || stalled(x) > 0 || x.unread > 0;
+  let clients = [], selected = null, filter = "all";
 
   async function load(refresh) {
     const [data, ok] = await api(refresh === true ? "/api/dash?refresh" : "/api/dash");
     if (!ok) return toLogin();
-    $("hi").textContent = `${data.me.name}'s clients`;
-    const c = data.clients;
-    const quiet = c.filter((x) => !x.last_workout || Date.now() - utc(x.last_workout) > 7 * 864e5).length;
-    $("stats").replaceChildren(...[
-      ["Clients", c.length],
-      ["Trained in the last 7 days", c.filter((x) => x.week.length).length],
-      ["Gone quiet (7+ days)", quiet],
-      ["Unread messages", c.reduce((s, x) => s + x.unread, 0)],
-    ].map(([k, v]) => el("div", {}, el("small", { textContent: k }), el("strong", { textContent: v }))));
-
-    $("clients").replaceChildren(...(c.length ? c.map(clientRow) : [
-      el("div", { className: "card empty" },
-        el("h2", { textContent: "No clients yet" }),
-        el("p", { className: "muted", textContent: "Write a program and send your client the link. They show up here." }),
-        el("a", { href: "/new", className: "btn primary", textContent: "Write a program" })),
-    ]));
+    clients = data.clients;
+    $("hi").textContent = `Hi ${data.me.name}`;
+    render();
   }
 
-  function clientRow(x) {
-    const count = (s) => x.lifts.filter((l) => l.status === s).length;
+  function render() {
+    const c = clients;
+    const done = c.reduce((s, x) => s + x.week.length, 0), planned = c.reduce((s, x) => s + x.days.length, 0);
+    const unreadFrom = c.filter((x) => x.unread).length;
+    $("stats").replaceChildren(...[
+      ["Clients", c.length, `${c.filter((x) => x.in_progress).length} training now`],
+      ["Workouts, last 7 days", `${done}/${planned}`, planned ? `${Math.round((100 * done) / planned)}% of the program` : "No program days yet"],
+      ["Gone quiet", c.filter(quiet).length, "No workout in 7+ days"],
+      ["Unread messages", c.reduce((s, x) => s + x.unread, 0), unreadFrom ? `From ${unreadFrom} client${unreadFrom > 1 ? "s" : ""}` : "All caught up"],
+    ].map(([k, v, sub]) => el("div", { className: "tile" },
+      el("small", { textContent: k }), el("strong", { textContent: v }), el("span", { className: "muted", textContent: sub }))));
+
+    // Table: search and the chips narrow it down.
+    const q = $("q").value.trim().toLowerCase();
+    const shown = c.filter((x) => (filter === "all" || (filter === "attention" ? needs(x) : x.in_progress)) &&
+      (!q || `${x.client_name} ${x.title}`.toLowerCase().includes(q)));
+    $("rows").replaceChildren(...(shown.length ? shown.map(row) : [el("tr", {}, el("td", { colSpan: 5, className: "empty" },
+      c.length ? el("span", { className: "muted", textContent: "No clients match." }) : el("span", {},
+        el("strong", { textContent: "No clients yet. " }),
+        el("span", { className: "muted", textContent: "Write a program and send your client the link. They show up here. " }),
+        el("a", { href: "/new", textContent: "Write a program" }))))]));
+
+    // Needs attention: the same flags as the table, written out.
+    const items = c.flatMap((x) => [
+      x.in_progress && [x, `Training now: ${x.in_progress}`, ""],
+      quiet(x) && [x, x.last_workout ? `No workout for ${Math.floor((Date.now() - utc(x.last_workout)) / DAY)} days` : "Hasn't started yet", "flag"],
+      stalled(x) && [x, `${stalled(x)} lift${stalled(x) > 1 ? "s" : ""} stalled`, "flag"],
+      x.unread && [x, `${x.unread} new message${x.unread > 1 ? "s" : ""}`, ""],
+    ].filter(Boolean));
+    $("attention").replaceChildren(...(items.length ? items.map(([x, text, cls]) => el("li", {},
+      el("button", { type: "button", className: "linkish", textContent: x.client_name, onclick: () => open(x.program_id) }),
+      el("span", { className: cls, textContent: text })))
+      : [el("li", { className: "muted", textContent: "Nothing needs you right now." })]));
+
+    // Last 7 days as columns, today on the right.
+    const days = [...Array(7)].map((_, i) => new Date(Date.now() - (6 - i) * DAY));
+    $("week").replaceChildren(...days.map((d) => el("div", { className: "wday" },
+      el("small", { textContent: d.toLocaleDateString("en-AU", { weekday: "short", day: "numeric" }) }),
+      ...c.flatMap((x) => x.week.filter((w) => utc(w.at).toDateString() === d.toDateString())
+        .map((w) => el("button", { type: "button", className: "wchip", onclick: () => open(x.program_id) },
+          el("strong", { textContent: x.client_name }), el("span", { textContent: w.day })))))));
+
+    const recent = c.flatMap((x) => x.recent.map((r) => ({ ...r, x }))).sort((a, b) => b.at.localeCompare(a.at)).slice(0, 8);
+    $("recent").replaceChildren(...(recent.length ? recent.map((r) => el("li", {},
+      el("button", { type: "button", className: "linkish", textContent: r.x.client_name, onclick: () => open(r.x.program_id) }),
+      el("span", { textContent: `${r.day} · ${r.sets} sets` }),
+      el("span", { className: "muted num", textContent: fmtDay(utc(r.at)) })))
+      : [el("li", { className: "muted", textContent: "Nothing logged yet." })]));
+
+    detail();
+  }
+
+  function row(x) {
     const doneDays = new Set(x.week.map((w) => w.day));
-    const quiet = !x.last_workout || Date.now() - utc(x.last_workout) > 7 * 864e5;
+    const up = x.lifts.filter((l) => l.status === "up").length;
+    const tr = el("tr", { className: selected === x.program_id ? "on" : "", onclick: () => open(x.program_id) },
+      el("td", {}, el("button", { type: "button", className: "who", onclick: (e) => (e.stopPropagation(), open(x.program_id)) },
+        el("span", { className: "avatar", ariaHidden: "true", textContent: x.client_name[0] }),
+        el("span", {}, el("strong", { textContent: x.client_name }), el("span", { className: "muted", textContent: x.title })))),
+      el("td", {}, x.in_progress ? el("span", { className: "live", textContent: `Training now (${x.in_progress})` })
+        : el("span", { className: quiet(x) ? "flag" : "", textContent: ago(x.last_workout) })),
+      el("td", {}, el("span", { className: "num", textContent: `${x.week.length}/${x.days.length}` }),
+        el("span", { className: "dots", ariaHidden: "true" }, ...x.days.map((d) => el("i", { className: doneDays.has(d) ? "on" : "", title: d })))),
+      el("td", {}, el("span", { className: up ? "up" : "muted", textContent: `${up} up` }), " · ",
+        el("span", { className: stalled(x) ? "flag" : "muted", textContent: `${stalled(x)} stalled` })),
+      el("td", {}, x.unread ? el("span", { className: "badge", textContent: `${x.unread} new` }) : el("span", { className: "muted", textContent: "None new" })));
+    return tr;
+  }
 
-    const summary = el("summary", {},
-      el("span", { className: "who" },
-        el("strong", { textContent: x.client_name }),
-        el("span", { className: "muted", textContent: x.title })),
-      el("span", { className: "cell" },
-        el("small", { textContent: "Last workout" }),
-        el("span", { className: quiet ? "flag" : "", textContent: x.in_progress ? `Training now (${x.in_progress})` : ago(x.last_workout) })),
-      el("span", { className: "cell" },
-        el("small", { textContent: "Last 7 days" }),
-        el("span", { textContent: `${x.week.length} of ${x.days.length}` },
-          el("span", { className: "dots", ariaHidden: "true" },
-            ...x.days.map((d) => el("i", { className: doneDays.has(d) ? "on" : "", title: d }))))),
-      el("span", { className: "cell" },
-        el("small", { textContent: "Lifts" }),
-        el("span", {},
-          el("span", { className: count("up") ? "up" : "", textContent: `${count("up")} up` }), " · ",
-          el("span", { className: count("stalled") ? "flag" : "", textContent: `${count("stalled")} stalled` }))),
-      el("span", { className: "cell" },
-        el("small", { textContent: "Messages" }),
-        x.unread ? el("span", { className: "badge", textContent: `${x.unread} new` }) : el("span", { className: "muted", textContent: "None new" })));
+  function open(id) { selected = id; render(); $("d-close")?.focus(); }
+  function close() { selected = null; render(); }
+  addEventListener("keydown", (e) => e.key === "Escape" && selected && !document.querySelector(":popover-open") && close());
 
-    // The detail behind each number in the summary.
+  // Side panel: the detail behind each number in a client's row.
+  function detail() {
+    const x = clients.find((c) => c.program_id === selected);
+    $("detail").hidden = !x;
+    if (!x) return;
     const lifts = (s) => x.lifts.filter((l) => l.status === s);
     const liftList = (s) => lifts(s).length ? el("div", {},
       el("h4", { textContent: STATUS[s] }),
       el("ul", { className: "plain" }, ...lifts(s).map((l) =>
         el("li", {}, el("a", { href: `/p/${x.pt_token}#ex-${l.id}`, textContent: l.name }), el("span", { className: "muted", textContent: ` ${l.day}` }))))) : null;
-
-    const details = el("details", { className: "card client", open: opened.has(x.program_id),
-      ontoggle: (e) => (e.target.open ? opened.add(x.program_id) : opened.delete(x.program_id)) },
-      summary,
-      el("div", { className: "more" },
-        el("section", {},
-          el("h3", { textContent: "Last 7 days" }),
-          el("ul", { className: "plain" }, ...x.days.map((d) => {
-            const w = x.week.filter((s) => s.day === d).at(-1);
-            return el("li", {}, el("span", { textContent: d }), el("span", { className: w ? "" : "muted", textContent: w ? ` done ${fmtDay(utc(w.at))}` : " not yet" }));
-          })),
-          el("h3", { textContent: "Recent workouts" }),
-          x.recent.length ? el("ul", { className: "plain" }, ...x.recent.map((r) =>
-            el("li", {}, `${r.day} · ${fmtDay(utc(r.at))}`, el("span", { className: "muted", textContent: ` ${r.sets} sets` }))))
-            : el("p", { className: "muted", textContent: "Nothing logged yet." })),
-        el("section", {},
-          el("h3", { textContent: "Lifts" }),
-          el("p", { className: "muted", textContent: "Click a lift to see its progress chart." }),
-          liftList("stalled"), liftList("up"), liftList("steady"), liftList("new")),
-        el("div", { className: "actions" },
-          el("a", { href: `/p/${x.pt_token}`, className: "btn primary", textContent: "Open program" }),
-          x.client_user_id
-            ? el("a", { href: `/chat/${x.client_user_id}`, className: "btn", textContent: `Message ${x.client_name}${x.unread ? ` (${x.unread} new)` : ""}` })
-            : el("span", { className: "muted", textContent: `Chat opens once ${x.client_name} sets a password from their link.` }))));
-    return details;
+    $("detail").replaceChildren(
+      el("div", { className: "detail-head" },
+        el("span", { className: "avatar big", ariaHidden: "true", textContent: x.client_name[0] }),
+        el("div", {}, el("h2", { id: "d-name", textContent: x.client_name }), el("span", { className: "muted", textContent: x.title })),
+        el("button", { type: "button", id: "d-close", ariaLabel: "Close", textContent: "✕", onclick: close })),
+      el("div", { className: "actions" },
+        el("a", { href: `/p/${x.pt_token}`, className: "btn primary", textContent: "Open program" }),
+        x.client_user_id
+          ? el("a", { href: `/chat/${x.client_user_id}`, className: "btn", textContent: `Message${x.unread ? ` (${x.unread} new)` : ""}` })
+          : el("span", { className: "muted", textContent: `Chat opens once ${x.client_name} sets a password from their link.` })),
+      el("h3", { textContent: "Last 7 days" }),
+      el("ul", { className: "plain" }, ...x.days.map((d) => {
+        const w = x.week.filter((s) => s.day === d).at(-1);
+        return el("li", {}, el("span", { textContent: d }), el("span", { className: w ? "" : "muted", textContent: w ? ` done ${fmtDay(utc(w.at))}` : " not yet" }));
+      })),
+      el("h3", { textContent: "Recent workouts" }),
+      x.recent.length ? el("ul", { className: "plain" }, ...x.recent.map((r) =>
+        el("li", {}, `${r.day} · ${fmtDay(utc(r.at))}`, el("span", { className: "muted", textContent: ` ${r.sets} sets` }))))
+        : el("p", { className: "muted", textContent: "Nothing logged yet." }),
+      el("h3", {}, "Latest check-in ", el("a", { href: `/checkins#c${x.client_user_id}`, className: "muted", textContent: "All check-ins" })),
+      x.checkin ? checkinCard(x.checkin)
+        : el("p", { className: "muted", textContent: x.client_user_id ? `${x.client_name} hasn't checked in yet.` : `Check-ins open once ${x.client_name} sets a password.` }),
+      el("h3", { textContent: "Lifts" }),
+      el("p", { className: "muted", textContent: "Click a lift to see its progress chart." }),
+      liftList("stalled"), liftList("up"), liftList("steady"), liftList("new"),
+      el("h3", {}, "Private notes ", el("span", { className: "pv-tag", textContent: "Preview" })),
+      el("textarea", { rows: 3, placeholder: `Only you see this. Injuries, goals, what ${x.client_name} said last session…`, ariaLabel: "Private notes (preview, not saved)" }),
+      el("p", { className: "muted", textContent: "Not saved yet. This is a preview of the idea." }));
   }
+
+  $("q").oninput = render;
+  for (const b of document.querySelectorAll("[data-filter]")) b.onclick = () => {
+    filter = b.dataset.filter;
+    for (const o of document.querySelectorAll("[data-filter]")) o.ariaPressed = String(o === b);
+    render();
+  };
 
   load();
   live("/api/events", () => load(true));

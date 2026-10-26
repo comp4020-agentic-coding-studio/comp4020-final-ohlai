@@ -27,15 +27,22 @@ check PT pages (dashboard, builder, PT program view) at desktop width, and
 client pages (program, my programs, chat) at phone width (390px). Don't spend
 effort making PT pages fit a phone.
 
+## Every PT page
+
+- Lives in the PT app shell: `class="app"` on `<body>` and `mountSide()` from
+  `public/side.js`, so the sidebar is always there to navigate with.
+- No mobile/desktop toggle. A PT on a desktop wants the desktop layout, so the
+  layout follows the screen instead of a button. The program view
+  (`program.html`) is shared with the client, so it keeps its toggle for now.
+
 ## Every client page
 
 - Logging a set is one tap when the client repeats last session. Rows are
   pre-filled from the previous session.
 - Works at phone width (390px) with no horizontal scroll, and every control is
   reachable by keyboard.
-- Has the mobile/desktop toggle. Client pages start in mobile, PT pages in
-  desktop. A new screen for the client is designed at phone width first; a new
-  screen for the PT is designed at desktop width first.
+- Has the mobile/desktop toggle and starts in mobile. A new screen for the
+  client is designed at phone width first.
 - Uses the mono style only (`data-style="mono"` on `<html>`). Colours come
   from the tokens in `public/style.css`, never a component's own hex value.
 
@@ -43,6 +50,9 @@ effort making PT pages fit a phone.
 
 - Run the app (`node server.js`), then `pnpm check`. Both must pass before a
   commit.
+- Node doesn't reload `server.js`. After changing it, restart the server (or
+  start a new one) before checking a page or pointing me at a URL, and stop
+  the old one, so I never end up looking at a stale server.
 - Look at the changed page at its width (see "Who's on what screen") before
   calling it done.
 - Schema changes are additive: add columns with a guarded `ALTER TABLE` in
@@ -62,8 +72,13 @@ leaves a trail in `notes/`.
   (data shape, what a user sees, a library, a trade-off), stop and ask me with
   the options and your recommendation. Don't decide it silently. Small code
   details that nobody would notice are yours.
-- After I answer, add it to `notes/decisions.md`: what came up, the options,
-  what I picked and why. If it changes the architecture, also write an ADR.
+- Record every decision I make in `notes/decisions.md`, not just the ones you
+  asked about: things I pick, reject, change my mind on, or ask for in passing
+  ("make it look like X", "drop that"). Write what came up, the options, what I
+  picked and why. If it changes the architecture, also write an ADR.
+- If you can't tell why I made a decision, ask me before writing it down. Ask
+  about that one decision specifically ("why bottom left rather than in the
+  top bar?"), not a general "any reasons?". Never make up a reason for me.
 - Keep `notes/sessions/YYYY-MM-DD.md` for today (create it if missing): what I
   asked for, what we did, what you got wrong and how it was fixed. Update it
   before each commit, not just at the end.

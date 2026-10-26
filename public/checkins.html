@@ -1,0 +1,76 @@
+<!doctype html>
+<html lang="en-AU" data-style="mono">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Check-ins</title>
+  <link rel="stylesheet" href="/style.css" />
+</head>
+<body data-default-view="desktop" class="app">
+<main>
+  <header class="apphead">
+    <div><p class="eyebrow">Weekly</p><h1>Check-ins</h1></div>
+  </header>
+  <div class="dashgrid checkins-grid">
+    <div class="col" id="clients"></div>
+    <section class="panel">
+      <div class="panel-head"><h2>Your questions</h2></div>
+      <p class="muted">Your clients answer these from their phone, once a week. A 1 to 5 scale is quick to fill in
+        between sets; a written answer is for anything else.</p>
+      <form id="qform">
+        <ol id="qs" class="qs"></ol>
+        <button type="button" id="addq" class="small">+ Add a question</button>
+        <p id="qerr" class="error" role="alert"></p>
+        <button type="submit" class="primary">Save questions</button>
+        <span id="saved" class="muted" role="status"></span>
+      </form>
+    </section>
+  </div>
+</main>
+
+<script src="/view.js"></script>
+<script type="module">
+  import { $, el, api, ago, toLogin, live } from "/ui.js";
+  import { mountSide } from "/side.js";
+  import { checkinCard } from "/checkin-card.js";
+  mountSide();
+
+  function qRow(q = { text: "", kind: "scale" }) {
+    const li = el("li", { className: "q" },
+      el("input", { name: "text", value: q.text, maxLength: 200, ariaLabel: "Question", placeholder: "e.g. How's your knee feeling?" }),
+      el("select", { name: "kind", ariaLabel: "Answer type" },
+        el("option", { value: "scale", textContent: "1 to 5", selected: q.kind === "scale" }),
+        el("option", { value: "text", textContent: "Written", selected: q.kind === "text" })),
+      el("button", { type: "button", ariaLabel: "Remove question", textContent: "✕", onclick: () => li.remove() }));
+    return li;
+  }
+  $("addq").onclick = () => $("qs").append(qRow());
+  $("qform").onsubmit = async (e) => {
+    e.preventDefault();
+    const questions = [...$("qs").children].map((li) => ({ text: li.querySelector("input").value, kind: li.querySelector("select").value }));
+    const [data, ok] = await api("/api/checkins", { questions });
+    $("qerr").textContent = ok ? "" : data.error;
+    $("saved").textContent = ok ? "Saved. New check-ins use these." : "";
+  };
+
+  async function load(first) {
+    const [data, ok] = await api("/api/checkins");
+    if (!ok) return toLogin();
+    if (first) $("qs").replaceChildren(...data.questions.map(qRow));
+    $("clients").replaceChildren(...(data.clients.length ? data.clients.map((c) => {
+      const mine = data.checkins.filter((x) => x.client_id === c.id);
+      return el("section", { className: "panel", id: `c${c.id}` },
+        el("div", { className: "panel-head" },
+          el("h2", { textContent: c.name }),
+          el("span", { className: "muted", textContent: mine.length ? `Last checked in ${ago(mine[0].at).toLowerCase()}` : "No check-ins yet" })),
+        ...(mine.length ? [checkinCard(mine[0])] : []),
+        mine.length > 1 ? el("details", {}, el("summary", { textContent: `${mine.length - 1} earlier` }), ...mine.slice(1).map(checkinCard)) : null);
+    }) : [el("section", { className: "panel" }, el("p", { className: "muted",
+      textContent: "No clients with an account yet. Once a client sets a password from their link, they can check in." }))]));
+    if (first && location.hash) document.querySelector(location.hash)?.scrollIntoView();
+  }
+  load(true);
+  live("/api/events", (e) => e.type === "checkin" && load());
+</script>
+</body>
+</html>

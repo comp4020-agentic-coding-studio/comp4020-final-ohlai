@@ -1,0 +1,70 @@
+<!doctype html>
+<html lang="en-AU" data-style="mono">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Templates</title>
+  <link rel="stylesheet" href="/style.css" />
+</head>
+<body data-default-view="desktop" class="app">
+<main>
+  <header class="apphead">
+    <div><p class="eyebrow">Reuse a program</p><h1>Templates</h1></div>
+    <a href="/new" class="btn primary">Write a program</a>
+  </header>
+  <p class="muted">Save a program as a template from the builder, then start the next client from it. A program
+    started from a template is its own copy, so changing a template never touches a client's program.</p>
+  <div id="list" class="tgrid"></div>
+  <p id="err" class="error" role="alert"></p>
+</main>
+
+<script src="/view.js"></script>
+<script type="module">
+  import { $, el, api, fmtDay, utc, toLogin } from "/ui.js";
+  import { mountSide } from "/side.js";
+  mountSide();
+
+  async function load() {
+    const [data, ok] = await api("/api/templates");
+    if (!ok) return toLogin();
+    $("list").replaceChildren(...(data.templates.length ? data.templates.map(card) : [
+      el("section", { className: "panel empty" },
+        el("h2", { textContent: "No templates yet" }),
+        el("p", { className: "muted", textContent: "Write a program and press Save as template, or save one you're about to send." }),
+        el("a", { href: "/new", className: "btn primary", textContent: "Write a program" }))]));
+  }
+
+  function card(t) {
+    const days = [...new Set(t.exercises.map((e) => e.day))];
+    const name = el("input", { value: t.name, maxLength: 80, ariaLabel: "Template name", className: "tname" });
+    // Rename on blur or Enter, only if it changed.
+    const rename = async () => {
+      const v = name.value.trim();
+      if (!v || v === t.name) return (name.value = t.name);
+      const [data, ok] = await api(`/api/templates/${t.id}`, { name: v });
+      $("err").textContent = ok ? "" : data.error;
+      if (ok) t.name = v;
+    };
+    name.onblur = rename;
+    name.onkeydown = (e) => e.key === "Enter" && name.blur();
+    return el("section", { className: "panel tcard" },
+      name,
+      el("small", { className: "muted", textContent: `${days.length} day${days.length > 1 ? "s" : ""} · ${t.exercises.length} exercises · saved ${fmtDay(utc(t.created_at))}` }),
+      ...days.map((d) => el("div", { className: "tday" },
+        el("h4", { textContent: d }),
+        el("ul", { className: "plain" }, ...t.exercises.filter((e) => e.day === d).map((e) =>
+          el("li", {}, el("span", { textContent: e.name }), el("span", { className: "muted num", textContent: ` ${e.sets} × ${e.reps}` })))))),
+      el("div", { className: "actions" },
+        el("a", { href: `/new?template=${t.id}`, className: "btn primary", textContent: "Use for a client" }),
+        el("a", { href: `/new?edit=${t.id}`, className: "btn", textContent: "Edit" }),
+        el("button", { type: "button", textContent: "Delete", onclick: async () => {
+          if (!confirm(`Delete "${t.name}"? Programs already started from it stay as they are.`)) return;
+          const [data, ok] = await api(`/api/templates/${t.id}/delete`, {});
+          $("err").textContent = ok ? "" : data.error;
+          if (ok) load();
+        } })));
+  }
+  load();
+</script>
+</body>
+</html>
