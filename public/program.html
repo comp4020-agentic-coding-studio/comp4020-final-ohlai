@@ -150,8 +150,10 @@
     chat.load();
   };
   $("chatClose").onclick = () => $("chatDrawer").close();
-  // Tapping the dimmed page above the drawer closes it.
-  $("chatDrawer").onclick = (e) => e.target === $("chatDrawer") && $("chatDrawer").close();
+  // Tapping the dimmed page above the drawer closes it. A braced body, not
+  // `a && b`: an onclick that returns false cancels the click, which stopped
+  // the Send button working.
+  $("chatDrawer").onclick = (e) => { if (e.target === $("chatDrawer")) $("chatDrawer").close(); };
 
   // Ties this link to an account: the PT adds it to their dashboard, the
   // client sets a password. Both are optional; the link keeps working either way.

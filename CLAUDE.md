@@ -55,6 +55,11 @@ effort making PT pages fit a phone.
   the old one, so I never end up looking at a stale server.
 - Look at the changed page at its width (see "Who's on what screen") before
   calling it done.
+- An `onclick = (e) => ...` handler never returns a value (use braces, not
+  `a && b`). One that returns false cancels the click, which once broke the
+  client's Send button in the chat drawer.
+- Test a form by clicking its button, not by calling submit in code, and check
+  the result reached the server.
 - Schema changes are additive: add columns with a guarded `ALTER TABLE` in
   `server.js`, never drop data on the volume.
 - When the agent gets something wrong, the fix goes into this file or `spec/`,
