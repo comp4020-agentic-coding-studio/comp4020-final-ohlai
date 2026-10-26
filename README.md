@@ -51,6 +51,10 @@ there or the progress line means nothing.
 
 ## How to use it
 
+To try it, log in on the live site as the demo PT, `oli@example.com`, or the
+demo client, `jack@example.com`. Both use the password `demo1234`, which is
+public on purpose.
+
 **As a PT.** Go to the home page and sign up. In Programs, click New program,
 add a day, and add that day's exercises under it. Save it, then press Assign to
 client on it, as many times as you have clients for it. Pick a client you

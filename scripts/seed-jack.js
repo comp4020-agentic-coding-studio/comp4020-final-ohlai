@@ -6,18 +6,48 @@
 // Run it next to a server that has already created the tables:
 //   node scripts/seed-jack.js              (local ./data)
 //   flyctl ssh console -C "node /app/scripts/seed-jack.js"
-// It does nothing if Jack's program already exists.
+// Jack's history is only written once. The demo logins below are checked on
+// every run, so running it again on an old seed adds them.
+//
+// Demo logins, public on purpose (this repo is public), for showing the app:
+//   PT:     oli@example.com  / demo1234
+//   Client: jack@example.com / demo1234
 import { DatabaseSync } from "node:sqlite";
-import { randomBytes } from "node:crypto";
+import { randomBytes, scryptSync } from "node:crypto";
 
 const DATA = process.env.DATA_DIR ?? (process.env.FLY_APP_NAME ? "/data" : "./data");
 const db = new DatabaseSync(`${DATA}/app.db`);
 const host = process.env.FLY_APP_NAME ? `https://${process.env.FLY_APP_NAME}.fly.dev` : "http://localhost:8080";
 const TITLE = "Jack's push / pull / legs";
 
+// Same format as hashPw in server.js.
+const hashPw = (pw, salt = randomBytes(16).toString("hex")) => `${salt}:${scryptSync(pw, salt, 64).toString("hex")}`;
+const PASSWORD = "demo1234";
+
+// The demo accounts: Oli the PT, Jack the client. Jack's program joins Oli's
+// dashboard and library, unless someone has already claimed it.
+function demoLogins() {
+  const user = (email, name, role) =>
+    db.prepare("SELECT id FROM users WHERE email = ?").get(email)?.id ??
+    Number(db.prepare("INSERT INTO users (email, name, role, pass) VALUES (?,?,?,?)").run(email, name, role, hashPw(PASSWORD)).lastInsertRowid);
+  const oli = user("oli@example.com", "Oli", "pt");
+  const jack = user("jack@example.com", "Jack", "client");
+  const p = db.prepare("SELECT * FROM programs WHERE title = ?").get(TITLE);
+  db.prepare("UPDATE programs SET pt_user_id = ? WHERE id = ? AND pt_user_id IS NULL").run(oli, p.id);
+  db.prepare("UPDATE programs SET client_user_id = ? WHERE id = ? AND client_user_id IS NULL").run(jack, p.id);
+  if (!db.prepare("SELECT 1 FROM templates WHERE pt_user_id = ? AND name = ?").get(oli, TITLE)) {
+    const exercises = db.prepare("SELECT day, name, sets, reps, notes, rest_seconds rest FROM exercises WHERE program_id = ? ORDER BY position").all(p.id);
+    db.prepare("INSERT INTO templates (pt_user_id, name, exercises) VALUES (?,?,?)").run(oli, TITLE, JSON.stringify(exercises));
+  }
+  const owner = db.prepare("SELECT u.email FROM programs p JOIN users u ON u.id = p.pt_user_id WHERE p.id = ?").get(p.id)?.email;
+  console.log(`\nLog in as oli@example.com (PT) or jack@example.com (client), password ${PASSWORD}.`);
+  if (owner !== "oli@example.com") console.log(`Jack's program is already on ${owner}'s dashboard, so it isn't on Oli's.`);
+}
+
 const existing = db.prepare("SELECT pt_token, client_token FROM programs WHERE title = ?").get(TITLE);
 if (existing) {
   console.log(`Already seeded.\nPT:     ${host}/p/${existing.pt_token}\nClient: ${host}/p/${existing.client_token}`);
+  demoLogins();
   process.exit(0);
 }
 
@@ -91,3 +121,4 @@ db.exec("COMMIT");
 
 const p = db.prepare("SELECT pt_token, client_token FROM programs WHERE id = ?").get(programId);
 console.log(`Seeded Jack.\nPT:     ${host}/p/${p.pt_token}\nClient: ${host}/p/${p.client_token}`);
+demoLogins();

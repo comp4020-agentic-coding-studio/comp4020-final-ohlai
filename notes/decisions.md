@@ -184,3 +184,11 @@ quiet clients, private notes per client.
 - Claude's defaults, not asked: the database table is still called
   `templates` so nothing on the volume gets renamed, and old `/new` and
   `/templates` links redirect.
+
+## 2026-10-26: Demo logins
+
+- Asked for a demo PT login (Oli) and a demo client login. `seed-jack.js` now
+  makes `oli@example.com` (PT) and `jack@example.com` (client), both with the
+  password `demo1234`, and links Jack's program to them. The password is in the
+  public repo on purpose, so anyone can try the app. Claude pointed out that
+  means anyone can log in as the demo PT, and I said yes.
