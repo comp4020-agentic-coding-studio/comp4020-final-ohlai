@@ -9,6 +9,9 @@ The older features below keep their notes inline.
 
 ## Doing
 
+### logout conformation
+- 2026-11-07: Built in its own branch (`feat/logout-conformation`). Notes, prompts and decisions are in `features/logout-conformation/`.
+
 ### toggles and nav bar
 - 2026-11-07: Built in its own branch (`feat/toggles-and-nav-bar`). Notes, prompts and decisions are in `features/toggles-and-nav-bar/`.
 
