@@ -9,6 +9,9 @@ The older features below keep their notes inline.
 
 ## Doing
 
+### toggles and nav bar
+- 2026-11-07: Built in its own branch (`feat/toggles-and-nav-bar`). Notes, prompts and decisions are in `features/toggles-and-nav-bar/`.
+
 ### Client app for the phone: nav, dashboard, settings, dark mode
 - 2026-11-06: No toggle. Bottom pill nav (Dashboard, Settings). Dashboard has
   program days as shortcuts, the last three workouts that expand, and an all
