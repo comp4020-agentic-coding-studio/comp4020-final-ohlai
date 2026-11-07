@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="en-AU" data-style="mono">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>All workouts</title>
+  <link rel="stylesheet" href="/style.css" />
+  <script src="/theme.js"></script>
+</head>
+<body data-default-view="mobile" class="client">
+<main>
+  <div class="topbar">
+    <a class="back btn" href="/me" aria-label="Back">←</a>
+    <h1>All workouts</h1>
+  </div>
+  <div id="list"></div>
+</main>
+
+<script src="/view.js"></script>
+<script type="module">
+  import { $, el, api, toLogin } from "/ui.js";
+  import { mountNav } from "/nav.js";
+  import { workoutCard } from "/workout-card.js";
+  mountNav();
+  const [data, ok] = await api("/api/me");
+  if (!ok) toLogin();
+  else $("list").replaceChildren(...(data.workouts?.length ? data.workouts.map(workoutCard) : [el("p", { className: "muted", textContent: "No workouts yet." })]));
+</script>
+</body>
+</html>

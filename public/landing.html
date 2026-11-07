@@ -6,6 +6,7 @@
   <title>Program: training programs your clients actually log</title>
   <meta name="description" content="Write a training program, send your client one link, and see every set they lift as they log it." />
   <link rel="stylesheet" href="/style.css" />
+  <script src="/theme.js"></script>
 </head>
 <body class="landing">
 <header class="site">
@@ -92,7 +93,7 @@
   // Already logged in: point straight at your own page.
   const [data, ok] = await api("/api/me");
   if (ok) $("nav").replaceChildren(
-    el("a", { href: data.me.role === "pt" ? "/dash" : "/me", className: "btn primary", textContent: data.me.role === "pt" ? "Dashboard" : "My programs" }));
+    el("a", { href: data.me.role === "pt" ? "/dash" : "/me", className: "btn primary", textContent: "Dashboard" }));
 </script>
 </body>
 </html>

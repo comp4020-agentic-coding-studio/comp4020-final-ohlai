@@ -5,13 +5,13 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Program</title>
   <link rel="stylesheet" href="/style.css" />
+  <script src="/theme.js"></script>
 </head>
 <body data-default-view="mobile">
 <main>
   <section id="workout">
     <div class="topbar">
       <h1 id="title">Loading…</h1>
-      <span class="toggles"><button type="button" class="view-toggle"></button></span>
     </div>
     <p class="sub" id="sub"></p>
     <div class="actions top" id="actions"></div>
@@ -25,7 +25,6 @@
     <div class="topbar">
       <button type="button" class="back" id="back" aria-label="Back to workout">←</button>
       <h1 id="sumTitle"></h1>
-      <span class="toggles"><button type="button" class="view-toggle"></button></span>
     </div>
     <div id="sumBody"></div>
   </section>
@@ -186,7 +185,7 @@
       links.push(el("a", { href: "/dash", className: "btn", textContent: "Dashboard" }));
     }
     if (role === "client" && claimed) {
-      links.push(el("a", { href: "/me", className: "btn", textContent: "My programs" }));
+      links.push(el("a", { href: "/me", className: "btn", textContent: "Dashboard" }));
     }
     return links;
   }

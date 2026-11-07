@@ -5,6 +5,12 @@ underneath it as work happens. Only I move a feature to Done.
 
 ## Doing
 
+### Client app for the phone: nav, dashboard, settings, dark mode
+- 2026-11-06: No toggle. Bottom pill nav (Dashboard, Settings). Dashboard has
+  program days as shortcuts, the last three workouts that expand, and an all
+  workouts page. Settings has theme, privacy and log out. Still to do: the
+  Macros nav and the habit tracker, waiting on SSH to atlas.
+
 ### Real-time: the PT sees a set land without reloading
 - 2026-10-19: Still missing from crit 9. Needs server-sent events (ADR 0001
   already guessed this). The events table from crit 10 could be what gets

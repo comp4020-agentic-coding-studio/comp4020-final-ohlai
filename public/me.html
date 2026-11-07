@@ -3,44 +3,65 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>My programs</title>
+  <title>Dashboard</title>
   <link rel="stylesheet" href="/style.css" />
+  <script src="/theme.js"></script>
 </head>
-<body data-default-view="mobile">
+<body data-default-view="mobile" class="client">
 <main>
-  <div class="topbar">
-    <h1 id="hi">My programs</h1>
-    <span class="toggles">
-      <button type="button" class="view-toggle"></button>
-      <button type="button" id="logout">Log out</button>
-    </span>
-  </div>
+  <div class="topbar"><h1 id="hi">Dashboard</h1></div>
+  <div class="stats" id="stats"></div>
   <div id="programs"></div>
+  <h2>Last workouts</h2>
+  <div id="recent"></div>
+  <a href="/workouts" class="btn wide" id="all" hidden>All workouts</a>
   <h2>Your PT</h2>
   <div id="pts"></div>
-  <h2>Privacy</h2>
-  <div class="card notice">
-    <label><input type="checkbox" checked disabled /> Show my PT when I'm training
-      <span class="pv-tag">Preview</span></label>
-    <p class="muted">Your PT sees "Training now" while a workout is open, so they know you might message with a
-      question. This would let you turn it off. Not built yet.</p>
-  </div>
+  <p id="err" class="error" role="alert"></p>
 </main>
 
 <script src="/view.js"></script>
 <script type="module">
-  import { $, el, api, ago, logout, toLogin, live } from "/ui.js";
-  $("logout").onclick = logout;
+  import { $, el, api, ago, utc, toLogin, live } from "/ui.js";
+  import { mountNav } from "/nav.js";
+  import { workoutCard } from "/workout-card.js";
+  mountNav();
+
+  // Tapping a day starts it, so the client is one tap from logging.
+  async function start(p, day) {
+    if (p.open !== day) {
+      const [data, ok] = await api(`/api/p/${p.client_token}/start`, { day });
+      if (!ok) return ($("err").textContent = data.error);
+    }
+    location.href = `/p/${p.client_token}`;
+  }
 
   async function load() {
     const [data, ok] = await api("/api/me");
     if (!ok) return toLogin();
     if (data.me.role === "pt") return (location.href = "/dash");
     $("hi").textContent = `Hi ${data.me.name}`;
-    $("programs").replaceChildren(...data.programs.map((p) =>
-      el("a", { href: `/p/${p.client_token}`, className: "card link" },
-        el("strong", { textContent: p.title }),
-        el("span", { className: "muted", textContent: `From ${p.pt_name}` }))));
+    const weekAgo = Date.now() - 7 * 864e5;
+    const week = data.workouts.filter((w) => utc(w.started_at) >= weekAgo);
+    $("stats").replaceChildren(...[["This week", week.length], ["Sets this week", week.reduce((s, w) => s + w.sets.length, 0)],
+      ["Last", ago(data.workouts[0]?.started_at)]].map(([k, v]) => el("div", {}, el("small", { textContent: k }), el("strong", { textContent: v }))));
+
+    $("programs").replaceChildren(...data.programs.map((p) => {
+      const open = p.days.find((d) => d.day === p.open);
+      return el("section", {},
+        el("h2", { textContent: p.title }),
+        el("p", { className: "prog-from" }, `Program from ${p.pt_name}, ${p.days.length} day${p.days.length === 1 ? "" : "s"}. `,
+          el("a", { href: `/p/${p.client_token}`, textContent: "See it all" })),
+        el("div", { className: "daypicks" }, ...p.days.map((d) =>
+          el("button", { type: "button", onclick: () => { start(p, d.day); } },
+            el("strong", { textContent: d.day }),
+            el("small", { textContent: d === open ? "In progress, tap to carry on" : d.exercises.join(", ") })))));
+    }));
+
+    $("recent").replaceChildren(...(data.workouts.length ? data.workouts.slice(0, 3).map(workoutCard)
+      : [el("p", { className: "muted", textContent: "No workouts yet. Tap a day above to start one." })]));
+    $("all").hidden = data.workouts.length <= 3;
+
     $("pts").replaceChildren(...(data.pts.length ? data.pts.map((pt) => el("div", { className: "card" },
       el("strong", { textContent: pt.name }),
       el("div", { className: "actions" },

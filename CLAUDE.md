@@ -24,7 +24,7 @@ client on a phone mid-workout, the PT at a desk. These rules follow from that.
 
 For now the PT only uses a desktop and the client only uses a phone. Design and
 check PT pages (dashboard, builder, PT program view) at desktop width, and
-client pages (program, my programs, chat) at phone width (390px). Don't spend
+client pages (program, dashboard, settings, chat) at phone width (390px). Don't spend
 effort making PT pages fit a phone.
 
 ## Every PT page
@@ -32,8 +32,7 @@ effort making PT pages fit a phone.
 - Lives in the PT app shell: `class="app"` on `<body>` and `mountSide()` from
   `public/side.js`, so the sidebar is always there to navigate with.
 - No mobile/desktop toggle. A PT on a desktop wants the desktop layout, so the
-  layout follows the screen instead of a button. The program view
-  (`program.html`) is shared with the client, so it keeps its toggle for now.
+  layout follows the screen instead of a button.
 
 ## Every client page
 
@@ -41,8 +40,13 @@ effort making PT pages fit a phone.
   pre-filled from the previous session.
 - Works at phone width (390px) with no horizontal scroll, and every control is
   reachable by keyboard.
-- Has the mobile/desktop toggle and starts in mobile. A new screen for the
-  client is designed at phone width first.
+- No mobile/desktop toggle. The client is on a phone in the gym, so client
+  pages are built for phone width only. A desktop view for looking back over
+  training is a stretch goal, not now.
+- Client app pages (dashboard, settings, all workouts) have the bottom pill
+  nav from `public/nav.js` and `class="client"` on `<body>`.
+- Dark mode: every page loads `public/theme.js` in `<head>`. Colours follow the
+  phone unless the client picks Light or Dark in Settings.
 - Uses the mono style only (`data-style="mono"` on `<html>`). Colours come
   from the tokens in `public/style.css`, never a component's own hex value.
 

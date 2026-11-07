@@ -351,7 +351,7 @@ const IMAGE_TYPES = [
 const MIME = { jpg: "image/jpeg", png: "image/png", gif: "image/gif", webp: "image/webp" };
 
 const PAGES = {
-  "/": "landing.html", "/login": "login.html", "/dash": "dash.html", "/me": "me.html",
+  "/": "landing.html", "/login": "login.html", "/dash": "dash.html", "/me": "me.html", "/settings": "settings.html", "/workouts": "workouts.html",
   "/inbox": "inbox.html", "/checkins": "checkins.html", "/programs": "templates.html", "/programs/new": "new.html",
 };
 // Any top-level script in public/ is served, so a new one can't be forgotten here.
@@ -426,7 +426,19 @@ const server = createServer(async (req, res) => {
         .all(me.id);
       const pts = [...new Map(programs.filter((p) => p.pt_user_id).map((p) => [p.pt_user_id, p.pt_name])).entries()]
         .map(([id, name]) => ({ id, name, unread: unread(me.id, id), checked_in: lastCheckin(id, me.id)?.at ?? null }));
-      return send(res, 200, { me, programs, pts });
+      // The client's dashboard: each program's days, and every finished workout with its sets.
+      const workouts = [];
+      for (const p of programs) {
+        const f = findProgram(p.client_token);
+        const names = new Map(f.exercises.map((e) => [e.id, e.name]));
+        p.days = [...new Set(f.exercises.map((e) => e.day))].map((d) => ({ day: d, exercises: f.exercises.filter((e) => e.day === d).map((e) => e.name) }));
+        p.open = f.open_session?.day ?? null;
+        for (const s of f.sessions.filter((s) => s.finished_at))
+          workouts.push({ id: s.id, day: s.day, title: p.title, client_token: p.client_token, started_at: s.started_at, finished_at: s.finished_at,
+            sets: f.logs.filter((l) => l.session_id === s.id).map((l) => ({ exercise: names.get(l.exercise_id), set_no: l.set_no, reps: l.reps, weight: l.weight })) });
+      }
+      workouts.sort((a, b) => b.started_at.localeCompare(a.started_at));
+      return send(res, 200, { me, programs, pts, workouts });
     }
     if (req.method === "GET" && path === "/api/events") {
       if (!me) return send(res, 401, { error: "Not logged in." });

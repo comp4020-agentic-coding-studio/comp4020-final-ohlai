@@ -12,7 +12,7 @@
   color-scheme: light dark;
 }
 @media (prefers-color-scheme: dark) {
-  :root {
+  :root:not([data-theme="light"]) {
     --bg: #111214;
     --card: #111214;
     --soft: #1f2125;
@@ -169,7 +169,7 @@ body[data-view="desktop"] .exercises { display: grid; grid-template-columns: 1fr
   --shadow: 0 22px 54px -34px rgba(0, 0, 0, 0.5);
 }
 @media (prefers-color-scheme: dark) {
-  :root[data-style="mono"] {
+  :root[data-style="mono"]:not([data-theme="light"]) {
     --bg: #000000;
     --card: #141414;
     --soft: rgba(255, 255, 255, 0.07);
@@ -185,6 +185,24 @@ body[data-view="desktop"] .exercises { display: grid; grid-template-columns: 1fr
     --shadow: none;
   }
 }
+/* The dark choice in Settings, whatever the phone says. Same values as above. */
+:root[data-style="mono"][data-theme="dark"] {
+  --bg: #000000;
+  --card: #141414;
+  --soft: rgba(255, 255, 255, 0.07);
+  --ink: #ffffff;
+  --muted: rgba(255, 255, 255, 0.55);
+  --line: rgba(255, 255, 255, 0.1);
+  --accent: #ffffff;
+  --accent-ink: #000000;
+  --done: rgba(255, 255, 255, 0.1);
+  --tick: #ffffff;
+  --trend: #6ee7b7;
+  --warn: #ff8a75;
+  --shadow: none;
+}
+:root[data-theme="light"] { color-scheme: light; }
+:root[data-theme="dark"] { color-scheme: dark; }
 [data-style="mono"] body { font-family: "Inter", -apple-system, system-ui, sans-serif; }
 [data-style="mono"] .set input, [data-style="mono"] .prev, [data-style="mono"] .setno,
 [data-style="mono"] .restrow output, [data-style="mono"] .records dd, [data-style="mono"] .chart .axis {
@@ -493,3 +511,29 @@ body[data-view="desktop"] .drawer { inset: auto 24px 0 auto; margin: 0; height: 
 .who-pick { border: 0; padding: 0; margin: 4px 0 0; display: flex; gap: 16px; }
 .who-pick label { display: flex; gap: 6px; align-items: center; color: var(--ink); margin: 0; }
 .who-pick input { width: auto; }
+
+/* ---------- client app: bottom pill nav, dashboard, settings ---------- */
+body.client main { padding-bottom: 120px; }
+.pillnav { position: fixed; left: 50%; bottom: max(16px, env(safe-area-inset-bottom)); transform: translateX(-50%); width: min(360px, calc(100% - 32px)); display: flex; gap: 4px; padding: 6px; background: var(--ink); border-radius: 999px; box-shadow: var(--shadow); z-index: 10; }
+.pillnav a { flex: 1; display: flex; align-items: center; justify-content: center; gap: 8px; padding: 12px 10px; border-radius: 999px; color: var(--bg); text-decoration: none; font-weight: 600; font-size: 0.9rem; opacity: 0.6; }
+.pillnav a[aria-current="page"] { background: var(--bg); color: var(--ink); opacity: 1; }
+.pillnav svg { width: 20px; height: 20px; }
+.daypicks { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 10px; }
+.daypicks button { text-align: left; display: grid; gap: 2px; padding: 14px; border-radius: 16px; background: var(--card); box-shadow: var(--shadow); font-weight: 400; }
+.daypicks button strong { font-size: 1.05rem; }
+.daypicks button small { color: var(--muted); font-size: 0.8rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.prog-from { color: var(--muted); font-size: 0.8rem; margin: -4px 0 10px; }
+[data-style="mono"] .card.wo { padding: 0; }
+.wo summary { list-style: none; display: flex; justify-content: space-between; align-items: center; gap: 8px; padding: 16px; cursor: pointer; }
+.wo summary::-webkit-details-marker { display: none; }
+.wo summary::after { content: "+"; font-size: 1.2rem; color: var(--muted); }
+.wo[open] summary::after { content: "–"; }
+.wo .wo-body { padding: 0 16px 16px; }
+.wo table { width: 100%; border-collapse: collapse; font-size: 0.9rem; }
+.wo th { text-align: left; font-weight: 600; padding: 10px 0 4px; }
+.wo td { padding: 2px 0; color: var(--muted); }
+.wo td.num { text-align: right; }
+.seg { display: flex; gap: 4px; padding: 4px; background: var(--soft); border-radius: 14px; }
+.seg button { flex: 1; padding: 10px; background: none; border-radius: 10px; }
+.seg button[aria-pressed="true"] { background: var(--accent); color: var(--accent-ink); }
+.notice input[type="checkbox"] { width: auto; margin-right: 6px; }

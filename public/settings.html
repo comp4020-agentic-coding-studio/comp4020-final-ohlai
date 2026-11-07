@@ -1,0 +1,60 @@
+<!doctype html>
+<html lang="en-AU" data-style="mono">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Settings</title>
+  <link rel="stylesheet" href="/style.css" />
+  <script src="/theme.js"></script>
+</head>
+<body data-default-view="mobile" class="client">
+<main>
+  <div class="topbar"><h1>Settings</h1></div>
+  <p class="sub" id="who"></p>
+
+  <h2>Appearance</h2>
+  <div class="seg" role="group" aria-label="Colour theme" id="theme">
+    <button type="button" data-t="system">System</button>
+    <button type="button" data-t="light">Light</button>
+    <button type="button" data-t="dark">Dark</button>
+  </div>
+
+  <h2>Privacy</h2>
+  <div class="card notice">
+    <label><input type="checkbox" checked disabled /> Show my PT when I'm training
+      <span class="pv-tag">Preview</span></label>
+    <p class="muted">Your PT sees "Training now" while a workout is open, so they know you might message with a
+      question. This would let you turn it off. Not built yet.</p>
+  </div>
+
+  <h2>Account</h2>
+  <button type="button" id="logout" class="wide">Log out</button>
+</main>
+
+<script src="/view.js"></script>
+<script type="module">
+  import { $, api, logout, toLogin } from "/ui.js";
+  import { mountNav } from "/nav.js";
+  mountNav();
+  $("logout").onclick = logout;
+
+  const show = () => {
+    const t = document.documentElement.dataset.theme ?? "system";
+    for (const b of $("theme").children) b.ariaPressed = String(b.dataset.t === t);
+  };
+  $("theme").onclick = (e) => {
+    const t = e.target.closest("button")?.dataset.t;
+    if (!t) return;
+    if (t === "system") delete document.documentElement.dataset.theme;
+    else document.documentElement.dataset.theme = t;
+    try { t === "system" ? localStorage.removeItem("theme") : localStorage.setItem("theme", t); } catch {}
+    show();
+  };
+  show();
+
+  const [data, ok] = await api("/api/me");
+  if (!ok) toLogin();
+  else $("who").textContent = `Logged in as ${data.me.name} (${data.me.email}).`;
+</script>
+</body>
+</html>

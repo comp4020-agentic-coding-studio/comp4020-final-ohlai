@@ -192,3 +192,23 @@ quiet clients, private notes per client.
   password `demo1234`, and links Jack's program to them. The password is in the
   public repo on purpose, so anyone can try the app. Claude pointed out that
   means anyone can log in as the demo PT, and I said yes.
+
+## 2026-11-06: Client side built for the phone
+
+- **No mobile/desktop toggle for clients.** A client looks at the app on their
+  phone in the gym, not on a laptop. A desktop view for looking back over
+  training afterwards is a stretch goal.
+- **Bottom nav with Dashboard and Settings.** Asked for the nav from my Macros
+  app as one long pill, without the separate add button, since there's no add
+  or log page.
+- **Privacy and log out go in Settings**, not on the dashboard.
+- **Dark mode.** Asked for it.
+- **Dashboard shows the last three workouts**, which expand when tapped, with
+  a button to an all workouts page.
+- **Program days as shortcuts on the dashboard**, with small text saying who
+  the program is from. The program name on its own didn't say what it was.
+- Claude's defaults, not yet confirmed by me:
+  - `/me` stays the URL for the Dashboard.
+  - The theme choice is System, Light or Dark, saved in this browser only,
+    not on the account.
+  - Tapping a day starts that workout straight away, with no confirm step.
