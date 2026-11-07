@@ -114,7 +114,8 @@ in your environment, you're in one.
   me.
 - Everything about the feature goes in `notes/features/<slug>/`:
   - `prompts.md` is every message I send, word for word, with the time. A
-    hook writes it. Never edit it. Read it at the start of every session.
+    hook writes it. Never edit it, but commit it with your work. Read it at
+    the start of every session.
   - `log.md` is what happened, newest at the bottom. For every piece of work:
     what I asked (quote me), what you did and which files changed, why it was
     done that way, what you tried that didn't work, what you got wrong and
