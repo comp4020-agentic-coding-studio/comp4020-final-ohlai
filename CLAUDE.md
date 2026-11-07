@@ -75,20 +75,53 @@ I want the final docs written from what actually happened, so every session
 leaves a trail in `notes/`.
 
 - At the start of a session, read `notes/features.md` and say which feature
-  we're picking up. Add a dated note under that feature as work happens. Never
-  move a feature to Done yourself, I do that.
+  we're picking up. Never move a feature to Done yourself, I do that.
+- The notes are the raw material for my final docs, so more detail is always
+  better than less. Notes are append-only: never delete, shorten, merge or
+  reword an earlier entry, even one that turned out wrong. If something
+  changed, add a new dated entry saying what changed and why, and point back
+  to the old one.
 - When a choice comes up that changes what the app does or how it's built
   (data shape, what a user sees, a library, a trade-off), stop and ask me with
   the options and your recommendation. Don't decide it silently. Small code
   details that nobody would notice are yours.
-- Record every decision I make in `notes/decisions.md`, not just the ones you
-  asked about: things I pick, reject, change my mind on, or ask for in passing
-  ("make it look like X", "drop that"). Write what came up, the options, what I
-  picked and why. If it changes the architecture, also write an ADR.
+- Record every decision I make, not just the ones you asked about: things I
+  pick, reject, change my mind on, or ask for in passing ("make it look like
+  X", "drop that"). Write what came up, the options, what I picked and why. If
+  it changes the architecture, also write an ADR. On main this goes in
+  `notes/decisions.md`. In a feature session it goes in the feature's
+  `decisions.md` (see below).
 - If you can't tell why I made a decision, ask me before writing it down. Ask
   about that one decision specifically ("why bottom left rather than in the
   top bar?"), not a general "any reasons?". Never make up a reason for me.
-- Keep `notes/sessions/YYYY-MM-DD.md` for today (create it if missing): what I
-  asked for, what we did, what you got wrong and how it was fixed. Update it
-  before each commit, not just at the end.
+- On main, keep `notes/sessions/YYYY-MM-DD.md` for today (create it if
+  missing): what I asked for, what we did, what you got wrong and how it was
+  fixed. Update it before each commit, not just at the end.
 - Write notes plainly, in my voice. No em dashes.
+
+## Feature sessions
+
+Each feature has its own branch (`feat/<slug>`), its own folder
+(`../worktrees/<slug>`), its own app port and its own data folder. The meta
+dashboard in `COMP4020/meta/` starts these sessions. If `FEATURE_SLUG` is set
+in your environment, you're in one.
+
+- Work and commit only on your feature branch, in your folder. Never check
+  out, commit to or merge into main, and never touch another feature's
+  folder. I merge from the dashboard.
+- Run the app with the `PORT` and `DATA_DIR` already in your environment, so
+  you don't collide with other features. Use that port for every URL you give
+  me.
+- Everything about the feature goes in `notes/features/<slug>/`:
+  - `prompts.md` is every message I send, word for word, with the time. A
+    hook writes it. Never edit it. Read it at the start of every session.
+  - `log.md` is what happened, newest at the bottom. For every piece of work:
+    what I asked (quote me), what you did and which files changed, why it was
+    done that way, what you tried that didn't work, what you got wrong and
+    how it got fixed. When my feedback changes, adds or removes something,
+    write what it was before, what it is now, and my reason.
+  - `decisions.md` is every decision on this feature, in the same format as
+    `notes/decisions.md`.
+  - Update both before each commit, not just at the end.
+- Don't edit `notes/features.md`, `notes/decisions.md` or `notes/sessions/`
+  in a feature session. Every feature would conflict at merge time.

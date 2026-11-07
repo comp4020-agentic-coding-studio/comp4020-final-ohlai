@@ -3,6 +3,10 @@
 Claude reads this at the start of every session. Each feature gets dated notes
 underneath it as work happens. Only I move a feature to Done.
 
+From 2026-11-07, new features are started from the meta dashboard. Each one
+is a single line here pointing at `features/<slug>/`, where its notes live.
+The older features below keep their notes inline.
+
 ## Doing
 
 ### Client app for the phone: nav, dashboard, settings, dark mode

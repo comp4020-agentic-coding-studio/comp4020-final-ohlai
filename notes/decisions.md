@@ -212,3 +212,31 @@ quiet clients, private notes per client.
   - The theme choice is System, Light or Dark, saved in this browser only,
     not on the account.
   - Tapping a day starts that workout straight away, with no confirm step.
+
+## 2026-11-07: One branch, folder and session per feature, run from a dashboard
+
+- **What came up.** I want to give feedback on each feature on its own, with
+  one Claude session per feature, and see from one place which agents are
+  working on what, instead of clicking through ten terminal tabs. I also need
+  to add features, give feedback after an agent has worked on one, and merge
+  features into main.
+- **Agents in the same folder.** Several agents in one checkout would trip over
+  each other. Picked git worktrees: one folder per feature in
+  `COMP4020/worktrees/<slug>`, each on `feat/<slug>`, each with its own app port
+  and data folder so the servers and SQLite files don't collide.
+- **Wrapper or links.** Options: build a wrapper around Claude Code, or keep
+  real Claude sessions and have the dashboard link to them. Picked links. I'd
+  rather open the real session than use a wrapper, but I want the overview on
+  the dashboard. Status comes from Claude Code hooks, so it works with the
+  course API key and with a subscription.
+- **Where the dashboard lives.** Picked `COMP4020/meta/`, outside the final
+  project folder. (Reason not recorded yet.)
+- **Notes per feature.** Options: keep one shared `features.md`,
+  `decisions.md` and day file, or one folder per feature. Picked per feature.
+  Shared files would conflict every time two branches merge.
+- **How much the notes keep.** I want as much as possible about why we did
+  things, so the docs are nearly written by the time I get to them. So: every
+  message I send is saved word for word by a hook (not by Claude, so nothing
+  gets summarised away), including the starting prompt and every bit of
+  feedback, and notes are append-only. Claude never shortens or rewrites an
+  earlier entry, it adds a new one.
