@@ -32,3 +32,13 @@
 - Options: keep it open with "Sent to ..."; close it.
 - Picked by me: close it. ("once you click send it should close the pop up.")
 - Why: I didn't say. If the send fails the popup stays open with the error; that part was the agent's call.
+
+## 2026-11-09, nudge by person
+
+- What came up: I said "maybe also being able to nudge by person would be good".
+- Options: (1) tick boxes in the popup, one per quiet client, all ticked to start; (2) a Nudge button per person in Needs attention or the client card, keeping the popup for everyone. The agent recommended 1: "everyone but Sam" and "only Jack" both work in one place, and you can already message one person from their client card.
+- Picked by me: option 1 ("option 1").
+- Why: I didn't say beyond picking it.
+- This replaces the earlier "who counts as quiet" setup where Send went to every quiet client with no choice. Quiet is still worked out the same way (7+ days, or never trained).
+- Still open: whether the list should show every signed-up client and not just quiet ones. Asked, not answered.
+- Agent's call: Send is disabled while nobody is ticked, and while the list is loading.

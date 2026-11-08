@@ -356,6 +356,10 @@ button.small, .chips button { white-space: nowrap; font-size: 0.82rem; padding: 
 .pv p { margin: 0 0 10px; color: var(--muted); }
 .pv.built h2::after { content: none; }
 .pv form .actions { margin-top: 14px; }
+.nudge-list { border: 0; padding: 0; margin: 0 0 12px; display: grid; gap: 6px; }
+.nudge-list legend { padding: 0; margin-bottom: 6px; font-weight: 600; color: var(--ink); }
+.nudge-list label { display: flex; align-items: center; gap: 8px; margin: 0; color: var(--ink); cursor: pointer; }
+.nudge-list input { width: auto; margin: 0; accent-color: var(--ink); }
 .nudge-msg { margin: 0 0 10px; padding: 10px 12px; border-left: 3px solid var(--line); background: var(--soft); color: var(--ink); white-space: pre-wrap; }
 .mock { opacity: 0.7; }
 

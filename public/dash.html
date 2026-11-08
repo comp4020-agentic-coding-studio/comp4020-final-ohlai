@@ -137,6 +137,7 @@
 <div popover id="pv-nudge" class="pop pv built">
   <h2>Nudge quiet clients</h2>
   <p id="n-who"></p>
+  <fieldset id="n-list" class="nudge-list"><legend>Send to</legend></fieldset>
   <blockquote id="n-msg" class="nudge-msg"></blockquote>
   <p class="muted"><a href="/checkins#nudge">Change the message on Check-ins</a></p>
   <p id="n-err" class="error" role="alert"></p>
@@ -454,20 +455,28 @@
   $("pv-nudge").addEventListener("toggle", async (e) => {
     if (e.newState !== "open") return;
     $("n-err").textContent = "";
+    // Off until this open's list loads, so Send can't go to last time's ticks.
+    $("n-send").disabled = true;
     const [data, ok] = await api("/api/nudge");
     if (!ok) { $("n-err").textContent = data.error; return; }
-    const names = data.clients.map((c) => c.name).join(", ");
-    $("n-who").textContent = data.clients.length ? `Sends to ${data.clients.length} client${data.clients.length > 1 ? "s" : ""} with no workout in 7 days: ${names}.`
+    $("n-who").textContent = data.clients.length ? "Clients with no workout in 7 days. Untick anyone you'd rather not nudge."
       : "Nobody's gone quiet. Every signed-up client has trained in the last 7 days.";
+    // Everyone ticked to start; Send is off once nobody is.
+    const ticks = () => [...$("n-list").querySelectorAll("input:checked")].map((i) => Number(i.value));
+    const sync = () => { $("n-send").disabled = !ticks().length; };
+    $("n-list").hidden = !data.clients.length;
+    $("n-list").replaceChildren(el("legend", { textContent: "Send to" }), ...data.clients.map((c) =>
+      el("label", {}, el("input", { type: "checkbox", value: c.id, checked: true, onchange: sync }), ` ${c.name}`)));
     $("n-msg").textContent = data.message;
-    $("n-send").disabled = !data.clients.length;
+    sync();
+    $("n-send").onclick = () => { sendNudge(ticks()); };
   });
-  $("n-send").onclick = async () => {
+  async function sendNudge(ids) {
     $("n-send").disabled = true;
-    const [data, ok] = await api("/api/nudge", {});
+    const [data, ok] = await api("/api/nudge", { ids });
     if (!ok) { $("n-err").textContent = data.error; $("n-send").disabled = false; return; }
     $("pv-nudge").hidePopover();
-  };
+  }
 
   $("q").oninput = render;
   for (const b of document.querySelectorAll("[data-filter]")) b.onclick = () => {

@@ -752,7 +752,10 @@ const server = createServer(async (req, res) => {
         return send(res, 200, { message: m });
       }
       if (req.method === "POST" && path === "/api/nudge") {
-        const to = quiet();
+        // The PT ticks who gets it; only their own quiet clients count, whatever ids come in.
+        const ids = (await readJson(req)).ids;
+        const to = quiet().filter((c) => !Array.isArray(ids) || ids.includes(c.id));
+        if (!to.length) return send(res, 400, { error: "Tick at least one client." });
         const ins = db.prepare("INSERT INTO messages (pt_id, client_id, sender_id, body, image) VALUES (?,?,?,?,NULL)");
         for (const c of to) ins.run(me.id, c.id, me.id, message.replaceAll("{name}", c.name.split(" ")[0]));
         audit(asUser(me), "nudge", 201, `nudged ${to.length} quiet client${to.length === 1 ? "" : "s"}`);

@@ -49,4 +49,25 @@ Got wrong: my first check run was cut off by a 50 second timeout before it print
 
 Also: `prompts.md` has a 23:40 entry that is a background task notice from my screenshot script, not something I wrote. The hook picked it up.
 
+## 2026-11-09 00:00, choose who gets the nudge
+
+I asked: "maybe also being able to nudge by person would be good". The agent gave two options: tick boxes in the popup, or a Nudge button per person in Needs attention / the client card. I picked "option 1", the tick boxes.
+
+Before (see the 23:35 entry): Send went to every quiet client, no choice. Now the popup lists each quiet client with a tick box, all ticked to start. Untick anyone you don't want to nudge. Send is disabled once nobody is ticked.
+
+Changed:
+- `server.js`: `POST /api/nudge` takes `{ ids }`. The server still works out the quiet list itself and only sends to ids that are on it, so a made-up or other PT's client id goes nowhere. Nobody left after that is a 400 "Tick at least one client." No `ids` at all still means everyone quiet.
+- `public/dash.html`: the popup builds a "Send to" fieldset of tick boxes from `/api/nudge`. Send posts the ticked ids, then closes the popup like before.
+- `public/style.css`: `.nudge-list`, with `accent-color: var(--ink)` so the ticks are mono. The first version showed the browser's default blue tick in dark mode.
+- `spec/programs.test.ts`: added: `ids: []` is a 400, an id that isn't theirs is a 400, ticking the client sends.
+- `CLAUDE.md`: new rule under "Every change" (see below).
+
+Still open: whether the list should show every signed-up client and not just quiet ones. I asked in the same message; not answered yet.
+
+Got wrong: on the first browser run my script unticked Jack, clicked Send, and both Jack and Sam got a message. The debug run showed why: the script clicked Jack's box before the list had loaded, so there was no box to untick. The list then loaded with everyone ticked and Send sent to both. That was my test script being too quick, not the app.
+
+It did show a real gap though. When the popup opens a second time, the old list and the old Send handler are still there until the new list loads, so a quick click on Send would go to the last list's ticks. Fixed by disabling Send as soon as the popup opens, until the new list has loaded. The script now waits for the list before unticking. Added a rule to `CLAUDE.md` so other popups don't do the same.
+
+Checked: `pnpm check` passes, 19 tests. In headless Chrome at 1440px: unticked Jack, clicked Send. Before, Jack 4 and Sam 4 messages; after, Jack 4 and Sam 5. Popup closed. Screenshots of the list in light and dark with Jack unticked look right.
+
 Open questions for me are in `decisions.md`.

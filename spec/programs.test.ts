@@ -233,7 +233,10 @@ it("a nudge sends the PT's own message to their quiet clients' chats and nobody 
   expect((await (await api("/api/nudge", undefined, stranger)).json()).clients).toEqual([]);
   expect((await api("/api/nudge", {}, client)).status).toBe(401);
 
-  expect((await api("/api/nudge", {}, pt)).status).toBe(201);
+  // Nobody ticked, or only someone who isn't theirs: nothing goes out.
+  expect((await api("/api/nudge", { ids: [] }, pt)).status).toBe(400);
+  expect((await api("/api/nudge", { ids: [999999] }, pt)).status).toBe(400);
+  expect((await api("/api/nudge", { ids: [p.client_user_id] }, pt)).status).toBe(201);
   const chat = await (await api(`/api/chat/${p.pt_user_id}`, undefined, client)).json();
   expect(chat.messages.at(-1)).toMatchObject({ sender_id: p.pt_user_id, body: expect.stringMatching(/^Oi \S+, where are you\?$/) });
 });

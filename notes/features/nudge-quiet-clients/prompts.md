@@ -23,3 +23,11 @@ Feature: nudge quiet clients.
 ## 2026-11-08 23:52 (dashboard)
 
 once you click send it should close the pop up.
+
+## 2026-11-08 23:55 (dashboard)
+
+maybe also being able to nudge by person would be good
+
+## 2026-11-09 00:05 (dashboard)
+
+option 1
