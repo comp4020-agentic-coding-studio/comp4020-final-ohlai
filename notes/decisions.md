@@ -429,3 +429,11 @@ Follows the 2026-11-07 entry above. Built in `COMP4020/meta/`.
   (`tools/feature-agents/logo.png`) is cut out of the black frame and white card
   the original came on, cropped to the moth, scaled to 256px and made
   transparent, the same way as the first one.
+
+## 2026-11-08: A greyed-out bell can't be clicked
+
+- Changes the bell entry above. Claude had kept greyed-out bells clickable, so
+  a planned feature could be set to notify before its agent started. I said a
+  greyed-out bell shouldn't be clickable. Now it isn't: it does nothing and
+  its tooltip says why (for a planned feature: no agent yet, turn it on once
+  it's started).

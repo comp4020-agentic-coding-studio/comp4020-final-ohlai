@@ -111,8 +111,8 @@ were imported on 2026-11-08, with their notes copied word for word into each
   it at full and nothing else changes.
 - **Bells**: notifications when an agent needs me, finishes, fails or is
   interrupted. Silent, only features with their bell on, or all. Each
-  feature's bell is before its name (select mode only), greyed out while it
-  has no agent but still clickable, so a planned feature can be set ahead.
+  feature's bell is before its name (select mode only), greyed out and
+  unclickable while it has no agent.
   Only while the page is open.
 - Filters: All, then one per status from most to least urgent (Waiting,
   Working, Planned, Merged, Dropped). All is sorted the same way, and within
