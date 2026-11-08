@@ -580,6 +580,8 @@ html.theming, html.theming *, html.theming *::before, html.theming *::after {
 /* Popups. Every one looks like the client card on the PT dash (.dcard):
    a card over the blurred page, popping in, title and a round close top right. */
 html.locked { overflow: hidden; }
+/* The page behind any open popup doesn't scroll, so nothing pulls focus away. */
+html:has(dialog[open].pop, dialog[open].detail, dialog[open].drawer, .pop:popover-open) { overflow: hidden; }
 .pop, .dcard { padding: 20px; border: 1px solid var(--line); border-radius: 18px; background: var(--card); color: var(--ink); box-shadow: 0 30px 80px -30px rgba(0, 0, 0, 0.5); }
 .pop[open], .pop:popover-open { animation: confirm-in 0.2s ease-out; }
 .pop::backdrop, .detail::backdrop { background: rgba(0, 0, 0, 0.25); backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px); animation: confirm-fade 0.2s ease-out; }

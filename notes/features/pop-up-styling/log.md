@@ -26,3 +26,13 @@ Each of 1 to 4 had its own copy of the card CSS (padding, border, radius, shadow
 - `spec/logout.test.ts`: the jsdom stand-in for `dialog.close()` now keeps the return value, since `ask()` reads it.
 
 **Checked.** `pnpm check` passes (13 tests). Headless Edge on port 8086 with real mouse clicks, screenshotted each one: dash client card (unchanged), Export, Log out, Assign, Assigned, Delete at 1440x900, Finish and Discard on the client program page at 390x844. All read as the same card now. Clicking Cancel on Delete left the program on the server (still 1 template) and clicking Discard really ended the workout (`open_session` null after). No horizontal scroll at 390.
+
+## 2026-11-08 22:06 OK on everything, and why the client card
+
+I said: "yes all that looks good. Why client card? it was the one that i polished to look the best the blur makes people focus on what is nesisary and blocks scroll to stop them from getting distracted and has a nice fluid anim in."
+
+That settles the three open questions from the 21:24 entry: swapping the `confirm()` boxes is right, the chat drawer stays a bottom sheet, and the reason for the client card is now in decisions.md.
+
+**What changed because of it.** I said blocking scroll is part of why the client card works. Before, only the `ask()` popups (Log out, Delete, Finish, Discard) blocked the page scrolling, through the `html.locked` class. The client card blocked it only because a modal dialog happens to on some browsers, and the Export and Nudge popovers and the chat drawer didn't block it at all. Added one rule in `public/style.css`: `html:has(dialog[open].pop, dialog[open].detail, dialog[open].drawer, .pop:popover-open) { overflow: hidden; }`, so the page behind any open popup can't scroll. Kept `html.locked` as well, it does no harm.
+
+**Checked.** Headless Edge on port 8086, page made 3000px tall, mouse wheel scrolled 600px with each popup open: client card, Export and Assign all stayed at scrollY 0 with `overflow: hidden` on the page. With no popup open the same scroll moved the page 600px, so normal scrolling still works. `pnpm check` passes (13 tests).
