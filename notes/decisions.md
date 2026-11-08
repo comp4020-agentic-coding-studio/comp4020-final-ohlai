@@ -240,3 +240,32 @@ quiet clients, private notes per client.
   gets summarised away), including the starting prompt and every bit of
   feedback, and notes are append-only. Claude never shortens or rewrites an
   earlier entry, it adds a new one.
+
+## 2026-11-08: The dashboard runs each feature's app, notifications, a prompt for every agent
+
+Follows the 2026-11-07 entry above. Built in `COMP4020/meta/`.
+
+- **Who runs a feature's app.** Before, `CLAUDE.md` told every agent to run
+  the app, so each one spent turns starting, checking and restarting it. I
+  asked for the dashboard to start and stop each feature's app instead, and
+  for the instruction to go, to save the agent's tokens. Now the dashboard
+  starts the app when setup finishes, the card has Start preview, Preview and
+  Stop app, and `CLAUDE.md` tells feature agents not to start it. After
+  changing `server.js` an agent restarts it with one `curl` to the dashboard.
+- **The app button's label.** "Open app :8081" became "Preview". I don't care
+  what the port number is, so it's gone from the card. Other labels
+  considered: View app, Open site, Try it, a bare ↗ icon.
+- **Notifications.** Asked for a notification when an agent needs me or
+  finishes, with a three-way toggle (silent, selected features, all) in case
+  it gets annoying. Icons only, no names. In "selected" mode each card gets a
+  small square bell to turn it on for that feature. They only show while the
+  dashboard is open in a browser tab.
+- **Time and cost per feature.** Asked for it if it was easy. Both come from
+  the conversations Claude Code saves for each worktree. Cost is worked out at
+  API prices, so on a subscription it's what it would have cost, not what I
+  paid. Agent time only counts time inside a turn, not time waiting on me.
+- **A prompt for every agent.** I want every feature agent to use
+  `/ponytail full`, and I want to be able to add anything else every agent
+  should hear. So there's an editable "Prompt for every agent" on the
+  dashboard that goes at the start of each new agent's first prompt. Agents
+  that already started don't get it.

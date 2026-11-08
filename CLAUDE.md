@@ -53,7 +53,8 @@ effort making PT pages fit a phone.
 ## Every change
 
 - Run the app (`node server.js`), then `pnpm check`. Both must pass before a
-  commit.
+  commit. In a feature session the dashboard runs the app for you (see
+  "Feature sessions").
 - Node doesn't reload `server.js`. After changing it, restart the server (or
   start a new one) before checking a page or pointing me at a URL, and stop
   the old one, so I never end up looking at a stale server.
@@ -109,9 +110,13 @@ in your environment, you're in one.
 - Work and commit only on your feature branch, in your folder. Never check
   out, commit to or merge into main, and never touch another feature's
   folder. I merge from the dashboard.
-- Run the app with the `PORT` and `DATA_DIR` already in your environment, so
-  you don't collide with other features. Use that port for every URL you give
-  me.
+- The dashboard runs your app on the `PORT` in your environment, with your
+  `DATA_DIR`. Don't start or stop it yourself, and don't check whether it's
+  up: `pnpm check` already finds it through `APP_URL`. After changing
+  `server.js`, restart it with
+  `curl -s -X POST http://localhost:4000/api/features/$FEATURE_SLUG/apprestart`
+  (it answers once the app is back up), then run `pnpm check`. Use that port
+  for every URL you give me.
 - Everything about the feature goes in `notes/features/<slug>/`:
   - `prompts.md` is every message I send, word for word, with the time. A
     hook writes it. Never edit it, but commit it with your work. Read it at
