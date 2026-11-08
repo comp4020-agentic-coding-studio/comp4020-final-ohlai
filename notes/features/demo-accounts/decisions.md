@@ -41,3 +41,11 @@ Picked (by me): plain `name@example.com` for every login (`sam@`, `priya@`, `tom
 ## 2026-11-09: why name@example.com (confirmed)
 
 The agent wrote my reason in the entry above without asking me first. I've since confirmed it's right, and added to it: simpler to read and type, the `.demo` added nothing, and it matches the convention I already use (`oli@example.com`, `jack@example.com`).
+
+## 2026-11-09: no refresh for the demo's dates
+
+What came up: the seed's dates count back from when it runs, and I don't know when in the week the marker will look.
+
+Options: add a way to refresh the dates before marking, or leave it.
+
+Picked (by me): leave it. I'll assume the marker sees "Training now" when they test it themselves. The agent then found that Ben's open workout doesn't expire anyway, so the only thing that ages is the recent-sessions counts.

@@ -66,3 +66,12 @@ I said: "thats my reason exactly and it matches my prev convention ive been usin
 
 - Added a dated entry to `decisions.md` confirming the reason, plus the convention point. The earlier entry is left as written.
 - Told me the steps: merge from the dashboard, deploy, then run `node scripts/fly-exec.js node /app/scripts/seed-demo.js` once against the live site.
+
+## 2026-11-09: when the marker looks
+
+I said: "well idk when the marker will view it it could be any time this week, so lets just assume that they will be able to see training now when they test it themself."
+
+- I checked `server.js:396`: "Training now" is any started workout that isn't finished, with no time limit. So Ben's open workout shows on Sam's dashboard whenever the marker looks, until someone finishes or discards it as Ben. My earlier note (above, and what I told you) that it goes stale was wrong.
+- The marker can also see it happen live by logging in as Priya and starting a workout.
+- What does age over the week: "sessions this week" drops for Priya, Tom and Ben, and they join the nudge list once 7 days pass since their last workout (Tom around day 4, the others around day 6). Mia stays quiet and Tom stays stalled.
+- No code change. The seed stays as it is.

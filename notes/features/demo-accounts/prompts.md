@@ -21,3 +21,7 @@ why is it priya.demo can we just make all the logins name@example.com please
 ## 2026-11-09 10:56 (dashboard)
 
 thats my reason exactly and it matches my prev convention ive been using of name@example.com What do i have to do to put this onto main?
+
+## 2026-11-09 10:58 (dashboard)
+
+well idk when the marker will view it it could be any time this week, so lets just assume that they will be able to see training now when they test it themself.
