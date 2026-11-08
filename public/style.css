@@ -438,6 +438,16 @@ body.chatpage[data-view="desktop"] .compose { max-width: 1120px; margin: 0 auto;
 .photo:focus-within { outline: 3px solid var(--accent); outline-offset: 2px; }
 .chatpage .error { position: fixed; bottom: 76px; left: 16px; }
 
+/* video call: the other person fills the box, you sit small in the corner */
+.call { width: min(100vw - 24px, 720px); padding: 0; border: 1px solid var(--line); border-radius: 18px; background: var(--ink); color: var(--bg); overflow: hidden; }
+.call::backdrop { background: rgba(0, 0, 0, 0.6); }
+.call video { display: block; width: 100%; aspect-ratio: 3 / 4; object-fit: cover; background: var(--ink); }
+@media (min-width: 700px) { .call video { aspect-ratio: 16 / 9; } }
+.call video.self { position: absolute; top: 12px; right: 12px; width: 28%; aspect-ratio: 3 / 4; border-radius: 12px; border: 2px solid var(--bg); }
+.call-status { position: absolute; left: 0; right: 0; top: 40%; margin: 0; padding: 0 24px; text-align: center; font-weight: 600; }
+.call-status:empty { display: none; }
+.call .actions { position: absolute; left: 0; right: 0; bottom: 16px; display: flex; justify-content: center; gap: 12px; }
+
 /* landing and login */
 .landing { min-height: 100vh; display: flex; flex-direction: column; }
 .landing main { width: 100%; max-width: 1120px; padding: 0 16px 48px; flex: 1; }

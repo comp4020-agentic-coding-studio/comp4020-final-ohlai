@@ -2,6 +2,7 @@
 // current page and shows unread messages next to Inbox. No mobile/desktop
 // toggle on PT pages: the layout follows the screen.
 import { $, el, api, logout, live } from "/ui.js";
+import "/call.js"; // a call from a client rings on every PT page
 
 const LINKS = [["/dash", "Dashboard"], ["/inbox", "Inbox"], ["/checkins", "Check-ins"], ["/programs", "Programs"]];
 

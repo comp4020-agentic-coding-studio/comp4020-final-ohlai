@@ -1,13 +1,19 @@
 // A chat thread with one person: messages, a text box and a photo button.
 // Used by the chat page and by the drawer on the program page.
 import { el, api, utc, fmtDay, fmtTime } from "/ui.js";
+import { call } from "/call.js";
 
 export function mountChat(root, other, { onLoad } = {}) {
   const thread = el("ol", { className: "thread", ariaLive: "polite" });
   const text = el("input", { id: "chatText", autocomplete: "off", maxLength: 2000, placeholder: "Message" });
   const file = el("input", { type: "file", accept: "image/*" });
   const err = el("p", { className: "error", role: "alert" });
+  // Disabled until the thread loads, so it knows who it's calling.
+  const video = el("button", { type: "button", className: "photo", title: "Video call", disabled: true },
+    el("span", { ariaHidden: "true", className: "ico", innerHTML: '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M4.5 6h9A2.5 2.5 0 0 1 16 8.5v1.3l3.9-2.6a.7.7 0 0 1 1.1.6v8.4a.7.7 0 0 1-1.1.6L16 14.2v1.3a2.5 2.5 0 0 1-2.5 2.5h-9A2.5 2.5 0 0 1 2 15.5v-7A2.5 2.5 0 0 1 4.5 6Z"/></svg>' }),
+    el("span", { className: "sr", textContent: "Video call" }));
   const form = el("form", { className: "compose" },
+    video,
     el("label", { className: "btn photo", title: "Send a photo" },
       el("span", { ariaHidden: "true", className: "ico", innerHTML: '<svg viewBox="0 0 24 24" fill="currentColor" fill-rule="evenodd"><path d="M5.5 7H7.3Q7.9 7 8.2 6.5L8.9 5.2Q9.4 4.2 10.5 4.2H13.5Q14.6 4.2 15.1 5.2L15.8 6.5Q16.1 7 16.7 7H18.5A3.5 3.5 0 0 1 22 10.5V16.5A3.5 3.5 0 0 1 18.5 20H5.5A3.5 3.5 0 0 1 2 16.5V10.5A3.5 3.5 0 0 1 5.5 7ZM12 9.8a3.6 3.6 0 1 0 0 7.2a3.6 3.6 0 1 0 0-7.2Z"/></svg>' }), el("span", { className: "sr", textContent: "Send a photo" }), file),
     el("label", { htmlFor: "chatText", className: "sr", textContent: "Message" }),
@@ -20,6 +26,8 @@ export function mountChat(root, other, { onLoad } = {}) {
     if (!ok) return onLoad?.(null, data.error);
     const { me, messages } = data;
     text.placeholder = me.role === "pt" ? `Message ${data.other.name}` : "Ask about your program";
+    video.disabled = false;
+    video.onclick = () => { call(data.other.id, data.other.name); };
     let lastDay;
     const items = [];
     for (const m of messages) {

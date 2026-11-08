@@ -834,6 +834,31 @@ const server = createServer(async (req, res) => {
         return send(res, 201, {});
       }
     }
+    // ---------- video call ----------
+    // The server only passes call setup messages (offer, answer, network
+    // candidates, end) between a paired PT and client, over their live-update
+    // stream as a named "call" event so pages' own update handlers ignore them.
+    // The video and sound go straight between the two browsers (WebRTC).
+    const vc = path.match(/^\/api\/call\/(\d+)$/);
+    if (req.method === "POST" && vc) {
+      const other = Number(vc[1]);
+      const [pt, client] = me?.role === "pt" ? [me.id, other] : [other, me?.id];
+      if (!me || !paired(pt, client)) {
+        audit(asUser(me), "call", 404, "no call with that person");
+        return send(res, 404, { error: "No call with that person." });
+      }
+      const signal = (await readJson(req)).signal;
+      if (!["offer", "answer", "ice", "end"].includes(signal?.kind)) {
+        audit(asUser(me), "call", 400, "unknown call message");
+        return send(res, 400, { error: "Unknown call message." });
+      }
+      const msg = `event: call\ndata: ${JSON.stringify({ from: { id: me.id, name: me.name }, signal })}\n\n`;
+      let sent = 0;
+      for (const s of subs) if (s.userId === other) { s.res.write(msg); sent++; }
+      audit(asUser(me), "call", 200, `sent call ${signal.kind} to u${other} (${sent} connection${sent === 1 ? "" : "s"})`);
+      return send(res, 200, { delivered: sent });
+    }
+
     const im = path.match(/^\/api\/img\/([\w-]+\.(?:jpg|png|gif|webp))$/);
     if (req.method === "GET" && im) {
       const ok = me && db.prepare("SELECT 1 FROM messages WHERE image = ? AND (pt_id = ? OR client_id = ?)").get(im[1], me.id, me.id);
