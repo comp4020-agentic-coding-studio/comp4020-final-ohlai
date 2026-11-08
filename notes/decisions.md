@@ -495,3 +495,9 @@ Follows the 2026-11-07 entry above. Built in `COMP4020/meta/`.
 
 - Asked to swap the notification toggle and Agent defaults in the top bar.
   The order is now Agent defaults, the three bells, + New feature.
+
+## 2026-11-08: Ringing bell at full size
+
+- Asked for the bell in the ringing icon to be the same size as in the other
+  bell icons. It was shrunk to 78% to make room for the sound waves. Now the
+  bell is full size and the waves sit in the space beside its top.

@@ -259,7 +259,7 @@ const svg = (p) => `<svg class="i" viewBox="0 0 24 24">${p}</svg>`;
 const ICON = {
   off: svg(`<mask id="cut"><rect width="24" height="24" fill="#fff"/><path d="M3 2l19 19" stroke="#000" stroke-width="5"/></mask><g mask="url(#cut)">${bell}</g><path class="w" d="M3 2l19 19"/>`),
   some: svg(bell),
-  all: svg(`<g transform="translate(12 12) scale(.78) translate(-12 -12)">${bell}</g><path class="w" d="M5.2 4.6A8 8 0 0 0 3 10"/><path class="w" d="M18.8 4.6A8 8 0 0 1 21 10"/>`),
+  all: svg(`${bell}<path class="w" d="M3.9 3.4A8.5 8.5 0 0 0 1.4 9.6"/><path class="w" d="M20.1 3.4A8.5 8.5 0 0 1 22.6 9.6"/>`),
   bell: svg(bell),
 };
 const dur = (ms) => { const m = Math.round(ms / 60000); return m < 1 ? "<1m" : m < 60 ? m + "m" : Math.floor(m / 60) + "h " + String(m % 60).padStart(2, "0") + "m"; };
