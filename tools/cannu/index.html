@@ -55,7 +55,7 @@
   .msg.bad { color: var(--bad); } .msg.good { color: var(--idle); }
   /* Errors: a box about 3 lines tall that scrolls for the rest. */
   .err { position:relative; margin-top:8px; border:2px solid color-mix(in srgb, var(--bad) 30%, transparent); border-radius:7px; background:color-mix(in srgb, var(--bad) 5%, var(--card)); }
-  .err { cursor:pointer; } .err.full pre { max-height:calc(6 * 1.45em + 16px); }
+  .err { cursor:pointer; } .err.short { cursor:auto; } .err.full pre { max-height:calc(6 * 1.45em + 16px); }
   .err pre { margin:0; padding:8px 110px 8px 10px; overflow-wrap:anywhere; font-size:12px; line-height:1.45; color:var(--bad); white-space:pre-wrap; word-break:break-word; max-height:calc(3 * 1.45em + 16px); overflow:auto; }
   .err button { position:absolute; top:50%; transform:translateY(-50%); right:18px; font-size:12px; padding:3px 8px; color:var(--bad); background:color-mix(in srgb, var(--bad) 12%, transparent); border:2px solid color-mix(in srgb, var(--bad) 30%, transparent); display:inline-flex; align-items:center; gap:5px; }
   .err button:hover { background:color-mix(in srgb, var(--bad) 22%, transparent); border-color:color-mix(in srgb, var(--bad) 45%, transparent); }
@@ -208,7 +208,6 @@
   .tile { background:var(--card); border:1px solid var(--line); border-radius:10px; padding:10px 12px; margin-bottom:8px; cursor:pointer; transition:border-color .15s; }
   .tile:hover { border-color:var(--mute); }
   .tile:focus-visible { outline:2px solid var(--work); outline-offset:1px; }
-  .tile.attn { border-left:3px solid var(--you); }
   .tile .t { font-weight:600; font-size:13.5px; line-height:1.3; }
   .tile .activity { margin-top:6px; font-size:11.5px; }
   /* The card's last message (Checking…, Merged…, an error), two lines at most. Open the card for all of it. */
@@ -491,7 +490,9 @@ function card(f, inPop) {
   }
   else if (cls === "not-started") banner = `<div class="banner">The terminal tab for this feature never started a session. <button data-act="resume-term">Start it now</button></div>`;
   const c = !inPop && collapsed.has(f.slug);
-  const details = `<div class="meta">created ${day(f.created)} · ${esc(f.branch)}${f.model ? " · " + esc(MODELS[f.model] || f.model) : ""} · ${git}</div>
+  // Three lines: where it lives, its git state, then time and cost.
+  const details = `<div class="meta">created ${day(f.created)} · ${esc(f.branch)}${f.model ? " · " + esc(MODELS[f.model] || f.model) : ""}</div>
+        <div class="meta">${git}</div>
         ${spent(f.usage) ? `<div class="meta">${spent(f.usage)}</div>` : ""}
         ${prev ? `<div class="meta">Continues “${esc(prev.title)}”</div>` : ""}`;
   const body = `${st.activity && cls === "working" ? `<div class="activity" style="margin-top:6px">${esc(st.activity)}</div>` : ""}
@@ -578,11 +579,11 @@ function notifyChanges(features) {
       const n = new Notification(`${f.title} ${what}`, { body: (f.st?.lastReply || "").replace(/[#*`>]/g, "").trim().slice(0, 160), tag: f.slug });
       n.onclick = () => { window.focus(); n.close(); };
     }
-    if (document.hidden) { unseen++; document.title = `(${unseen}) Feature agents`; }
+    if (document.hidden) { unseen++; document.title = `(${unseen}) Cannu`; }
   }
   seenOnce = true;
 }
-document.addEventListener("visibilitychange", () => { if (!document.hidden) { unseen = 0; document.title = "Feature agents"; } });
+document.addEventListener("visibilitychange", () => { if (!document.hidden) { unseen = 0; document.title = "Cannu"; } });
 
 function showMode() {
   const btns = [...document.querySelectorAll("#notify button")];
@@ -776,15 +777,14 @@ makeSeg($("#viewSeg"), () => view, (v) => { view = v; store.set("view", v); });
 makeSeg($("#densSeg"), () => dens, (v) => { dens = v; store.set("density", v); });
 $("#hideDone").onchange = () => { store.set("hideDone", $("#hideDone").checked); render(all); };
 
-const ATTN = new Set(["needs-you", "stuck", "interrupted", "not-started", "failed", "error"]);
 function tile(f) {
   const [k, detail] = kind(f), cls = status(f)[0], st = f.st || {};
   const pill = `<span class="pill ${k} ${cls}"><span class="dot"></span>${k}${detail ? `<span class="detail">· ${esc(detail)}</span>` : ""}</span>`;
   const when = ago(st.at) || day(f.merged || f.dropped || f.created);
   const drag = view === "label" ? 'draggable="true"' : "";
-  if (dens === "compact") return `<div class="tile ${ATTN.has(cls) ? "attn" : ""}" data-open="${f.slug}" tabindex="0" ${drag} title="${esc(f.title)}${detail ? " · " + esc(detail) : ""}">
+  if (dens === "compact") return `<div class="tile" data-open="${f.slug}" tabindex="0" ${drag} title="${esc(f.title)}${detail ? " · " + esc(detail) : ""}">
     <span class="pill ${k} ${cls}" style="border:0;padding:0"><span class="dot"></span></span><span class="t">${esc(f.title)}</span><span class="when">${when}</span></div>`;
-  return `<div class="tile ${ATTN.has(cls) ? "attn" : ""}" data-open="${f.slug}" tabindex="0" ${drag}>
+  return `<div class="tile" data-open="${f.slug}" tabindex="0" ${drag}>
     <div class="t">${esc(f.title)}</div>
     ${st.activity && cls === "working" ? `<div class="activity">${esc(st.activity)}</div>` : ""}
     ${k === "waiting" && st.lastReply ? `<div class="snip">${esc(st.lastReply.replace(/[#*`>|]/g, "").trim().slice(0, 240))}</div>` : ""}
@@ -937,7 +937,15 @@ $("#popDlg").addEventListener("keydown", (e) => {
 });
 $("#popDlg").addEventListener("focusout", (e) => { if (e.target.matches("[data-newlabel]") && !e.target.value.trim()) e.target.closest(".newlabel").classList.remove("open"); });
 
-async function refresh() { try { render(await api("/api/features")); } catch {} }
+// An error that fits in its box has nothing to open: no pointer, no "show more".
+function markShortErrors() {
+  for (const e of document.querySelectorAll(".err:not(.full)")) {
+    const pre = e.querySelector("pre"), short = pre.scrollHeight <= pre.clientHeight + 1;
+    e.classList.toggle("short", short);
+    e.title = short ? "" : "Click to show more";
+  }
+}
+async function refresh() { try { render(await api("/api/features")); markShortErrors(); } catch {} }
 
 for (const host of [$("#list"), $("#popDlg")]) {
 host.addEventListener("input", (e) => {
@@ -963,7 +971,12 @@ async function onClick(e) {
   if (act === "newlabel") { if (!b.classList.contains("open")) { b.classList.add("open"); b.querySelector("input").focus(); } return; }
   if (act === "label") { const f = all.find((x) => x.slug === slug); return setLabel(slug, b.dataset.label === f.label ? "" : b.dataset.label); }
   if (act === "copy") { try { await navigator.clipboard.writeText(b.closest(".err").querySelector("pre").textContent); b.lastChild.textContent = "Copied"; } catch { b.lastChild.textContent = "Couldn't copy"; } setTimeout(() => { b.lastChild.textContent = "Copy"; }, 1500); return; }
-  if (act === "errexpand") { (s.errFull ??= {})[b.dataset.key] = !s.errFull[b.dataset.key]; return render(all); }
+  if (act === "errexpand") {
+    // Nothing hidden (a one line error): nothing to open, so the box and Copy stay put.
+    const pre = b.querySelector("pre");
+    if (!s.errFull?.[b.dataset.key] && pre.scrollHeight <= pre.clientHeight + 1) return;
+    (s.errFull ??= {})[b.dataset.key] = !s.errFull[b.dataset.key]; render(all); return markShortErrors();
+  }
   if (act === "expand") { s.full = !s.full; return render(all); }
   if (act === "collapse") { collapsed.has(slug) ? collapsed.delete(slug) : collapsed.add(slug); store.set("collapsed", [...collapsed]); turned = slug; render(all); turned = null; return; }
   // Chat opens a folded card back up.

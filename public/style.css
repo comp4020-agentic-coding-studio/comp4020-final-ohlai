@@ -248,11 +248,7 @@ body.client .wo summary { padding: 14px 16px; }
 .toggles { display: flex; gap: 6px; }
 
 /* picker, finish, swipe to delete */
-.actions.top { margin: 0 0 12px; justify-content: flex-end; }
-.actions.top:empty { display: none; }
 .wide { width: 100%; margin-top: 12px; }
-.recent { list-style: none; padding: 0; margin: 0; }
-.recent li { display: flex; justify-content: space-between; gap: 8px; padding: 12px 0; border-bottom: 1px solid var(--line); }
 .swipe { position: relative; overflow: hidden; border-radius: 8px; }
 .swipe > .set { position: relative; background: var(--card); touch-action: pan-y; }
 .swipe > .set.done { background: linear-gradient(var(--done), var(--done)), var(--card); }
@@ -275,7 +271,9 @@ a.back { display: inline-grid; place-items: center; text-decoration: none; }
 .notice label { color: var(--ink); font-size: 0.95rem; margin: 0 0 10px; }
 .narrowbtn { flex: 0 0 auto !important; }
 a.card.link { display: flex; justify-content: space-between; align-items: center; gap: 12px; color: var(--ink); text-decoration: none; }
-.actions.top { gap: 8px; }
+.day-actions { display: flex; gap: 6px; flex: 0 0 auto; }
+.day-actions:empty { display: none; }
+.day-actions button { min-height: 36px; }
 
 /* ---------- PT dashboard: a desktop app, not a stretched phone ----------
    Sidebar, then the main column; a client's detail opens as a popup over the
@@ -452,8 +450,7 @@ body.chatpage[data-view="desktop"] .compose { max-width: 1120px; margin: 0 auto;
 .landing { min-height: 100vh; display: flex; flex-direction: column; }
 .landing main { width: 100%; max-width: 1120px; padding: 0 16px 48px; flex: 1; }
 .landing main.narrow { max-width: 440px; padding-top: 24px; }
-header.site, footer.site { display: flex; justify-content: space-between; align-items: center; gap: 12px; max-width: 1120px; width: 100%; margin: 0 auto; padding: 16px; }
-footer.site { color: var(--muted); }
+header.site { display: flex; justify-content: space-between; align-items: center; gap: 12px; max-width: 1120px; width: 100%; margin: 0 auto; padding: 16px; }
 .brand { font-weight: 700; font-size: 1.15rem; color: var(--ink); text-decoration: none; letter-spacing: -0.01em; }
 header.site nav { display: flex; gap: 12px; align-items: center; }
 header.site nav a:not(.btn) { color: var(--ink); text-decoration: none; font-weight: 600; }
@@ -559,8 +556,8 @@ body[data-view="desktop"] .drawer { inset: auto 24px 0 auto; margin: 0; height: 
 .day-head { display: flex; gap: 10px; align-items: center; margin-bottom: 10px; }
 .day-name { font-size: 1.1rem; font-weight: 600; max-width: 320px; }
 .day-head .rmday { margin-left: auto; }
-.ex-head, .exrow { display: grid; grid-template-columns: minmax(180px, 2fr) 80px 100px 100px minmax(140px, 2fr) 44px; gap: 8px; align-items: center; }
-.ex-head { color: var(--muted); font-size: 0.78rem; padding: 0 2px 4px; }
+.builder .ex-head, .exrow { display: grid; grid-template-columns: minmax(180px, 2fr) 80px 100px 100px minmax(140px, 2fr) 44px; gap: 8px; align-items: center; }
+.builder .ex-head { color: var(--muted); font-size: 0.78rem; padding: 0 2px 4px; }
 .exlist { list-style: none; margin: 0 0 10px; padding: 0; display: grid; gap: 6px; }
 .exrow input { padding: 8px 10px; }
 .exrow .rm { padding: 8px 0; }
@@ -570,13 +567,14 @@ body[data-view="desktop"] .drawer { inset: auto 24px 0 auto; margin: 0; height: 
 
 /* ---------- client app: bottom pill nav, dashboard, settings ---------- */
 body.client main { padding-bottom: 120px; }
-.pillnav { --n: 2; --gap: 4px; --pad: 6px; position: fixed; left: 50%; bottom: max(16px, env(safe-area-inset-bottom)); transform: translateX(-50%); display: flex; gap: var(--gap); padding: var(--pad); background: var(--ink); border-radius: 999px; box-shadow: var(--shadow); z-index: 10; }
-.pillnav a { position: relative; z-index: 1; width: 72px; display: flex; align-items: center; justify-content: center; padding: 12px 0; border-radius: 999px; color: var(--bg); text-decoration: none; opacity: 0.6; transition: color 0.22s ease, opacity 0.22s ease; }
+.pillnav { --n: 2; --gap: 4px; --pad: 5px; position: fixed; left: 50%; bottom: max(16px, env(safe-area-inset-bottom)); transform: translateX(-50%); display: flex; gap: var(--gap); padding: var(--pad); background: var(--ink); border-radius: 999px; box-shadow: var(--shadow); z-index: 10; }
+.pillnav a { position: relative; z-index: 1; width: 62px; display: flex; align-items: center; justify-content: center; padding: 8px 0; border-radius: 999px; color: var(--bg); text-decoration: none; opacity: 0.6; transition: color 0.22s ease, opacity 0.22s ease; }
 .pillnav a.on { color: var(--ink); opacity: 1; }
-.pillnav .thumb { position: absolute; top: var(--pad); bottom: var(--pad); left: var(--pad); width: 72px; border-radius: 999px; background: var(--bg); transform: translateX(calc(var(--i, 0) * (100% + var(--gap)))); transition: transform 0.22s cubic-bezier(0.3, 0.7, 0.4, 1); }
+.pillnav .thumb { position: absolute; top: var(--pad); bottom: var(--pad); left: var(--pad); width: 62px; border-radius: 999px; background: var(--bg); transform: translateX(calc(var(--i, 0) * (100% + var(--gap)))); transition: transform 0.22s cubic-bezier(0.3, 0.7, 0.4, 1); }
 .pillnav.none .thumb { opacity: 0; }
 .pillnav.jump .thumb { transition: none; }
-.pillnav svg { width: 22px; height: 22px; }
+.pillnav svg { width: 28px; height: 28px; }
+.pillnav a[href="/settings"] svg { width: 31px; height: 31px; }
 /* One full-width card per program day; the black chevron button on the right starts it. */
 .daypicks { display: grid; gap: 10px; }
 .daypicks button { width: 100%; text-align: left; display: flex; align-items: center; gap: 14px; padding: 14px 14px 14px 16px; border-radius: 20px; background: var(--card); box-shadow: var(--shadow); font-weight: 400; }

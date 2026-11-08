@@ -28,7 +28,10 @@ export function ago(t) {
 
 // A yes/no popup in the app's style, instead of the browser's confirm().
 // Resolves true when they pick `yes`. Cancel, Esc or a tap outside is false.
-export function ask(title, text, yes) {
+// With `then`, picking yes runs it with the popup still up (buttons disabled),
+// and the popup only closes if it returns falsy. A `then` that leaves the page
+// keeps the popup on screen until the next page paints, so nothing flashes.
+export function ask(title, text, yes, then) {
   const cancel = el("button", { type: "button", textContent: "Cancel", autofocus: true });
   const ok = el("button", { type: "button", className: "primary", textContent: yes });
   const d = el("dialog", { className: "pop confirm" },
@@ -36,8 +39,13 @@ export function ask(title, text, yes) {
     text ? el("p", { textContent: text }) : null,
     el("div", { className: "actions" }, cancel, ok));
   cancel.onclick = () => { d.close(); };
-  ok.onclick = () => { d.close("yes"); };
-  d.onclick = (e) => { if (e.target === d) d.close(); }; // tap outside the box
+  ok.onclick = async () => {
+    if (!then) { d.close("yes"); return; }
+    cancel.disabled = ok.disabled = true;
+    d.oncancel = (e) => { e.preventDefault(); }; // no Esc while it runs
+    if (!(await then())) d.close("yes");
+  };
+  d.onclick = (e) => { if (e.target === d && !ok.disabled) d.close(); }; // tap outside the box
   document.body.append(d);
   document.documentElement.classList.add("locked");
   d.showModal();

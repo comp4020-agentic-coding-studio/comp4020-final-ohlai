@@ -12,12 +12,10 @@
   <section id="workout">
     <div class="topbar">
       <h1 id="title">Loading…</h1>
+      <div class="day-actions" id="dayActions"></div>
     </div>
     <p class="sub" id="sub"></p>
-    <div class="actions top" id="actions"></div>
-    <div id="banner"></div>
     <div class="stats" id="stats"></div>
-    <div class="tabs" id="tabs" role="group" aria-label="Day"></div>
     <div class="exercises" id="list"></div>
   </section>
 
@@ -58,11 +56,11 @@
   import { workouts as allWorkouts, exHistory as history_, liftSummary } from "/lift-chart.js";
   import { api as getJson, toLogin, live, ask } from "/ui.js";
   import { mountChat } from "/chat.js";
-  // The client link defaults to the phone layout, the PT link to desktop.
+  // The client's workout in progress, and nothing else. Starting a day happens
+  // on /me; the PT follows a client from the dashboard's client card.
   const tok = location.pathname.split("/").pop();
-  let state, day;
+  let state;
   const drafts = {};   // typed-but-unlogged values, kept across re-renders
-  const extraSets = {}; // "+ Add set" rows not yet logged
   const $ = (id) => document.getElementById(id);
 
   function el(tag, props = {}, ...kids) {
@@ -72,7 +70,6 @@
   }
 
   const utc = (t) => new Date(t + "Z");
-  const fmtDay = (d) => d.toLocaleDateString("en-AU", { day: "numeric", month: "short" });
   const kg = (w) => (w == null ? "–" : `${+w}kg`);
   const vol = (logs) => logs.reduce((s, l) => s + (l.weight ?? 0) * l.reps, 0);
   const rowCount = {}; // rows shown per exercise in the open workout, after adds and removals
@@ -93,27 +90,26 @@
     return data;
   }
 
-  async function load(refresh) {
-    const data = await api(`/api/p/${tok}${refresh === true ? "?refresh" : ""}`);
+  async function load() {
+    const data = await api(`/api/p/${tok}`);
     if (!data) return ($("title").textContent = "Program not found");
-    if (data.role === "pt" && !state) {
-      window.setDefaultView?.("desktop");
-      // The client is the only one who writes, so only the PT view needs live updates.
-      live(`/api/p/${tok}/events`, () => load(true));
-    }
+    // A PT token has no page here any more: the PT works from the dashboard.
+    if (data.role === "pt") return location.replace("/dash");
+    // With no workout open, the client's place is their dashboard, where they pick a day.
+    if (!data.open_session) return location.replace("/me");
     state = data;
     route();
     setupChat();
   }
 
-  // The chat drawer: a button bottom right once both people have accounts.
+  // The chat drawer with their PT: a button bottom left.
   let chat;
   async function setupChat() {
-    const { role, claimed, program } = state;
-    const other = claimed ? (role === "pt" ? program.client_user_id : program.pt_user_id) : null;
+    const { claimed, program } = state;
+    const other = claimed ? program.pt_user_id : null;
     $("chatFab").hidden = !other;
     if (!other || chat) return;
-    $("chatTitle").textContent = role === "pt" ? program.client_name : program.pt_name;
+    $("chatTitle").textContent = program.pt_name;
     chat = mountChat($("chatBody"), other, {
       onLoad: (data) => data || $("chatBody").replaceChildren(el("p", { className: "muted pad" }, "Log in to send messages. ",
         el("button", { type: "button", textContent: "Log in", onclick: toLogin }))),
@@ -138,27 +134,6 @@
   // the Send button working.
   $("chatDrawer").onclick = (e) => { if (e.target === $("chatDrawer")) $("chatDrawer").close(); };
 
-  async function renderBanner() {
-    const { role, claimed, program } = state;
-    const b = $("banner");
-    b.replaceChildren();
-  }
-
-  // Links out of the program, once the right accounts exist.
-  function navLinks() {
-    const { role, claimed, program } = state;
-    const links = [];
-    if (role === "pt" && claimed) {
-      links.push(el("a", { href: "/dash", className: "btn", textContent: "Dashboard" }));
-      links.push(el("a", { className: "btn", textContent: "Export sets",
-        href: `/api/export.csv?client=${encodeURIComponent(program.client_email)}&tz=${-new Date().getTimezoneOffset()}` }));
-    }
-    if (role === "client" && claimed) {
-      links.push(el("a", { href: "/me", className: "btn", textContent: "Dashboard" }));
-    }
-    return links;
-  }
-
   function route() {
     const id = Number(location.hash.match(/^#ex-(\d+)$/)?.[1]);
     const ex = state.exercises.find((e) => e.id === id);
@@ -173,98 +148,51 @@
   let durationTick;
 
   function renderWorkout() {
-    const { program, role, exercises } = state;
+    const { program, exercises } = state;
     const open = state.open_session;
     document.title = program.title;
-    $("tabs").hidden = true;
-    $("actions").replaceChildren();
     clearInterval(durationTick);
-    renderBanner();
-
-    if (role === "client" && !open) return renderPicker();
-
-    const all = workouts();
-    if (role === "client") {
-      $("title").textContent = open.day;
-      $("sub").textContent = `${program.title}, from ${program.pt_name}. Tick each set as you finish it.`;
-      $("actions").append(
-        el("button", { type: "button", textContent: "Discard", onclick: async () => { if (await ask("Discard this workout?", "Its sets go too.", "Discard")) act("discard"); } }),
-        el("button", { type: "button", className: "primary", textContent: "Finish", onclick: finish }));
-      const cur = all.find((w) => w.id === open.id)?.logs ?? [];
-      const drawStats = () => $("stats").replaceChildren(...[
-        ["Duration", `${Math.max(0, Math.floor((Date.now() - utc(open.started_at)) / 60000))} min`],
-        ["Volume", `${+vol(cur).toFixed(1)} kg`], ["Sets", cur.length]].map(stat));
-      drawStats();
-      durationTick = setInterval(drawStats, 30000);
-      $("list").replaceChildren(...exercises.filter((e) => e.day === open.day).map((ex) => exerciseCard(ex, true)));
-      return;
-    }
-
-    // PT: a tab per workout, each exercise showing the client's latest sets.
-    $("title").textContent = program.title;
-    $("sub").textContent = `PT view. ${program.client_name}'s sets appear here as they log them.`;
-    $("actions").append(...navLinks());
-    const last = all.at(-1);
-    $("stats").replaceChildren(...[
-      ["Last workout", last ? fmtDay(last.start) : "None yet"],
-      ["Workouts", all.filter((w) => w.finished).length],
-      ["In progress", open ? open.day : "No"]].map(stat));
-    const dayNames = [...new Set(exercises.map((e) => e.day))];
-    day ??= dayNames[0];
-    $("tabs").hidden = dayNames.length < 2;
-    $("tabs").replaceChildren(...dayNames.map((d) =>
-      el("button", { type: "button", textContent: d, ariaPressed: String(d === day), onclick: () => { day = d; renderWorkout(); } })));
-    $("list").replaceChildren(...exercises.filter((e) => e.day === day).map((ex) => exerciseCard(ex, false)));
+    $("title").textContent = open.day;
+    $("sub").textContent = `${program.title}, from ${program.pt_name}. Tick each set as you finish it.`;
+    // Small, on the day's name line, so they don't take a row of their own.
+    $("dayActions").replaceChildren(
+      el("button", { type: "button", className: "small", textContent: "Discard", onclick: () => { ask("Discard this workout?", "Its sets go too.", "Discard", () => endWorkout("discard")); } }),
+      el("button", { type: "button", className: "small primary", textContent: "Finish", onclick: finish }));
+    const cur = workouts().find((w) => w.id === open.id)?.logs ?? [];
+    const drawStats = () => $("stats").replaceChildren(...[
+      ["Duration", `${Math.max(0, Math.floor((Date.now() - utc(open.started_at)) / 60000))} min`],
+      ["Volume", `${+vol(cur).toFixed(1)} kg`], ["Sets", cur.length]].map(stat));
+    drawStats();
+    durationTick = setInterval(drawStats, 30000);
+    $("list").replaceChildren(...exercises.filter((e) => e.day === open.day).map(exerciseCard));
   }
 
-  // The client's home: pick a workout, see the recent ones.
-  function renderPicker() {
-    const { program, exercises } = state;
-    const all = workouts().filter((w) => w.finished);
-    $("title").textContent = program.title;
-    $("sub").textContent = state.ended ? `From ${program.pt_name}. Ended.` : `From ${program.pt_name}. Pick a workout to start.`;
-    $("actions").append(...navLinks());
-    const weekAgo = Date.now() - 7 * 864e5;
-    $("stats").replaceChildren(...[
-      ["Workouts", all.length], ["This week", all.filter((w) => w.start >= weekAgo).length],
-      ["Last", all.length ? fmtDay(all.at(-1).start) : "–"]].map(stat));
-
-    const dayNames = [...new Set(exercises.map((e) => e.day))];
-    // An ended program is history only, so no Start buttons.
-    const picks = state.ended ? [] : dayNames.map((d) => {
-      const lastDone = all.filter((w) => w.day === d).at(-1);
-      return el("article", { className: "card pick" },
-        el("div", { className: "ex-head" },
-          el("strong", { className: "ex-name", textContent: d }),
-          el("span", { className: "muted", textContent: lastDone ? `Last done ${fmtDay(lastDone.start)}` : "Not done yet" })),
-        el("p", { className: "notes", textContent: exercises.filter((e) => e.day === d).map((e) => `${e.sets} × ${e.name}`).join(", ") }),
-        el("button", { type: "button", className: "primary wide", textContent: `Start ${d}`, onclick: () => act("start", { day: d }) }));
-    });
-    const recent = all.slice(-5).reverse().map((w) =>
-      el("li", {}, el("span", { textContent: `${w.day ?? "Workout"} · ${fmtDay(w.start)}` }),
-        el("span", { className: "muted", textContent: `${w.logs.length} sets · ${+vol(w.logs).toFixed(0)} kg` })));
-    $("list").replaceChildren(...picks,
-      recent.length ? el("h2", { textContent: "Recent workouts" }) : "",
-      recent.length ? el("ul", { className: "recent" }, ...recent) : "");
+  // Discard and Finish end the workout, so the page has nothing left to show.
+  // It runs inside ask(), so the popup and its blur stay up until /me paints:
+  // closing first showed the bare workout for a moment. Returns true when
+  // leaving, false on an error so the popup closes and the error shows.
+  // Every client has an account (they join through an invite), so /me is there.
+  async function endWorkout(what) {
+    if (!(await api(`/api/p/${tok}/${what}`, {}))) return false;
+    location.replace("/me");
+    return true;
   }
 
-  async function finish() {
+  function finish() {
     const open = state.open_session;
     const n = state.logs.filter((l) => l.session_id === open.id).length;
-    if (!(await ask(`Finish ${open.day}?`, n ? `${n} set${n > 1 ? "s" : ""} will be saved.` : "No sets logged, so this workout gets thrown away.", "Finish"))) return;
-    if (await act("finish")) { for (const k in rowCount) delete rowCount[k]; restEnd = 0; drawRest(); }
+    ask(`Finish ${open.day}?`, n ? `${n} set${n > 1 ? "s" : ""} will be saved.` : "No sets logged, so this workout gets thrown away.", "Finish", () => endWorkout("finish"));
   }
 
-  function exerciseCard(ex, client) {
+  function exerciseCard(ex) {
     const hist = exHistory(ex.id);
     const open = state.open_session;
-    // Client: the open workout. PT: the latest workout with this exercise in it.
-    const curIdx = client ? hist.findIndex((h) => h.w.id === open.id) : hist.length - 1;
+    const curIdx = hist.findIndex((h) => h.w.id === open.id);
     const current = hist[curIdx]?.sets ?? {};
     const earlier = (curIdx === -1 ? hist : hist.slice(0, curIdx)).slice().reverse();
     const prev = (n) => earlier.map((h) => h.sets[n]).find(Boolean);
     const maxLogged = Math.max(0, ...Object.keys(current).map(Number));
-    const count = Math.max(client ? (rowCount[ex.id] ?? ex.sets) : ex.sets, maxLogged);
+    const count = Math.max(rowCount[ex.id] ?? ex.sets, maxLogged);
 
     const rows = [];
     for (let n = 1; n <= count; n++) {
@@ -272,35 +200,33 @@
       const d = drafts[key] ?? {};
       const target = parseInt(ex.reps) || "";
       const wIn = el("input", { type: "number", inputMode: "decimal", step: "0.25", min: 0, ariaLabel: `Set ${n} kg`,
-        value: done ? (done.weight ?? "") : (d.w ?? ""), placeholder: p?.weight ?? "", disabled: !client || !!done,
+        value: done ? (done.weight ?? "") : (d.w ?? ""), placeholder: p?.weight ?? "", disabled: !!done,
         oninput: (e) => ((drafts[key] ??= {}).w = e.target.value) });
       const rIn = el("input", { type: "number", inputMode: "numeric", min: 0, ariaLabel: `Set ${n} reps`,
-        value: done ? done.reps : (d.r ?? ""), placeholder: p?.reps ?? target, disabled: !client || !!done,
+        value: done ? done.reps : (d.r ?? ""), placeholder: p?.reps ?? target, disabled: !!done,
         oninput: (e) => ((drafts[key] ??= {}).r = e.target.value) });
       const tick = el("button", { type: "button", className: "tick", textContent: "✓", ariaPressed: String(!!done),
-        ariaLabel: done ? `Untick set ${n}` : `Tick set ${n} done`, disabled: !client,
+        ariaLabel: done ? `Untick set ${n}` : `Tick set ${n} done`,
         onclick: () => (done ? act("unlog", { id: done.id }) : tickSet(ex, n, wIn.value || wIn.placeholder, rIn.value || rIn.placeholder)) });
       const row = el("div", { className: "set" + (done ? " done" : "") },
         el("span", { className: "setno", textContent: n }),
         el("span", { className: "prev", textContent: p ? `${kg(p.weight)}×${p.reps}` : "–" }),
         wIn, rIn, tick);
-      rows.push(client ? swipeable(row, n, () => removeSet(ex, n, count)) : row);
+      rows.push(swipeable(row, n, () => removeSet(ex, n, count)));
     }
 
     const rest = ex.rest_seconds;
-    const shown = hist[curIdx];
     return el("article", { className: "card" },
       el("div", { className: "ex-head" },
         el("a", { href: `#ex-${ex.id}`, className: "ex-name", textContent: ex.name }),
         el("span", { className: "muted", textContent: `${ex.sets} × ${ex.reps}` })),
       ex.notes ? el("p", { className: "notes", textContent: ex.notes }) : "",
       el("p", { className: "rest-label", textContent: `⏱ Rest Timer: ${Math.floor(rest / 60)}min ${rest % 60}s` }),
-      !client && shown ? el("p", { className: "muted", textContent: `Sets from ${fmtDay(shown.w.start)}${shown.w.finished ? "" : " (in progress)"}` }) : "",
       el("div", { className: "sets" },
         el("div", { className: "set head" }, ...["Set", "Previous", "kg", "Reps", "✓"].map((t) => el("span", { textContent: t }))),
         ...rows),
-      client ? el("button", { type: "button", className: "addset", textContent: "+ Add Set",
-        onclick: () => { rowCount[ex.id] = count + 1; renderWorkout(); } }) : "");
+      el("button", { type: "button", className: "addset", textContent: "+ Add Set",
+        onclick: () => { rowCount[ex.id] = count + 1; renderWorkout(); } }));
   }
 
   // Swipe a row left to reveal Delete, or keep going to delete straight away.
