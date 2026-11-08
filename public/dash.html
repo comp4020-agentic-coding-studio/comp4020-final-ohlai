@@ -175,7 +175,8 @@
       el("span", { className: "muted num", textContent: fmtDay(utc(r.at)) })))
       : [el("li", { className: "muted", textContent: "Nothing logged yet." })]));
 
-    detail();
+    // A live refresh would rebuild the card under the PT mid-note and lose the cursor.
+    if (document.activeElement?.id !== "d-note") detail();
   }
 
   function row(x) {
@@ -299,9 +300,27 @@
       el("p", { className: "muted", textContent: "Click a lift to see its progress chart." }),
       // Wrapped in el(), which drops the nulls; replaceChildren alone prints them as "null".
       el("div", {}, liftList("stalled"), liftList("up"), liftList("steady"), liftList("new")),
-      el("h3", {}, "Private notes ", el("span", { className: "pv-tag", textContent: "Preview" })),
-      el("textarea", { rows: 3, placeholder: `Only you see this. Injuries, goals, what ${x.client_name} said last session…`, ariaLabel: "Private notes (preview, not saved)" }),
-      el("p", { className: "muted", textContent: "Not saved yet. This is a preview of the idea." }));
+      el("h3", { textContent: "Private notes" }),
+      el("textarea", { id: "d-note", rows: 4, value: x.note, placeholder: `Only you see this. Injuries, goals, what ${x.client_name} said last session…`,
+        ariaLabel: `Private notes on ${x.client_name}`, oninput: (e) => { saveNote(x, e.target.value); } }),
+      el("p", { id: "d-note-status", className: "muted", ariaLive: "polite", textContent: "Only you see these. Saved as you type." }));
+  }
+
+  // One note per client, shared by all their programs. Saves a moment after
+  // typing stops, so closing the card straight after still saves it.
+  let noteTimer = null;
+  function saveNote(x, body) {
+    clearTimeout(noteTimer);
+    for (const c of clients) if (c.client_email.toLowerCase() === x.client_email.toLowerCase()) c.note = body;
+    $("d-note-status").textContent = "Saving…";
+    noteTimer = setTimeout(async () => {
+      const [data, ok] = await api("/api/notes", { email: x.client_email, body });
+      const status = $("d-note-status");
+      if (status) {
+        status.textContent = ok ? "Saved" : `Couldn't save: ${data.error ?? "try again"}`;
+        status.className = ok ? "muted" : "error";
+      }
+    }, 600);
   }
 
   $("q").oninput = render;

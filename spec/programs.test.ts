@@ -170,6 +170,29 @@ it("serves every script the pages load", async () => {
   expect((await fetch(new URL("/server.js", baseUrl))).status).toBe(404); // only public/
 });
 
+it("private notes are on the client, shared by their programs, and only their PT sees them", async () => {
+  const pt = await signupPT();
+  const email = `notes-${unique()}@example.com`;
+  const a = await program(pt, email);
+  const b = await program(pt, email.toUpperCase()); // same client, second program
+  const secret = "Left knee: no deep squats. Wants a 100kg squat by March.";
+  expect((await api("/api/notes", { email, body: secret }, pt)).status).toBe(200);
+
+  const dash = await (await api("/api/dash", undefined, pt)).json();
+  const notes = dash.clients.filter((c: { pt_token: string }) => [a.ptToken, b.ptToken].includes(c.pt_token)).map((c: { note: string }) => c.note);
+  expect(notes).toEqual([secret, secret]);
+
+  const stranger = await signupPT("Stranger");
+  expect((await api("/api/notes", { email, body: "mine now" }, stranger)).status).toBe(404);
+  expect((await api("/api/notes", { email, body: "x" })).status).toBe(401);
+  const claimed = await api(`/api/p/${a.clientToken}/claim`, { password: "password123" });
+  const client = cookieOf(claimed);
+  expect((await api("/api/notes", { email, body: "x" }, client)).status).toBe(401);
+  // Nothing the client, their link, the PT link or another PT gets has the note.
+  for (const [path, as] of [[`/api/p/${a.clientToken}`, ""], [`/api/p/${a.ptToken}`, ""], ["/api/me", client], ["/api/dash", stranger]])
+    expect(await (await api(path, undefined, as)).text()).not.toContain("Left knee");
+});
+
 it("exports a PT's own clients' sets as CSV, never another PT's or a token", async () => {
   const pt = await signupPT();
   const { ptToken, clientToken, exercise_id } = await program(pt, `csv-${unique()}@example.com`);
