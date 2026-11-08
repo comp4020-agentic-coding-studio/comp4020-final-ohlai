@@ -7,4 +7,4 @@ Kept by the feature agents dashboard (`tools/cannu/`). Its notes are next to thi
 
 ## What I asked for
 
-update the app name to be 'Spotter' also use this logo
+update the app name to be 'Spotter'
