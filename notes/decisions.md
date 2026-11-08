@@ -501,3 +501,11 @@ Follows the 2026-11-07 entry above. Built in `COMP4020/meta/`.
 - Asked for the bell in the ringing icon to be the same size as in the other
   bell icons. It was shrunk to 78% to make room for the sound waves. Now the
   bell is full size and the waves sit in the space beside its top.
+
+## 2026-11-08: Black bells in "all"
+
+- Asked for the card bells to have a black background, greyed out, when the
+  top toggle is on all notifications. They were grey ringing bells on a white
+  background. Now any ringing bell has the black background, and a greyed-out
+  one is just faded. This also covers a feature whose bell was turned on in
+  select and whose agent has since gone: it shows greyed black too.

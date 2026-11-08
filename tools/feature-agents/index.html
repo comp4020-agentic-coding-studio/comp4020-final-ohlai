@@ -327,7 +327,7 @@ function bellBtn(f) {
   const title = mode === "silent" ? "Notifications are muted. Change it with the bells at the top."
     : mode === "all" ? "Notifying you about every feature. Pick the middle option at the top to choose which."
     : !f.worktree ? noAgent : on ? "Notifying you about this feature. Click to stop." : "Not notifying you about this feature. Click to turn it on.";
-  return `<button class="sq bell ${on && can ? "on" : ""} ${can ? "" : "off"}" data-act="bell" ${can ? "" : 'aria-disabled="true"'} title="${title}">${on ? ICON.all : ICON.off}</button>`;
+  return `<button class="sq bell ${on ? "on" : ""} ${can ? "" : "off"}" data-act="bell" ${can ? "" : 'aria-disabled="true"'} title="${title}">${on ? ICON.all : ICON.off}</button>`;
 }
 // Every card ends with the same row: everyday buttons on the left, the one
 // that moves the feature on (in black) on the right.
