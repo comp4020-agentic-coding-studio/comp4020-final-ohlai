@@ -37,3 +37,7 @@ yes pt side should get the same popup, and use a custom popup with a smooth in a
 ## 2026-11-08 15:46 (dashboard)
 
 everything looks good, commit and ill merge
+
+## 2026-11-08 15:49 (dashboard)
+
+test message
