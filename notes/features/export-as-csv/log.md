@@ -51,3 +51,15 @@ I said: "Main has moved on and merging your branch conflicts in: {files}. Merge 
 **Resolved:** kept main's card as it is, with no Open program. Kept "Export sets" and put it after the Message button (or after the "Chat opens once..." note when the client hasn't set a password). Everything else from both sides merged without conflict: the export popup, the close-on-download listener, the exportUrl helper and `client_email` on dashboard rows.
 
 **Checked:** restarted the app through the dashboard, `pnpm check` passes (13 tests). Ran the headless Edge script again on port 8082: the Export popup still downloads all 4 rows and closes, and the new client card shows Export sets with the right link. "Open program" is gone as main wants. The "nullnullnull" line under Lifts is still there and comes from main, not this branch.
+
+## 2026-11-08 21:15: the "nullnullnull" in the client card
+
+I said: "yeah whats up with the null at the bottom of the lifts section of the client page"
+
+**Cause:** in the dashboard client card, the Lifts section lists lifts under four headings (Stalled, Moving up, Steady, Too early). `liftList()` returns null when a heading has no lifts, so it shows nothing. Those four calls were passed straight to `$("d-client").replaceChildren(...)`. The `el()` helper in `public/ui.js` drops null children, but `replaceChildren` doesn't. It turns each null into the text "null". A client with only "Too early" lifts got three of them, so "nullnullnull". This came in on main with "viewing a client in the PT dash", not from this feature.
+
+**Fix:** wrapped the four `liftList()` calls in one `el("div", {}, ...)` in `public/dash.html`, so the nulls get dropped. One line. I also added a rule to `CLAUDE.md` under "Every change": anything that can be null goes inside `el()`, never straight into `replaceChildren` or `append`. That way the next agent doesn't do it again.
+
+**Checked:** `pnpm check` passes. Headless Edge on port 8082, opened a client's card: Lifts shows "Click a lift to see its progress chart.", then "TOO EARLY" and Squat, with no "null" text.
+
+**Also seen, not fixed:** the "All check-ins" link in the same card goes to `/checkins#cnull` when the client hasn't set a password yet (no user id). The page still opens, it just doesn't jump to anyone. Flagged to me rather than fixed.

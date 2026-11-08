@@ -26,3 +26,7 @@ Main has moved on and merging your branch conflicts in: {files}. Merge main into
 [Added by the dashboard, not my words]
 For context, read the notes of these related features:
 - "viewing a client in the PT dash" (merged 2026-11-08): read C:\Users\oliba\Documents\github\COMP4020\comp4020-final-ohlai\notes\features\viewing-a-client-in-the-pt-dash\ (prompts.md, log.md, decisions.md)
+
+## 2026-11-08 21:12 (dashboard)
+
+yeah whats up with the null at the bottom of the lifts section of the client page

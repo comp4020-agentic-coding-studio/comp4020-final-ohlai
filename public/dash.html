@@ -297,7 +297,8 @@
         : el("p", { className: "muted", textContent: x.client_user_id ? `${x.client_name} hasn't checked in yet.` : `Check-ins open once ${x.client_name} sets a password.` }),
       el("h3", { textContent: "Lifts" }),
       el("p", { className: "muted", textContent: "Click a lift to see its progress chart." }),
-      liftList("stalled"), liftList("up"), liftList("steady"), liftList("new"),
+      // Wrapped in el(), which drops the nulls; replaceChildren alone prints them as "null".
+      el("div", {}, liftList("stalled"), liftList("up"), liftList("steady"), liftList("new")),
       el("h3", {}, "Private notes ", el("span", { className: "pv-tag", textContent: "Preview" })),
       el("textarea", { rows: 3, placeholder: `Only you see this. Injuries, goals, what ${x.client_name} said last session…`, ariaLabel: "Private notes (preview, not saved)" }),
       el("p", { className: "muted", textContent: "Not saved yet. This is a preview of the idea." }));
