@@ -254,10 +254,10 @@ a.card.link { display: flex; justify-content: space-between; align-items: center
 .actions.top { gap: 8px; }
 
 /* ---------- PT dashboard: a desktop app, not a stretched phone ----------
-   Sidebar, then the main column; a client's detail opens as a panel on the
-   right so the table stays in view. */
+   Sidebar, then the main column; a client's detail opens as a popup over the
+   dash, so the dash never reflows. */
 /* PT pages have no mobile/desktop toggle: the layout follows the screen. */
-body.app { display: grid; grid-template-columns: 232px minmax(0, 1fr) auto; min-height: 100vh; }
+body.app { display: grid; grid-template-columns: 232px minmax(0, 1fr); min-height: 100vh; }
 body.app main { max-width: none; width: 100%; padding: 20px 28px 48px; }
 .side { position: sticky; top: 0; height: 100vh; display: flex; flex-direction: column; gap: 4px; padding: 20px 14px; background: var(--card); border-right: 1px solid var(--line); }
 .side .brand { padding: 4px 10px 16px; }
@@ -327,7 +327,21 @@ button.small, .chips button { white-space: nowrap; font-size: 0.82rem; padding: 
 .wchip { display: grid; padding: 4px 6px; border-radius: 8px; background: var(--card); font-size: 0.72rem; text-align: left; font-weight: 400; line-height: 1.25; }
 .wchip span { color: var(--muted); }
 
-.detail { position: sticky; top: 0; height: 100vh; overflow-y: auto; width: 380px; padding: 20px; background: var(--card); border-left: 1px solid var(--line); }
+.detail { max-width: calc(100vw - 48px); max-height: calc(100vh - 48px); padding: 0; border: 0; background: none; overflow: visible; color: var(--ink); }
+.detail[open] { display: flex; gap: 16px; align-items: flex-start; animation: confirm-in 0.2s ease-out; }
+.dcard { width: 580px; max-height: calc(100vh - 48px); overflow-y: auto; }
+#d-side { width: 480px; animation: confirm-in 0.2s ease-out; }
+#d-side .chart { max-width: none; }
+#d-side .pills { flex-wrap: wrap; overflow: visible; }
+/* The chat fills the card's height: thread scrolls, the text box stays at the bottom. */
+#d-side.chat { display: flex; flex-direction: column; height: calc(100vh - 48px); overflow: hidden; }
+#d-side.chat .thread { padding: 8px 2px; }
+#d-side.chat .thread li.theirs { background: var(--soft); box-shadow: none; }
+#d-side.chat .compose { padding: 10px 0 0; }
+#d-side.chat .compose input:not([type="file"]) { flex: 1; min-width: 0; }
+.detail h2:not(.detail-head h2) { font-size: 1rem; margin: 18px 0 6px; }
+.detail .linkish[aria-pressed="true"] { text-decoration-color: var(--ink); }
+@media (prefers-reduced-motion: reduce) { .detail[open], #d-side { animation: none; } }
 .detail-head { display: flex; align-items: center; gap: 12px; }
 .detail-head > div { flex: 1; display: grid; }
 .detail-head h2 { margin: 0; }
@@ -337,15 +351,13 @@ button.small, .chips button { white-space: nowrap; font-size: 0.82rem; padding: 
 .detail h4 { font-size: 0.78rem; text-transform: uppercase; letter-spacing: 0.04em; color: var(--muted); margin: 10px 0 4px; }
 .detail textarea { resize: vertical; }
 
-.pv { max-width: 420px; padding: 20px 22px; border: 1px solid var(--line); border-radius: 18px; background: var(--card); color: var(--ink); box-shadow: 0 30px 80px -30px rgba(0, 0, 0, 0.5); }
-.pv::backdrop { background: rgba(0, 0, 0, 0.25); }
-.pv h3 { margin: 0 0 8px; }
-.pv h3::after { content: "Preview, not built"; margin-left: 10px; font: 400 0.7rem "Share Tech Mono", ui-monospace, monospace; text-transform: uppercase; color: var(--muted); }
+.pv { max-width: 420px; }
+.pv h2::after { content: "Preview, not built"; margin-left: 10px; font: 400 0.7rem "Share Tech Mono", ui-monospace, monospace; text-transform: uppercase; color: var(--muted); }
 .pv p { margin: 0 0 10px; color: var(--muted); }
+.pv.built h2::after { content: none; }
+.pv form .actions { margin-top: 14px; }
 .mock { opacity: 0.7; }
 
-/* With a client open there's no room for two columns beside the panel. */
-body.app:has(#detail:not([hidden])) .dashgrid { grid-template-columns: 1fr; }
 .detail .plain li { font-size: 0.93rem; }
 
 /* Not designed for a phone (see CLAUDE.md), just kept usable on a small screen. */
@@ -361,7 +373,8 @@ body.app:has(#detail:not([hidden])) .dashgrid { grid-template-columns: 1fr; }
   .side-foot { margin: 0 0 0 auto; border: 0; padding: 0; display: flex; align-items: center; }
   .apphead { flex-wrap: wrap; }
   .ctable th:nth-child(n+3), .ctable td:nth-child(n+3) { display: none; }
-  .detail { position: fixed; inset: 0 0 0 auto; width: min(380px, 100%); z-index: 10; }
+  .detail[open] { flex-direction: column; overflow-y: auto; }
+  .dcard, #d-side { width: 100%; max-height: none; }
   .inbox { grid-template-columns: 1fr !important; }
 }
 .empty { text-align: center; padding: 32px 16px; }
@@ -380,6 +393,12 @@ body.app:has(#detail:not([hidden])) .dashgrid { grid-template-columns: 1fr; }
 body.chatpage[data-view="mobile"] .compose { max-width: 480px; margin: 0 auto; }
 body.chatpage[data-view="desktop"] .compose { max-width: 1120px; margin: 0 auto; }
 .compose input[type="text"], .compose #text { flex: 1; }
+/* Icon buttons: grid-centre the SVG so it doesn't sit on the text baseline. */
+.photo, .chatfab, .back { display: inline-grid; place-items: center; }
+.back { padding: 0; } /* the button/.btn rule above puts 12px 16px back, which pushes the arrow right */
+.ico, .ico svg, .arrow { display: block; }
+.ico svg, .arrow { width: 20px; height: 20px; }
+.chatfab .ico svg { width: 30px; height: 30px; }
 .photo { position: relative; padding: 10px 12px; }
 .photo input { position: absolute; inset: 0; opacity: 0; cursor: pointer; }
 .photo:focus-within { outline: 3px solid var(--accent); outline-offset: 2px; }
@@ -425,7 +444,7 @@ body:has(#rest:not([hidden])) .chatfab { bottom: 110px; } /* sit above the rest 
 .drawer { position: fixed; inset: auto 0 0 0; margin: 0 auto; width: 100%; max-width: 480px; height: 85vh; max-height: 85vh; padding: 0; border: 0; border-radius: 24px 24px 0 0; background: var(--bg); color: var(--ink); }
 body[data-view="desktop"] .drawer { inset: auto 24px 0 auto; margin: 0; height: 70vh; }
 .drawer[open] { display: flex; flex-direction: column; animation: drawer-up 0.22s ease-out; }
-.drawer::backdrop { background: rgba(0, 0, 0, 0.35); }
+.drawer::backdrop { background: rgba(0, 0, 0, 0.25); backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px); }
 .drawer-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 14px 16px 6px; }
 .drawer-head h2 { margin: 0; }
 .drawer-head button { width: 44px; height: 44px; padding: 0; border-radius: 50%; }
@@ -503,14 +522,6 @@ body[data-view="desktop"] .drawer { inset: auto 24px 0 auto; margin: 0; height: 
 .add-day { justify-self: start; background: var(--card); border: 1px dashed var(--muted) !important; }
 .builder-foot { display: flex; align-items: center; gap: 10px; justify-content: flex-end; position: sticky; bottom: 0; padding: 12px 0; background: var(--bg); }
 .builder-foot .error { margin: 0 auto 0 0; }
-.assign { width: min(480px, calc(100% - 32px)); padding: 20px 22px; border: 1px solid var(--line); border-radius: 18px; background: var(--card); color: var(--ink); box-shadow: 0 30px 80px -30px rgba(0, 0, 0, 0.5); }
-.assign::backdrop { background: rgba(0, 0, 0, 0.25); }
-.assign h3 { margin: 0 0 8px; }
-.assign .actions { flex-wrap: nowrap; }
-.assign[open] { display: block; }
-.who-pick { border: 0; padding: 0; margin: 4px 0 0; display: flex; gap: 16px; }
-.who-pick label { display: flex; gap: 6px; align-items: center; color: var(--ink); margin: 0; }
-.who-pick input { width: auto; }
 
 /* ---------- client app: bottom pill nav, dashboard, settings ---------- */
 body.client main { padding-bottom: 120px; }
@@ -560,20 +571,27 @@ html.theming, html.theming *, html.theming *::before, html.theming *::after {
 .notice input[type="checkbox"]:checked::before { transform: translateX(18px); background: var(--accent-ink); }
 @media (prefers-reduced-motion: reduce) { .notice input[type="checkbox"], .notice input[type="checkbox"]::before { transition: none; } }
 
-/* "Log out?" popup (ui.js logout) */
+/* Popups. Every one looks like the client card on the PT dash (.dcard):
+   a card over the blurred page, popping in, title and a round close top right. */
 html.locked { overflow: hidden; }
-.confirm { width: min(360px, calc(100% - 32px)); padding: 20px 22px; border: 1px solid var(--line); border-radius: 18px; background: var(--card); color: var(--ink); box-shadow: 0 30px 80px -30px rgba(0, 0, 0, 0.5); }
-.confirm[open] { animation: confirm-in 0.2s ease-out; }
-.confirm::backdrop { background: rgba(0, 0, 0, 0.25); backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px); animation: confirm-fade 0.2s ease-out; }
-.confirm h3 { margin: 0 0 8px; }
+/* The page behind any open popup doesn't scroll, so nothing pulls focus away. */
+html:has(dialog[open].pop, dialog[open].detail, dialog[open].drawer, .pop:popover-open) { overflow: hidden; }
+.pop, .dcard { padding: 20px; border: 1px solid var(--line); border-radius: 18px; background: var(--card); color: var(--ink); box-shadow: 0 30px 80px -30px rgba(0, 0, 0, 0.5); }
+.pop[open], .pop:popover-open { animation: confirm-in 0.2s ease-out; }
+.pop::backdrop, .detail::backdrop { background: rgba(0, 0, 0, 0.25); backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px); animation: confirm-fade 0.2s ease-out; }
+.pop > h2, .pop .detail-head { margin: 0 0 10px; }
+.pop .detail-head h2 { margin: 0; }
+/* ask() in ui.js: a yes/no question */
+.confirm { width: min(360px, calc(100% - 32px)); }
 .confirm p { margin: 0; color: var(--muted); }
 .confirm .actions { flex-wrap: nowrap; }
 .confirm .actions button { flex: 1; }
 @keyframes confirm-in { from { opacity: 0; transform: translateY(12px) scale(0.96); } }
 @keyframes confirm-fade { from { opacity: 0; } }
-@media (prefers-reduced-motion: reduce) { .confirm[open], .confirm::backdrop { animation: none; } }
-/* "Onboard client" popup on the dashboard: the same popup, a bit wider for a form */
-.confirm.onboard { width: min(440px, calc(100% - 32px)); }
-.confirm.onboard .actions > * { flex: 1; text-align: center; }
-.confirm.onboard .error:not(:empty), .confirm.onboard .share { margin-top: 10px; }
-.confirm.onboard #ob-none { margin-top: 10px; }
+@media (prefers-reduced-motion: reduce) { .pop[open], .pop:popover-open, .pop::backdrop, .detail::backdrop { animation: none; } }
+/* Onboard client and Change program on the dash: a popup with a short form */
+.onboard { width: min(440px, calc(100% - 32px)); }
+.onboard p { margin: 0; color: var(--muted); }
+.onboard .actions { flex-wrap: nowrap; }
+.onboard .actions > * { flex: 1; text-align: center; }
+.onboard .error:not(:empty), .onboard .share, .onboard #ob-none { margin-top: 10px; }

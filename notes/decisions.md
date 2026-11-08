@@ -625,3 +625,115 @@ Follows the 2026-11-07 entry above. Built in `COMP4020/meta/`.
   and the box clears at once. The normal reload replaces it. If the send
   fails, the bubble is removed and the text goes back in the box with the
   error. Not looked at in the browser yet.
+
+## 2026-11-08: pnpm scripts run in pnpm's own shell
+
+- Came up because a new feature's setup failed at `pnpm install`. The
+  `prepare` script uses `>/dev/null` and `|| true`, which cmd.exe doesn't
+  have, and pnpm uses cmd.exe on Windows.
+- Options: rewrite the script so it works in cmd and sh, or set
+  `shellEmulator: true` in `pnpm-workspace.yaml` so pnpm runs every script in
+  its own sh-like shell on every OS. Picked the setting: one line, and the
+  script stays as the course wrote it.
+
+## 2026-11-08: Cannu gets its own README and folder name
+
+- The dashboard folder is now `tools/cannu/` (was `tools/feature-agents/`),
+  matching the name on the page.
+- New `tools/README.md` for someone trying Cannu for the first time, like a
+  marker: what it is, what to install (Windows, node 24, mise, pnpm, git,
+  Claude Code), that I didn't ship the database and how to seed one, a first
+  feature end to end, and why my old cards look half there on a fresh clone.
+  `tools/cannu/README.md` stays the reference for every button.
+- Making it work on a Mac or Linux (`tasklist`, `taskkill`, PowerShell,
+  `wt.exe`) is left for later, if I have time. The README says it's Windows
+  only for now.
+- Old `feature.md` files and earlier notes still say `tools/feature-agents/`.
+  Notes are append-only, so they stay as written.
+
+## 2026-11-08: Reopen can save as planned
+
+- Reopen always started an agent straight away. Now it has **Save as
+  planned** next to **Start agent**, the same pair as + New feature. The
+  planned feature still continues the old one, so when it's started later the
+  agent is pointed at the old notes. A prompt is only needed to start an
+  agent.
+
+## 2026-11-08: Stuck agents show as stuck
+
+- Came up because an agent sat on working for 20 minutes behind a hung hook
+  and the card looked normal. I asked for a hung status plus a catch all for
+  when nothing changes for a couple of minutes.
+- The catch all is the status: a working agent with no hook report and
+  nothing written to its transcript for 3 minutes is **stuck**. The transcript
+  counts because a long thinking stretch or a slow command still writes to it
+  now and then, while a hung hook writes nothing. 3 minutes rather than 2 so a
+  long `pnpm check` doesn't trip it.
+- Saying what it's stuck on: the card shows the oldest process still running
+  under the agent, which was the hung hook this time, with **End that step**
+  to kill just that and let the agent carry on, and **Stop the turn** for a
+  background turn. It's orange like needs you, sorts to the top and rings the
+  bell.
+- Replaces the old banner on terminal sessions ("No activity for 5 minutes,
+  probably waiting for you to approve something"), which only showed for
+  terminal sessions, never background ones.
+
+## 2026-11-08: Agents run without the GitKraken hooks plugin
+
+- That plugin's PermissionRequest hook waits up to a day for an answer in
+  GitKraken. A background turn has no one to answer, so any command that
+  needs approval froze the agent instead of being denied. Each worktree's
+  `settings.local.json` now turns the plugin off for agents. My own sessions
+  still have it.
+
+## 2026-11-08: No Claude co-author line on agents' commits
+
+- I asked whether putting it in the Agent defaults system prompt would fix
+  it. It would mostly, but a prompt is a request the agent can forget, and
+  Claude Code adds the line itself. So each worktree's `settings.local.json`
+  sets `includeCoAuthoredBy: false` and an empty commit attribution, which
+  turns it off at the source. The prompt stays empty.
+
+## 2026-11-08: cd, grep, wc and head allowed in background turns, env isn't
+
+- Came up because an agent's first commands in a background turn were
+  blocked: Claude Code checks each part of `cd x && y` on its own, and `cd`
+  and `grep` weren't on the list. All four are read-only and agents use them
+  all the time, next to `cat`, `ls` and `tail`, which were already allowed.
+- `env` stays off. It prints every variable into the transcript and the card,
+  which can include whatever the course settings file passes in. Agents can
+  `echo "$PORT"` instead, which is already allowed.
+
+## 2026-11-08: The page holds still while you select text
+
+- Selecting text on a card jumped to selecting the whole page, because the
+  cards are rebuilt from scratch every 2 seconds. Now a refresh skips
+  rebuilding while the mouse button is down or while there's a text selection
+  in the list, and carries on once it's let go. Same idea as the existing rule
+  that a refresh doesn't wipe what you're typing.
+
+## 2026-11-08: Feature setup seeds the demo data
+
+- Came up because the demo logins didn't work on any preview: setup copied
+  main's database, which on my machine is old enough to have no users, and
+  on a marker's fresh clone doesn't exist.
+- Options: re-seed my main database and keep copying, or have setup run
+  `scripts/seed-jack.js` on each feature's copy. Picked the seed in setup,
+  since it works on a fresh clone too and the script already skips what's
+  there. It starts the feature's app first, because the app creates the
+  tables. A failed seed stops setup like a failed install, and Retry picks it
+  up.
+- This changes "The database isn't in the repo" in `tools/README.md`: a
+  marker no longer seeds anything by hand.
+
+## 2026-11-08: Refreshes only redraw cards that changed
+
+- Came up because scrolled boxes and the page itself jumped every 2 seconds,
+  and selecting text didn't work. Changes "The page holds still while you
+  select text" above, which didn't fix it.
+- The list used to be rewritten from scratch on every refresh. Now each new
+  card's HTML is compared with what that card was last built from, and only
+  changed cards are swapped in. A swapped card keeps the scroll of its reply
+  and chat boxes. Unchanged cards aren't touched, so scroll and selections in
+  them survive. The pause while the mouse is down or text is selected stays,
+  for cards that do change.

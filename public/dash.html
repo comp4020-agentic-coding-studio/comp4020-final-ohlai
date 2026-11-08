@@ -15,7 +15,7 @@
       <h1 id="hi">Dashboard</h1>
     </div>
     <input type="search" id="q" placeholder="Search clients" aria-label="Search clients" />
-    <button type="button" popovertarget="pv-export">Export <span class="pv-tag">Preview</span></button>
+    <button type="button" popovertarget="pv-export">Export</button>
     <button type="button" class="primary" id="onboard">Onboard client</button>
   </header>
 
@@ -62,12 +62,20 @@
   <p id="err" class="error" role="alert"></p>
 </main>
 
-<aside class="detail" id="detail" hidden aria-labelledby="d-name"></aside>
+<!-- A client's detail, over the dash. Clicking a lift or Message opens it in
+     a second card beside it. -->
+<dialog class="detail" id="detail" aria-labelledby="d-name">
+  <section class="dcard" id="d-client"></section>
+  <section class="dcard" id="d-side" hidden aria-labelledby="s-name"></section>
+</dialog>
 
 <!-- Onboard a client: name, email and a saved program, then an invite link the PT emails from their own mail app. -->
-<dialog id="ob" class="confirm onboard" aria-labelledby="ob-title">
+<dialog id="ob" class="pop onboard" aria-labelledby="ob-title">
+  <div class="detail-head">
+    <div><h2 id="ob-title">Onboard client</h2></div>
+    <button type="button" class="ob-cancel" aria-label="Close">✕</button>
+  </div>
   <form id="ob-form">
-    <h3 id="ob-title">Onboard client</h3>
     <p>They get their own copy of the program and an invite to sign up.</p>
     <label for="ob-name">Client name</label>
     <input id="ob-name" maxlength="80" autocomplete="off" required />
@@ -83,7 +91,6 @@
     </div>
   </form>
   <section id="ob-done" hidden>
-    <h3>Invite ready</h3>
     <p id="ob-done-text"></p>
     <p class="share"><a id="ob-link" target="_blank"></a></p>
     <div class="actions">
@@ -94,9 +101,12 @@
 </dialog>
 
 <!-- Change a client's program, from their side panel. -->
-<dialog id="ch" class="confirm onboard" aria-labelledby="ch-title">
+<dialog id="ch" class="pop onboard" aria-labelledby="ch-title">
+  <div class="detail-head">
+    <div><h2 id="ch-title">Change program</h2></div>
+    <button type="button" class="ch-cancel" aria-label="Close">✕</button>
+  </div>
   <form id="ch-form">
-    <h3 id="ch-title">Change program</h3>
     <p id="ch-sub"></p>
     <label for="ch-prog">New program</label>
     <select id="ch-prog" required></select>
@@ -104,19 +114,28 @@
     <textarea id="ch-note" rows="3" maxlength="1000"></textarea>
     <p id="ch-err" class="error" role="alert"></p>
     <div class="actions">
-      <button type="button" id="ch-cancel">Cancel</button>
+      <button type="button" class="ch-cancel">Cancel</button>
       <button type="submit" class="primary" id="ch-go">Change program</button>
     </div>
   </form>
 </dialog>
 
-<div popover id="pv-export" class="pv">
-  <h3>Export</h3>
-  <p>Download your clients and their logged sets as a spreadsheet (CSV), for your own records or a client
-    review.</p>
+<div popover id="pv-export" class="pop pv built">
+  <h2>Export sets</h2>
+  <p>Every logged set as a spreadsheet (CSV), one row per set. Leave the dates empty for everything.</p>
+  <form method="get" action="/api/export.csv" id="exportForm">
+    <label for="x-client">Client</label>
+    <select name="client" id="x-client"><option value="">All clients</option></select>
+    <div class="row">
+      <div><label for="x-from">From</label><input type="date" name="from" id="x-from" /></div>
+      <div><label for="x-to">To</label><input type="date" name="to" id="x-to" /></div>
+    </div>
+    <input type="hidden" name="tz" id="x-tz" />
+    <div class="actions"><button type="submit" class="primary">Download CSV</button></div>
+  </form>
 </div>
-<div popover id="pv-nudge" class="pv">
-  <h3>Nudge quiet clients</h3>
+<div popover id="pv-nudge" class="pop pv">
+  <h2>Nudge quiet clients</h2>
   <p>One click sends every client who hasn't trained in 7 days a short chat message you've written once.</p>
 </div>
 
@@ -125,6 +144,8 @@
   import { $, el, api, ago, fmtDay, utc, toLogin, live } from "/ui.js";
   import { mountSide } from "/side.js";
   import { checkinCard } from "/checkin-card.js";
+  import { exHistory, liftSummary } from "/lift-chart.js";
+  import { mountChat } from "/chat.js";
   mountSide();
   $("today").textContent = new Date().toLocaleDateString("en-AU", { weekday: "long", day: "numeric", month: "long" });
 
@@ -134,12 +155,23 @@
   const stalled = (x) => x.lifts.filter((l) => l.status === "stalled").length;
   const needs = (x) => quiet(x) || stalled(x) > 0 || x.unread > 0;
   let clients = [], selected = null, filter = "all";
+  // The server dates each set by the PT's own day, not UTC.
+  const tz = -new Date().getTimezoneOffset();
+  $("x-tz").value = tz;
+  // The form still submits (the download), the popover just gets out of the way.
+  $("exportForm").addEventListener("submit", () => $("pv-export").hidePopover());
+  const exportUrl = (email) => `/api/export.csv?client=${encodeURIComponent(email)}&tz=${tz}`;
 
   async function load(refresh) {
     const [data, ok] = await api(refresh === true ? "/api/dash?refresh" : "/api/dash");
     if (!ok) return toLogin();
     clients = data.clients;
     $("hi").textContent = `Hi ${data.me.name}`;
+    const pick = $("x-client"), was = pick.value;
+    const people = new Map(clients.map((x) => [x.client_email.toLowerCase(), x.client_name]));
+    pick.replaceChildren(el("option", { value: "", textContent: "All clients" }),
+      ...[...people].sort((a, b) => a[1].localeCompare(b[1])).map(([v, n]) => el("option", { value: v, textContent: n })));
+    pick.value = was;
     render();
   }
 
@@ -192,7 +224,8 @@
       el("span", { className: "muted num", textContent: fmtDay(utc(r.at)) })))
       : [el("li", { className: "muted", textContent: "Nothing logged yet." })]));
 
-    detail();
+    // A live refresh would rebuild the card under the PT mid-note and lose the cursor.
+    if (document.activeElement?.id !== "d-note") detail();
   }
 
   function row(x) {
@@ -213,33 +246,95 @@
     return tr;
   }
 
-  function open(id) { selected = id; render(); $("d-close")?.focus(); }
-  function close() { selected = null; render(); }
-  addEventListener("keydown", (e) => e.key === "Escape" && selected && !document.querySelector(":popover-open") && !$("ob").open && !$("ch").open && close());
+  function open(id) {
+    if (selected !== id) closeSide();
+    selected = id; render();
+    if (!$("detail").open) $("detail").showModal();
+    $("d-close").focus();
+  }
+  const close = () => $("detail").close();
+  $("detail").onclose = () => { selected = null; closeSide(); render(); };
+  // Esc closes the side card first, then the client.
+  // On keydown, not the dialog's cancel event: Chrome ignores preventDefault
+  // on cancel unless there was a click since the last one.
+  $("detail").onkeydown = (e) => { if (e.key === "Escape" && side) { e.preventDefault(); closeSide(); } };
+  // Clicking the dimmed dash around the cards closes it all.
+  $("detail").onclick = (e) => { if (e.target === $("detail")) close(); };
 
-  // Side panel: the detail behind each number in a client's row.
+  // The side card, next to the client card: one lift's chart, or the chat.
+  // `side` is the id of the button that opened it ("lift-12" or "msg"), so
+  // focus can go back there on close.
+  let side = null, chat = null;
+  function showSide(key, title, sub, label) {
+    side = key; chat = null;
+    detail();
+    const card = $("d-side");
+    card.hidden = false;
+    card.className = `dcard ${key === "msg" ? "chat" : ""}`;
+    card.replaceChildren(el("div", { className: "detail-head" },
+      el("div", {}, el("h2", { id: "s-name", textContent: title }), el("span", { className: "muted", textContent: sub })),
+      el("button", { type: "button", id: "s-close", ariaLabel: `Close ${label}`, textContent: "✕", onclick: closeSide })));
+    $("s-close").focus();
+    return card;
+  }
+  function closeSide() {
+    if (!side) return;
+    const was = side;
+    side = chat = null;
+    $("d-side").hidden = true;
+    $("d-side").replaceChildren();
+    detail();
+    $(was)?.focus();
+  }
+
+  // A lift: the same chart and records as the program page, from the PT link's data.
+  async function openLift(x, l) {
+    const key = `lift-${l.id}`;
+    const card = showSide(key, l.name, `${l.day} · ${STATUS[l.status]}`, l.name);
+    const wait = el("p", { className: "muted", textContent: "Loading…" });
+    card.append(wait);
+    const [state, ok] = await api(`/api/p/${x.pt_token}`);
+    if (side !== key) return; // closed or moved on while loading
+    const ex = ok && state.exercises.find((e) => e.id === l.id);
+    wait.replaceWith(ex ? liftSummary(ex, exHistory(state, ex.id))
+      : el("p", { className: "error", textContent: state.error ?? "Couldn't load this lift." }));
+  }
+
+  // The chat with this client, the same thread as the Inbox page.
+  function openChat(x) {
+    const card = showSide("msg", x.client_name, "Messages", "messages");
+    const body = el("div", { className: "drawer-body" });
+    card.append(body);
+    chat = mountChat(body, x.client_user_id, {
+      onLoad: (data, error) => { if (!data) body.replaceChildren(el("p", { className: "error", textContent: error ?? "Couldn't load messages." })); },
+    });
+    chat.load();
+    chat.focus();
+  }
+
+  // The client card: the detail behind each number in a client's row.
   function detail() {
     const x = clients.find((c) => c.program_id === selected);
-    $("detail").hidden = !x;
     if (!x) return;
     const lifts = (s) => x.lifts.filter((l) => l.status === s);
     const liftList = (s) => lifts(s).length ? el("div", {},
       el("h4", { textContent: STATUS[s] }),
       el("ul", { className: "plain" }, ...lifts(s).map((l) =>
-        el("li", {}, el("a", { href: `/p/${x.pt_token}#ex-${l.id}`, textContent: l.name }), el("span", { className: "muted", textContent: ` ${l.day}` }))))) : null;
-    // replaceChildren prints null as the text "null", so skipped sections are filtered out.
-    $("detail").replaceChildren(...[
+        el("li", {}, el("button", { type: "button", className: "linkish", id: `lift-${l.id}`, textContent: l.name,
+          ariaPressed: String(side === `lift-${l.id}`), onclick: () => { openLift(x, l); } }), el("span", { className: "muted", textContent: ` ${l.day}` }))))) : null;
+    $("d-client").replaceChildren(...[
       el("div", { className: "detail-head" },
         el("span", { className: "avatar big", ariaHidden: "true", textContent: x.client_name[0] }),
         el("div", {}, el("h2", { id: "d-name", textContent: x.client_name }), el("span", { className: "muted", textContent: x.title })),
         el("button", { type: "button", id: "d-close", ariaLabel: "Close", textContent: "✕", onclick: close })),
       x.pending ? el("p", { className: "muted", textContent: `Moving to ${x.pending.title} once ${x.client_name} finishes this workout.` }) : null,
       el("div", { className: "actions" },
-        el("a", { href: `/p/${x.pt_token}`, className: "btn primary", textContent: "Open program" }),
-        el("button", { type: "button", textContent: "Change program", onclick: () => { changeProgram(x); } }),
         x.client_user_id
-          ? el("a", { href: `/chat/${x.client_user_id}`, className: "btn", textContent: `Message${x.unread ? ` (${x.unread} new)` : ""}` })
-          : el("span", { className: "muted", textContent: `Chat opens once ${x.client_name} signs up from their invite.` })),
+          ? el("button", { type: "button", id: "msg", className: "primary", ariaPressed: String(side === "msg"),
+            textContent: `Message ${x.client_name}${x.unread ? ` (${x.unread} new)` : ""}`, onclick: () => { openChat(x); } })
+          : el("span", { className: "muted", textContent: `Chat opens once ${x.client_name} signs up from their invite.` }),
+        el("button", { type: "button", textContent: "Change program", onclick: () => { changeProgram(x); } }),
+        el("a", { href: exportUrl(x.client_email), className: "btn", textContent: "Export sets" })),
       el("h3", { textContent: "Last 7 days" }),
       el("ul", { className: "plain" }, ...x.days.map((d) => {
         const w = x.week.filter((s) => s.day === d).at(-1);
@@ -249,19 +344,37 @@
       x.recent.length ? el("ul", { className: "plain" }, ...x.recent.map((r) =>
         el("li", {}, `${r.day} · ${fmtDay(utc(r.at))}`, el("span", { className: "muted", textContent: ` ${r.sets} sets` }))))
         : el("p", { className: "muted", textContent: "Nothing logged yet." }),
-      el("h3", {}, "Latest check-in ", el("a", { href: `/checkins#c${x.client_user_id}`, className: "muted", textContent: "All check-ins" })),
+      el("h3", {}, "Latest check-in ", el("a", { href: x.client_user_id ? `/checkins#c${x.client_user_id}` : "/checkins", className: "muted", textContent: "All check-ins" })),
       x.checkin ? checkinCard(x.checkin)
         : el("p", { className: "muted", textContent: x.client_user_id ? `${x.client_name} hasn't checked in yet.` : `Check-ins open once ${x.client_name} signs up.` }),
       el("h3", { textContent: "Lifts" }),
       el("p", { className: "muted", textContent: "Click a lift to see its progress chart." }),
-      liftList("stalled"), liftList("up"), liftList("steady"), liftList("new"),
-      el("h3", {}, "Private notes ", el("span", { className: "pv-tag", textContent: "Preview" })),
-      el("textarea", { rows: 3, placeholder: `Only you see this. Injuries, goals, what ${x.client_name} said last session…`, ariaLabel: "Private notes (preview, not saved)" }),
-      el("p", { className: "muted", textContent: "Not saved yet. This is a preview of the idea." })].filter(Boolean));
+      // Wrapped in el(), which drops the nulls; replaceChildren alone prints them as "null".
+      el("div", {}, liftList("stalled"), liftList("up"), liftList("steady"), liftList("new")),
+      el("h3", { textContent: "Private notes" }),
+      el("textarea", { id: "d-note", rows: 4, value: x.note, placeholder: `Only you see this. Injuries, goals, what ${x.client_name} said last session…`,
+        ariaLabel: `Private notes on ${x.client_name}`, oninput: (e) => { saveNote(x, e.target.value); } }),
+      el("p", { id: "d-note-status", className: "muted", ariaLive: "polite", textContent: "Only you see these. Saved as you type." })].filter(Boolean)); // drops the pending line when there's none
   }
 
-  // Onboard: copies a saved program for the new client (same endpoint the
-  // Programs page used to assign from) and gives the PT an invite to email.
+  // One note per client, shared by all their programs. Saves a moment after
+  // typing stops, so closing the card straight after still saves it.
+  let noteTimer = null;
+  function saveNote(x, body) {
+    clearTimeout(noteTimer);
+    for (const c of clients) if (c.client_email.toLowerCase() === x.client_email.toLowerCase()) c.note = body;
+    $("d-note-status").textContent = "Saving…";
+    noteTimer = setTimeout(async () => {
+      const [data, ok] = await api("/api/notes", { email: x.client_email, body });
+      const status = $("d-note-status");
+      if (status) {
+        status.textContent = ok ? "Saved" : `Couldn't save: ${data.error ?? "try again"}`;
+        status.className = ok ? "muted" : "error";
+      }
+    }, 600);
+  }
+
+  // Onboard: copies a saved program for the new client and gives the PT an invite to email.
   let me;
   const ob = $("ob");
   async function onboard() {
@@ -273,13 +386,12 @@
     $("ob-name").value = $("ob-email").value = $("ob-err").textContent = "";
     $("ob-form").hidden = false;
     $("ob-done").hidden = true;
-    document.documentElement.classList.add("locked");
+    $("ob-title").textContent = "Onboard client";
     ob.showModal();
   }
   $("onboard").onclick = () => { onboard(); };
   for (const b of ob.querySelectorAll(".ob-cancel")) b.onclick = () => { ob.close(); };
   ob.onclick = (e) => { if (e.target === ob) ob.close(); }; // click outside the box
-  ob.onclose = () => { document.documentElement.classList.remove("locked"); };
 
   $("ob-form").onsubmit = async (e) => {
     e.preventDefault();
@@ -296,6 +408,7 @@
     // Written as the PT, since it goes from the PT's own email.
     const msg = `Hi ${name},\n\nI've just invited you to join my gym app. Your program "${prog.textContent}" is ready for you. Sign up here and you can log your sets on your phone as you train:\n\n${url}\n\n${me.name}`;
     $("ob-mail").href = `mailto:${encodeURIComponent(email)}?subject=${encodeURIComponent(`${me.name} invited you to their gym app`)}&body=${encodeURIComponent(msg)}`;
+    $("ob-title").textContent = "Invite ready";
     $("ob-form").hidden = true;
     $("ob-done").hidden = false;
   };
@@ -315,12 +428,10 @@
     $("ch-note").value = $("ch-err").textContent = "";
     $("ch-go").disabled = !data.templates?.length;
     if (!data.templates?.length) $("ch-err").textContent = "Write a program first on the Programs page.";
-    document.documentElement.classList.add("locked");
-    ch.showModal();
+    ch.showModal(); // on top of the client card
   }
-  $("ch-cancel").onclick = () => { ch.close(); };
+  for (const b of ch.querySelectorAll(".ch-cancel")) b.onclick = () => { ch.close(); };
   ch.onclick = (e) => { if (e.target === ch) ch.close(); };
-  ch.onclose = () => { document.documentElement.classList.remove("locked"); };
   $("ch-form").onsubmit = async (e) => {
     e.preventDefault();
     $("ch-go").disabled = true;
@@ -328,7 +439,7 @@
     $("ch-go").disabled = false;
     if (!ok) { $("ch-err").textContent = data.error; return; }
     ch.close();
-    if (!data.queued) selected = null; // their row now points at the new program
+    if (!data.queued) selected = data.program_id; // the card follows them onto the new program
     load(true);
   };
 
@@ -340,7 +451,7 @@
   };
 
   load();
-  live("/api/events", () => load(true));
+  live("/api/events", (e) => { load(true); if (e.type === "chat") chat?.load(); });
 </script>
 </body>
 </html>

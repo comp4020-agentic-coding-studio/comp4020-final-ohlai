@@ -22,5 +22,5 @@ mise.local.toml
 .claude/
 data/
 
-# The feature agents dashboard's machine-local data (ports, sessions, state).
-tools/feature-agents/local/
+# Cannu's machine-local data (ports, sessions, state).
+tools/cannu/local/

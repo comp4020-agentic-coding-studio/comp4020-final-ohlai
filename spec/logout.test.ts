@@ -7,7 +7,8 @@ const dom = new JSDOM(`<!doctype html><body></body>`, { url: "http://app.test/se
 const w = dom.window;
 // shortcut: jsdom has no showModal, so this fakes the open flag only.
 w.HTMLDialogElement.prototype.showModal ??= function (this: HTMLDialogElement) { this.open = true; };
-w.HTMLDialogElement.prototype.close ??= function (this: HTMLDialogElement) {
+w.HTMLDialogElement.prototype.close ??= function (this: HTMLDialogElement, value?: string) {
+  if (value !== undefined) this.returnValue = value;
   this.open = false;
   this.dispatchEvent(new w.Event("close"));
 };

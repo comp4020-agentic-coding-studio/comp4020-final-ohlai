@@ -22,7 +22,7 @@
 
 <script src="/view.js"></script>
 <script type="module">
-  import { $, el, api, fmtDay, utc, toLogin } from "/ui.js";
+  import { $, el, api, fmtDay, utc, toLogin, ask } from "/ui.js";
   import { mountSide } from "/side.js";
   mountSide();
 
@@ -54,7 +54,7 @@
           if (ok) { history.replaceState(null, "", `#p${data.id}`); load(); }
         } }),
         el("button", { type: "button", textContent: "Delete", onclick: async () => {
-          if (!confirm(`Delete "${t.name}"? Clients who already have it keep their copy.`)) return;
+          if (!(await ask(`Delete ${t.name}?`, "Clients who already have it keep their copy.", "Delete"))) return;
           const [data, ok] = await api(`/api/templates/${t.id}/delete`, {});
           $("err").textContent = ok ? "" : data.error;
           if (ok) load();

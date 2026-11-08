@@ -26,25 +26,31 @@ export function ago(t) {
   return days <= 0 ? "Today" : days === 1 ? "Yesterday" : `${days} days ago`;
 }
 
-// Asks first, so a stray tap on Log out doesn't sign you out.
-export function logout() {
+// A yes/no popup in the app's style, instead of the browser's confirm().
+// Resolves true when they pick `yes`. Cancel, Esc or a tap outside is false.
+export function ask(title, text, yes) {
   const cancel = el("button", { type: "button", textContent: "Cancel", autofocus: true });
-  const ok = el("button", { type: "button", className: "primary", textContent: "Log out" });
-  const d = el("dialog", { className: "confirm" },
-    el("h3", { textContent: "Log out?" }),
-    el("p", { textContent: "You'll need to log in again to get back in." }),
+  const ok = el("button", { type: "button", className: "primary", textContent: yes });
+  const d = el("dialog", { className: "pop confirm" },
+    el("h2", { textContent: title }),
+    text ? el("p", { textContent: text }) : null,
     el("div", { className: "actions" }, cancel, ok));
   cancel.onclick = () => { d.close(); };
-  ok.onclick = async () => {
-    ok.disabled = true;
-    await api("/api/logout", {});
-    location.href = "/";
-  };
+  ok.onclick = () => { d.close("yes"); };
   d.onclick = (e) => { if (e.target === d) d.close(); }; // tap outside the box
-  d.onclose = () => { document.documentElement.classList.remove("locked"); d.remove(); };
   document.body.append(d);
   document.documentElement.classList.add("locked");
   d.showModal();
+  return new Promise((done) => {
+    d.onclose = () => { document.documentElement.classList.remove("locked"); d.remove(); done(d.returnValue === "yes"); };
+  });
+}
+
+// Asks first, so a stray tap on Log out doesn't sign you out.
+export async function logout() {
+  if (!(await ask("Log out?", "You'll need to log in again to get back in.", "Log out"))) return;
+  await api("/api/logout", {});
+  location.href = "/";
 }
 
 // Sends you to log in, coming back here after.

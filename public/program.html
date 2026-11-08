@@ -23,7 +23,7 @@
 
   <section id="summary" hidden>
     <div class="topbar">
-      <button type="button" class="back" id="back" aria-label="Back to workout">←</button>
+      <button type="button" class="back" id="back" aria-label="Back to workout"><svg class="arrow" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 12H5m6-6-6 6 6 6"/></svg></button>
       <h1 id="sumTitle"></h1>
     </div>
     <div id="sumBody"></div>
@@ -43,7 +43,7 @@
 
 <!-- Chat with the other person on the program, without leaving it. -->
 <button type="button" class="chatfab" id="chatFab" hidden aria-label="Messages" aria-haspopup="dialog">
-  <span aria-hidden="true">💬</span><span class="dot" id="chatDot" hidden></span>
+  <span aria-hidden="true" class="ico"><svg viewBox="0 0 24 24" fill="currentColor" fill-rule="evenodd"><path d="M12.5 20.5A8.5 8.5 0 1 0 4.8 15.6L3.6 18.6Q3.1 20.5 5 20.5ZM9.7 9.3h1.6a.8.8 0 0 1 0 1.6H9.7a.8.8 0 0 1 0-1.6ZM9.7 12.6h4.9a.8.8 0 0 1 0 1.6H9.7a.8.8 0 0 1 0-1.6Z"/></svg></span><span class="dot" id="chatDot" hidden></span>
 </button>
 <dialog id="chatDrawer" class="drawer" aria-labelledby="chatTitle">
   <div class="drawer-head">
@@ -55,8 +55,8 @@
 
 <script src="/view.js"></script>
 <script type="module">
-  import { repRange, weightStep, scorer } from "/progress.js";
-  import { api as getJson, toLogin, live } from "/ui.js";
+  import { workouts as allWorkouts, exHistory as history_, liftSummary } from "/lift-chart.js";
+  import { api as getJson, toLogin, live, ask } from "/ui.js";
   import { mountChat } from "/chat.js";
   // The client link defaults to the phone layout, the PT link to desktop.
   const tok = location.pathname.split("/").pop();
@@ -77,24 +77,8 @@
   const vol = (logs) => logs.reduce((s, l) => s + (l.weight ?? 0) * l.reps, 0);
   const rowCount = {}; // rows shown per exercise in the open workout, after adds and removals
 
-  // Every workout, oldest first, with its sets. Sets logged before workouts
-  // existed have no session, so they group by calendar day instead.
-  function workouts() {
-    const by = new Map();
-    for (const s of state.sessions) by.set(s.id, { id: s.id, day: s.day, start: utc(s.started_at), finished: s.finished_at, logs: [] });
-    for (const l of state.logs) {
-      const key = l.session_id ?? "d" + utc(l.logged_at).toLocaleDateString("en-CA");
-      if (!by.has(key)) by.set(key, { id: key, day: null, start: utc(l.logged_at), finished: l.logged_at, logs: [] });
-      by.get(key).logs.push(l);
-    }
-    return [...by.values()].sort((a, b) => a.start - b.start);
-  }
-
-  // One exercise's sets per workout: [{ w, sets: { 1: log, 2: log } }], oldest first.
-  function exHistory(exId) {
-    return workouts().map((w) => ({ w, sets: Object.fromEntries(w.logs.filter((l) => l.exercise_id === exId).map((l) => [l.set_no, l])) }))
-      .filter((h) => Object.keys(h.sets).length);
-  }
+  const workouts = () => allWorkouts(state);
+  const exHistory = (exId) => history_(state, exId);
 
   async function api(path, body) {
     const res = await fetch(path, body && { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body) });
@@ -166,6 +150,8 @@
     const links = [];
     if (role === "pt" && claimed) {
       links.push(el("a", { href: "/dash", className: "btn", textContent: "Dashboard" }));
+      links.push(el("a", { className: "btn", textContent: "Export sets",
+        href: `/api/export.csv?client=${encodeURIComponent(program.client_email)}&tz=${-new Date().getTimezoneOffset()}` }));
     }
     if (role === "client" && claimed) {
       links.push(el("a", { href: "/me", className: "btn", textContent: "Dashboard" }));
@@ -202,7 +188,7 @@
       $("title").textContent = open.day;
       $("sub").textContent = `${program.title}, from ${program.pt_name}. Tick each set as you finish it.`;
       $("actions").append(
-        el("button", { type: "button", textContent: "Discard", onclick: () => confirm("Discard this workout and its sets?") && act("discard") }),
+        el("button", { type: "button", textContent: "Discard", onclick: async () => { if (await ask("Discard this workout?", "Its sets go too.", "Discard")) act("discard"); } }),
         el("button", { type: "button", className: "primary", textContent: "Finish", onclick: finish }));
       const cur = all.find((w) => w.id === open.id)?.logs ?? [];
       const drawStats = () => $("stats").replaceChildren(...[
@@ -265,7 +251,7 @@
   async function finish() {
     const open = state.open_session;
     const n = state.logs.filter((l) => l.session_id === open.id).length;
-    if (!confirm(n ? `Finish ${open.day}? ${n} sets will be saved.` : "No sets logged. Finish and throw this workout away?")) return;
+    if (!(await ask(`Finish ${open.day}?`, n ? `${n} set${n > 1 ? "s" : ""} will be saved.` : "No sets logged, so this workout gets thrown away.", "Finish"))) return;
     if (await act("finish")) { for (const k in rowCount) delete rowCount[k]; restEnd = 0; drawRest(); }
   }
 
@@ -392,80 +378,12 @@
   $("restPlus").onclick = () => { restEnd += 15000; restTotal += 15; drawRest(); };
   $("restSkip").onclick = () => { restEnd = 0; drawRest(); };
 
-  // Exercise summary: a chart over sessions, and records. The scoring is in
-  // public/progress.js, shared with the dashboard.
-  const METRICS = {
-    progress: { label: "Progress", unit: "" },
-    heaviest: { label: "Heaviest weight", unit: "kg" },
-    reps: { label: "Most reps", unit: " reps" },
-    orm: { label: "Est. 1RM", unit: "kg" },
-    volume: { label: "Session volume", unit: "kg" },
-  };
-  let metric = "progress";
-
+  // Exercise summary: a chart over sessions and records (public/lift-chart.js,
+  // shared with the PT dashboard).
   function renderSummary(ex) {
     $("sumTitle").textContent = ex.name;
     document.title = ex.name;
-    const hist = exHistory(ex.id);
-    const all = hist.flatMap((h) => Object.values(h.sets));
-    const body = $("sumBody");
-    if (!all.length) return body.replaceChildren(el("p", { className: "muted", textContent: "No sets logged for this exercise yet." }));
-
-    const [lo, hi] = repRange(ex.reps);
-    const step = weightStep(all);
-    const w = (s) => s.weight ?? 0;
-    const score = scorer(ex.reps, all);
-    const epley = (s) => w(s) * (1 + s.reps / 30);
-    const per = hist.map(({ w: wk, sets: bySet }) => {
-      const sets = Object.values(bySet), k = wk.start;
-      const top = (f) => Math.max(...sets.map(f));
-      return { k, progress: top(score), heaviest: top(w), reps: top((s) => s.reps), orm: top(epley),
-        volume: sets.reduce((a, s) => a + w(s) * s.reps, 0) };
-    });
-    const best = (f) => all.reduce((a, s) => (f(s) > f(a) ? s : a));
-    const bestVol = best((s) => w(s) * s.reps);
-    const last = per.at(-1), m = METRICS[metric];
-    const shown = (v) => `${+v.toFixed(metric === "progress" || metric === "orm" ? 1 : 2)}${m.unit}`;
-
-    body.replaceChildren(
-      ex.notes ? el("p", { className: "notes", textContent: ex.notes }) : "",
-      el("p", { className: "big" }, el("strong", { textContent: shown(last[metric]) + " " }), el("span", { className: "accent", textContent: fmtDay(last.k) })),
-      chart(per, metric),
-      el("div", { className: "tabs pills", role: "group", ariaLabel: "Chart" },
-        ...Object.entries(METRICS).map(([key, { label }]) =>
-          el("button", { type: "button", textContent: label, ariaPressed: String(key === metric),
-            onclick: () => { metric = key; renderSummary(ex); } }))),
-      metric === "progress" ? el("p", { className: "muted", textContent:
-        `Rep range ${lo}${hi > lo ? "–" + hi : ""}, weight step ${step}kg. Reaching the top of the range, then moving up a weight, both push the line up.` }) : "",
-      el("h2", { textContent: "Personal records" }),
-      el("dl", { className: "records" },
-        ...[["Heaviest weight", `${Math.max(...per.map((p) => p.heaviest))}kg`],
-            ["Best 1RM (est.)", `${+epley(best(epley)).toFixed(2)}kg`],
-            ["Best set volume", `${kg(bestVol.weight)} x ${bestVol.reps}`],
-            ["Best session volume", `${+Math.max(...per.map((p) => p.volume)).toFixed(1)}kg`]]
-          .flatMap(([k, v]) => [el("dt", { textContent: k }), el("dd", { textContent: v })])));
-  }
-
-  function chart(per, key) {
-    const W = 320, H = 150, L = 40, B = 22, T = 10, R = 10;
-    const ys = per.map((p) => p[key]);
-    let lo = Math.min(...ys), hi = Math.max(...ys);
-    if (lo === hi) { lo -= 1; hi += 1; }
-    const x = (i) => L + (per.length === 1 ? (W - L - R) / 2 : (i * (W - L - R)) / (per.length - 1));
-    const y = (v) => T + ((hi - v) * (H - T - B)) / (hi - lo);
-    const ns = "http://www.w3.org/2000/svg";
-    const svg = document.createElementNS(ns, "svg");
-    svg.setAttribute("viewBox", `0 0 ${W} ${H}`);
-    svg.setAttribute("class", "chart");
-    svg.setAttribute("role", "img");
-    svg.setAttribute("aria-label", `${METRICS[key].label} per session, ${per.map((p) => `${fmtDay(p.k)} ${+p[key].toFixed(1)}`).join(", ")}`);
-    const grid = [hi, (hi + lo) / 2, lo].map((v) => `<line class="grid" x1="${L}" x2="${W - R}" y1="${y(v)}" y2="${y(v)}"/><text class="axis" x="${L - 4}" y="${y(v) + 3}" text-anchor="end">${+v.toFixed(1)}</text>`);
-    const ticks = per.map((p, i) => ({ p, i })).filter(({ i }) => per.length <= 5 || i % Math.ceil(per.length / 5) === 0)
-      .map(({ p, i }) => `<text class="axis" x="${x(i)}" y="${H - 6}" text-anchor="middle">${fmtDay(p.k)}</text>`);
-    const pts = per.map((p, i) => `${x(i)},${y(p[key])}`).join(" ");
-    svg.innerHTML = grid.join("") + ticks.join("") + `<polyline class="line" points="${pts}"/>` +
-      per.map((p, i) => `<circle class="dot" cx="${x(i)}" cy="${y(p[key])}" r="3.5"/>`).join("");
-    return svg;
+    $("sumBody").replaceChildren(liftSummary(ex, exHistory(ex.id)));
   }
 
   load();

@@ -49,3 +49,7 @@ Just leave the old data for now.
 ## 2026-11-08 21:34 (dashboard)
 
 yes this is a better fit for what were trying to do. yes invite link just goes to login once used. im confused by what you mean with program links for a loggedin client
+
+## 2026-11-08 22:47 (dashboard)
+
+Main has moved on and merging your branch conflicts in: {files}. Merge main into your branch, resolve the conflicts keeping both sides' intent, run the app and pnpm check, log what you did, and commit.

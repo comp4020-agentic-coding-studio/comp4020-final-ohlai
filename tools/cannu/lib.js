@@ -32,7 +32,7 @@ fs.mkdirSync(STATE, { recursive: true });
 // ---------- feature.md ----------
 
 // Fields kept in feature.md, in the order they're written.
-const FIELDS = ["Status", "Created", "Started", "Branch", "Model", "Merged", "Dropped", "Continues", "Related", "Imported"];
+const FIELDS = ["Status", "Label", "Created", "Started", "Branch", "Model", "Merged", "Dropped", "Continues", "Related", "Imported"];
 export const MD_KEYS = new Set([...FIELDS.map((k) => k.toLowerCase()), "title", "prompt", "refs"]);
 
 export function parseFeatureMd(slug, text) {
@@ -49,7 +49,7 @@ export function parseFeatureMd(slug, text) {
 
 export function featureMd(f) {
   const vals = { ...f, related: (f.refs || []).join(", ") };
-  let s = `# ${f.title}\n\nKept by the feature agents dashboard (\`tools/feature-agents/\`). Its notes are next to this file: \`prompts.md\` (everything I said, word for word), \`log.md\` and \`decisions.md\`.\n\n`;
+  let s = `# ${f.title}\n\nKept by the feature agents dashboard (\`tools/cannu/\`). Its notes are next to this file: \`prompts.md\` (everything I said, word for word), \`log.md\` and \`decisions.md\`.\n\n`;
   for (const k of FIELDS) if (vals[k.toLowerCase()]) s += `- ${k}: ${vals[k.toLowerCase()]}\n`;
   if (f.prompt) s += `\n## What I asked for\n\n${f.prompt}\n`;
   return s;
@@ -137,10 +137,13 @@ export function claudePids() {
 
 // What the card should say, from the last hook report plus whether the
 // processes are alive. open = a terminal session is running right now.
-export function liveStatus(st) {
+export function liveStatus(st, running = false) {
   const pids = claudePids();
   const term = !!st.pid && pids.has(st.pid);
-  const bg = !!st.headlessPid && pids.has(st.headlessPid);
+  // running: the dashboard just started a background turn whose PID may not
+  // be in the cached process list yet. Without it a sent message briefly read
+  // as "interrupted" and fired a notification.
+  const bg = running || (!!st.headlessPid && pids.has(st.headlessPid));
   // With a known PID we trust it. Without one (a session started by hand,
   // not from the dashboard) fall back to "a hook fired in the last 90s".
   const recent = !st.pid && !st.headlessPid && st.at && Date.now() - new Date(st.at) < 90e3;

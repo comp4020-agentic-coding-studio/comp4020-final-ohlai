@@ -148,6 +148,18 @@ db.exec(`
 // note to the client about the new program.
 for (const [col, type] of [["ended_at", "TEXT"], ["replaced_by", "INTEGER"], ["pending_change", "TEXT"], ["change_note", "TEXT"]])
   if (!hasColumn("programs", col)) db.exec(`ALTER TABLE programs ADD COLUMN ${col} ${type}`);
+// A PT's private notes on a client: one free-text note per PT and client email,
+// so every program that client has with the PT shows the same note. Only ever
+// sent to that PT (on /api/dash), never to a link or a client login.
+db.exec(`
+  CREATE TABLE IF NOT EXISTS client_notes (
+    pt_user_id INTEGER NOT NULL REFERENCES users(id),
+    client_email TEXT NOT NULL COLLATE NOCASE,
+    body TEXT NOT NULL,
+    updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+    PRIMARY KEY (pt_user_id, client_email)
+  );
+`);
 if (!hasColumn("users", "checkin_questions")) db.exec("ALTER TABLE users ADD COLUMN checkin_questions TEXT");
 if (!hasColumn("users", "show_training")) db.exec("ALTER TABLE users ADD COLUMN show_training INTEGER NOT NULL DEFAULT 1");
 const DEFAULT_QUESTIONS = [
@@ -369,8 +381,11 @@ function dashRow(p) {
     title: f.program.title,
     pt_token: p.pt_token,
     client_name: f.program.client_name,
+    client_email: f.program.client_email,
     client_user_id: p.client_user_id,
     pending: f.pending,
+    // dashRow is only for the PT's own dashboard, so the private note can go here.
+    note: db.prepare("SELECT body FROM client_notes WHERE pt_user_id = ? AND client_email = ?").get(p.pt_user_id, p.client_email)?.body ?? "",
     last_workout: last,
     // The client can hide "Training now"; the PT is told it's hidden, not just shown nothing.
     training_hidden: hidden,
@@ -504,6 +519,57 @@ const server = createServer(async (req, res) => {
       // Whoever has gone longest without training comes first.
       rows.sort((a, b) => (a.last_workout ?? "").localeCompare(b.last_workout ?? ""));
       return send(res, 200, { me, clients: rows });
+    }
+
+    // ---------- private notes: the PT's own note on one of their clients ----------
+    if (req.method === "POST" && path === "/api/notes") {
+      if (me?.role !== "pt") {
+        audit(asUser(me), "notes", 401, "not logged in as a PT");
+        return send(res, 401, { error: "Log in as a PT to keep notes." });
+      }
+      const b = await readJson(req);
+      const email = str(b.email), body = typeof b.body === "string" ? b.body.slice(0, 10_000) : null;
+      const p = email && db.prepare("SELECT client_name FROM programs WHERE pt_user_id = ? AND client_email = ? COLLATE NOCASE").get(me.id, email);
+      if (!p || body === null) {
+        audit(asUser(me), "notes", 404, "no such client");
+        return send(res, 404, { error: "That's not one of your clients." });
+      }
+      db.prepare(`INSERT INTO client_notes (pt_user_id, client_email, body) VALUES (?,?,?)
+        ON CONFLICT (pt_user_id, client_email) DO UPDATE SET body = excluded.body, updated_at = datetime('now')`).run(me.id, email, body);
+      // The note's text stays out of the log; it's private.
+      audit(asUser(me), "notes", 200, `edited private notes on ${JSON.stringify(p.client_name)} (${body.length} chars)`);
+      return send(res, 200, { note: body });
+    }
+
+    // ---------- CSV export: one row per logged set, the PT's own clients only ----------
+    // ?client=<email> for one client (all their programs), ?from/?to as YYYY-MM-DD,
+    // ?tz=<minutes east of UTC> from the browser so dates are the PT's local day.
+    if (req.method === "GET" && path === "/api/export.csv") {
+      if (me?.role !== "pt") {
+        audit(asUser(me), "export", 401, "not logged in as a PT");
+        return send(res, 401, { error: "Log in as a PT to export." });
+      }
+      const q = url.searchParams;
+      const client = str(q.get("client")), day = (k) => (/^\d{4}-\d{2}-\d{2}$/.test(q.get(k) ?? "") ? q.get(k) : null);
+      const from = day("from"), to = day("to");
+      const tz = `${Math.max(-840, Math.min(840, Math.trunc(Number(q.get("tz")) || 0)))} minutes`;
+      const rows = db.prepare(`
+        SELECT p.client_name, p.client_email, p.title, e.day, e.name, e.sets, e.reps rep_range,
+               datetime(l.logged_at, ?) at, l.set_no, l.reps, l.weight
+        FROM set_logs l JOIN exercises e ON e.id = l.exercise_id JOIN programs p ON p.id = e.program_id
+        WHERE p.pt_user_id = ? AND (? IS NULL OR p.client_email = ? COLLATE NOCASE)
+          AND (? IS NULL OR date(datetime(l.logged_at, ?)) >= ?) AND (? IS NULL OR date(datetime(l.logged_at, ?)) <= ?)
+        ORDER BY p.client_name COLLATE NOCASE, at, l.id`).all(tz, me.id, client, client, from, tz, from, to, tz, to);
+      // Quote every cell; a leading = + - @ would run as a formula in Excel, so it gets a '.
+      const cell = (v) => `"${String(v ?? "").replace(/^[=+\-@]/, "'$&").replace(/"/g, '""')}"`;
+      const csv = [["client", "email", "program", "day", "exercise", "target_sets", "rep_range", "date", "time", "set", "reps", "weight_kg"],
+        ...rows.map((r) => [r.client_name, r.client_email, r.title, r.day, r.name, r.sets, r.rep_range, r.at.slice(0, 10), r.at.slice(11, 16), r.set_no, r.reps, r.weight])]
+        .map((r) => r.map(cell).join(",")).join("\r\n");
+      const who = client ? rows[0]?.client_name ?? client : "all clients";
+      const name = `sets-${(client ? who : "all").replace(/[^\w-]+/g, "-")}-${new Date().toISOString().slice(0, 10)}.csv`;
+      audit(asUser(me), "export", 200, `exported ${rows.length} sets for ${client ? JSON.stringify(who) : who}${from || to ? ` (${from ?? "start"} to ${to ?? "today"})` : ""}`);
+      res.writeHead(200, { "content-type": "text/csv; charset=utf-8", "content-disposition": `attachment; filename="${name}"` });
+      return res.end("﻿" + csv + "\r\n"); // the BOM makes Excel read names as UTF-8
     }
 
     // ---------- inbox: every conversation a PT has, newest first ----------
@@ -640,8 +706,7 @@ const server = createServer(async (req, res) => {
         push("program", { programId: p.id, users: [p.pt_user_id, p.client_user_id].filter(Boolean) });
         return send(res, 202, { queued: true });
       }
-      applyChange(p, change);
-      return send(res, 200, { queued: false });
+      return send(res, 200, { queued: false, program_id: applyChange(p, change) });
     }
 
     // ---------- weekly check-ins ----------

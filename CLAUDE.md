@@ -65,6 +65,9 @@ effort making PT pages fit a phone.
 - An `onclick = (e) => ...` handler never returns a value (use braces, not
   `a && b`). One that returns false cancels the click, which once broke the
   client's Send button in the chat drawer.
+- Anything that can be null goes inside `el()` from `public/ui.js`, which
+  drops nulls. `replaceChildren` and `append` print a null as the text
+  "null", which once put "nullnullnull" in the PT's client card.
 - Test a form by clicking its button, not by calling submit in code, and check
   the result reached the server.
 - Schema changes are additive: add columns with a guarded `ALTER TABLE` in
@@ -84,7 +87,7 @@ leaves a trail in `notes/`.
   merged or dropped yourself: the feature agents dashboard does that when I
   tell it to.
   (`notes/features.md` was the board until 2026-11-08 and is kept as it was.)
-- `tools/feature-agents/` is the dashboard I use to run feature agents. It's
+- `tools/cannu/` is the dashboard I use to run feature agents. It's
   not part of the app: don't import from it, ship it or test it as part of
   the app. Change it only when I ask, and only on main.
 - The notes are the raw material for my final docs, so more detail is always
@@ -114,7 +117,7 @@ leaves a trail in `notes/`.
 
 Each feature has its own branch (`feat/<slug>`), its own folder
 (`../worktrees/<slug>`), its own app port and its own data folder. The
-feature agents dashboard in `tools/feature-agents/` starts these sessions,
+feature agents dashboard in `tools/cannu/` starts these sessions,
 and my messages often come through it as background turns. If
 `FEATURE_SLUG` is set in your environment, you're in one.
 
@@ -144,5 +147,5 @@ and my messages often come through it as background turns. If
   - Update both before each commit, not just at the end.
 - Don't edit your feature's `feature.md` (only the dashboard writes it, on
   main), `notes/decisions.md`, `notes/sessions/` or anything in
-  `tools/feature-agents/` in a feature session. Every feature would conflict
+  `tools/cannu/` in a feature session. Every feature would conflict
   at merge time, and the dashboard runs from main's copy anyway.

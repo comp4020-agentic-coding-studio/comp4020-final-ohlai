@@ -71,3 +71,10 @@
 
 - Came up: whether to keep `/p/<token>` as the address of a program once a client is logged in, or rebuild it around the login. I wasn't clear the first time ("im confused by what you mean with program links for a loggedin client").
 - What I did: kept `/p/<token>` as it is, since nobody shares it any more and changing it changes nothing anyone sees. I explained it again and said so. Waiting to hear if you want it gone.
+
+## 2026-11-08 Merging main: what each side kept
+
+- Came up: merging main, which had restyled every popup and rebuilt the dash client card, conflicted with this feature.
+- Kept from main: the `.pop` popup style and `ask()`, the dialog client card with Message (chat in a side card) and Export sets, saved private notes, and dropping "Open program" from the card.
+- Kept from this feature: Onboard client in the header instead of "Assign a program", no assign dialog on Programs, Change program in the client card, the invite wording.
+- These are the merge instructions ("keeping both sides' intent"), not a new choice of mine. The one small call I made: after Change program, the card stays open on the client's new program, because main's card is a modal and closing my old way would have left it empty.

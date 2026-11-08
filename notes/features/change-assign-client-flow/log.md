@@ -137,3 +137,31 @@ What changed:
 - Spec: the helper now returns the invite, and a `join()` helper signs up through it. The invite test checks the sign-up page, the invite details, a bad token, a bad email, a short password, signing up with an edited name and email, and that a used invite returns `{ used: true }` and refuses a second sign-up. The "before sign-up" test now checks that the same invite shows and gets the new program. The change-program test checks the client's `/me` has the new program and note, and no `pt_token`. The dashboard test checks another PT can't change the client's program (the old "can't claim with a PT link" check went with the endpoint).
 
 Checks: `pnpm check`, 16 pass. Clicked through in headless Chrome: logged in as the PT through the login form, onboarded Ben, changed his program to "Strength block (copy)" with a note before he signed up, and the dashboard showed one Ben row on the new program. At 390px with no login, opened the invite: it said "Your program "Strength block (copy)" is ready". Typed a password, clicked Sign up, landed on `/me` with only the new program and the note. Opened the invite again with no login and it went to `/login?next=/me`.
+
+## 2026-11-08 22:55 Merged main into this branch
+
+The dashboard asked: "Main has moved on and merging your branch conflicts in: {files}. Merge main into your branch, resolve the conflicts keeping both sides' intent, run the app and pnpm check, log what you did, and commit." (The file list came through as the literal `{files}`, so I found the conflicts by running the merge.)
+
+Main had merged four features since this branch started: pop up styling (every popup is a `.pop` card like the dash client card, and `ask()` in `public/ui.js` for yes/no questions), viewing a client in the PT dash (the client card is now a centred `<dialog class="detail">` with `#d-client` and a side card for a lift chart or chat; "Open program" was dropped from it), Export as CSV, and private notes on clients. Main also had a "changing program" feature planned and then dropped, so nothing of it was in main's code. It also renamed `tools/feature-agents/` to `tools/cannu/`, which merged cleanly.
+
+Conflicts and how each was resolved:
+
+- `server.js`, schema: kept both new blocks, my `invites` table and program columns, and main's `client_notes` table.
+- `server.js`, `dashRow`: kept both, my `pending` and main's private `note`.
+- `public/style.css`: kept main's reduced-motion rule for `.pop`. My `.confirm.onboard` rules depended on the old `.confirm` popup, which main rebuilt as `.pop`, so they're now `.onboard`, used with `.pop`. Also dropped main's `.assign` and `.who-pick` rules, since the Programs page assign dialog they styled is gone on this branch.
+- `public/templates.html`: main restyled the assign dialog as a `.pop` and moved Delete to `ask()`. Kept the assign dialog removed (this feature moved linking clients to the dashboard), and took main's `ask()` for Delete with this branch's wording ("Clients who already have it keep their copy.").
+- `public/dash.html`:
+  - Header: main's plain "Export" (it's built now, so no Preview tag) next to my "Onboard client" instead of main's "Assign a program" link.
+  - Onboard client and Change program popups: now `class="pop onboard"` with main's header (title, round close button top right), like every other popup. The "Invite ready" step changes the popup title instead of having its own heading. Dropped my `locked` class handling, since main's CSS locks the page behind any open `.pop` dialog.
+  - Open and close: took main's dialog-based client card. My Escape handler, which checked the Onboard and Change popups, went with it, since each `<dialog>` handles its own Escape now.
+  - Client card actions: took main's Message button (opens chat in the side card) and Export sets, added Change program between them. Dropped "Open program" as main did. The "Chat opens once..." hint keeps this branch's wording about the invite.
+  - Lifts and private notes: took main's (lift buttons open the chart beside the card, and real saved notes). Both sides had fixed the "nullnullnull" bug separately. Kept main's `el("div")` wrapper for the lift lists and kept a `.filter(Boolean)` on the card's children for my pending-change line.
+  - After Change program, the card now stays open and follows the client onto the new program. Main's card is a modal dialog, so my old "close the panel" (`selected = null`) would have left it open showing nothing. To do that, the change endpoint now also returns the new `program_id`.
+- `spec/programs.test.ts`: merged cleanly, but main's new private notes spec signed the client up through `/api/p/<token>/claim`, which this branch removed. It now uses `join(a.invite)`.
+
+Checked: `scripts/seed-jack.js` (main's demo data for every feature database) writes straight to the database and doesn't use the claim or invite endpoints, so it still works.
+
+Checks: restarted the app, `pnpm check` 18 pass (my 16 plus main's notes and CSV specs). Clicked through in headless Chrome at 1366px: logged in through the form, Onboard client (new popup style, light and dark), Create invite gave a `/join/` link and the title changed to "Invite ready", opened Ana's card (Message, Change program, Export sets, lifts, private notes), Change program opened on top of the card, and after the change the card stayed open on the new program. On Programs, Delete opened main's `ask()` popup. No script errors.
+
+Noticed but not caused by the merge: the dashboard has a 6px horizontal scroll at 1366px from the right-hand `.panel` column. My branch's `style.css` only differs from main's in the header button rule, the removed `.assign` rules and the new `.onboard` rules, none of which touch `.panel` or the grid, so this is on main too. Not fixed here, since it's main's layout. Flagging it.
+
