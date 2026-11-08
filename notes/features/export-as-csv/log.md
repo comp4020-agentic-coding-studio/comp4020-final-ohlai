@@ -33,3 +33,11 @@ I said: "that all looks good (and your picks for all of them). Idk where you are
 **Got wrong:** the `prescribed_reps` name in my first proposal (above). Also my first bash command to append the spec got blocked by the permission check (quotes inside braces in a heredoc), so I added the test with the editor instead.
 
 **Not done:** presets for the date range, client-side export, lb.
+
+## 2026-11-08 20:55
+
+I said: "once you click download csv it should close the popup"
+
+Before: the Export popup stayed open after Download CSV, so I had to close it myself. Now: a submit listener on the form in `public/dash.html` calls `hidePopover()`. It doesn't cancel the submit, so the download still happens.
+
+**Checked:** same headless Edge script, real click on Download CSV. Afterwards the popup is closed (`:popover-open` is false) and the file still downloaded with all 4 rows. `pnpm check` passes (13 tests).

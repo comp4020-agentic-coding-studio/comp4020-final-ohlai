@@ -102,6 +102,8 @@
   // The server dates each set by the PT's own day, not UTC.
   const tz = -new Date().getTimezoneOffset();
   $("x-tz").value = tz;
+  // The form still submits (the download), the popover just gets out of the way.
+  $("exportForm").addEventListener("submit", () => $("pv-export").hidePopover());
   const exportUrl = (email) => `/api/export.csv?client=${encodeURIComponent(email)}&tz=${tz}`;
 
   async function load(refresh) {

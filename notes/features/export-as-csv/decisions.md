@@ -16,3 +16,7 @@ I didn't know what options the download should have, so Claude laid out five cho
 ## 2026-11-08: No "prescribed reps" column
 
 Claude's first column list had `prescribed_sets, prescribed_reps`. I said: "Idk where you are getting prescribed_reps from though - a program should only have a sets for an exercise and a rep range". A program exercise has a number of sets and a rep range (like "8-10"), not a fixed rep count. The columns are now `target_sets` and `rep_range`, and `rep_range` is the text the PT typed in the builder, as is.
+
+## 2026-11-08: Close the popup on download
+
+I asked for the Export popup to close once I click Download CSV. Before, it stayed open. No other options came up, and I didn't give a reason, so none is written here.

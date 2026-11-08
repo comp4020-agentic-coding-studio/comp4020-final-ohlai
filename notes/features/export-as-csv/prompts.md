@@ -13,3 +13,7 @@ Feature: Export as csv
 ## 2026-11-08 20:40 (dashboard)
 
 that all looks good (and your picks for all of them). Idk where you are getting prescribed_reps from though - a program should only have a sets for an exercise and a rep range
+
+## 2026-11-08 20:53 (dashboard)
+
+once you click download csv it should close the popup
