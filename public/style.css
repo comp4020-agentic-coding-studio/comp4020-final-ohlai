@@ -638,3 +638,15 @@ html:has(dialog[open].pop, dialog[open].detail, dialog[open].drawer, .pop:popove
 .onboard .actions { flex-wrap: nowrap; }
 .onboard .actions > * { flex: 1; text-align: center; }
 .onboard .error:not(:empty), .onboard .share, .onboard #ob-none { margin-top: 10px; }
+/* The invite QR code. Always dark squares on a light plate, since some phone
+   cameras can't read one the other way round. In dark mode that means using the
+   tokens swapped: --ink is the light one there. */
+.qr { display: block; width: 200px; height: 200px; margin: 14px auto 0; border-radius: 10px; }
+.qr .qr-bg { fill: var(--card); }
+.qr path { fill: var(--ink); }
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) .qr .qr-bg { fill: var(--ink); }
+  :root:not([data-theme="light"]) .qr path { fill: var(--bg); }
+}
+:root[data-theme="dark"] .qr .qr-bg { fill: var(--ink); }
+:root[data-theme="dark"] .qr path { fill: var(--bg); }

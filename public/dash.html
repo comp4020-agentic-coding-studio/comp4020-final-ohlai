@@ -92,6 +92,7 @@
   </form>
   <section id="ob-done" hidden>
     <p id="ob-done-text"></p>
+    <div id="ob-qr"></div>
     <p class="share"><a id="ob-link" target="_blank"></a></p>
     <div class="actions">
       <button type="button" class="ob-cancel">Done</button>
@@ -154,6 +155,7 @@
   import { checkinCard } from "/checkin-card.js";
   import { exHistory, liftSummary } from "/lift-chart.js";
   import { mountChat } from "/chat.js";
+  import { qrSvg } from "/qr.js";
   mountSide();
   $("today").textContent = new Date().toLocaleDateString("en-AU", { weekday: "long", day: "numeric", month: "long" });
 
@@ -412,7 +414,8 @@
     me ??= (await api("/api/me"))[0].me;
     const url = `${location.origin}/join/${data.invite}`;
     $("ob-link").href = $("ob-link").textContent = url;
-    $("ob-done-text").textContent = `${name} is on your dashboard with ${prog.textContent}. Email them this invite from your own email:`;
+    $("ob-qr").innerHTML = qrSvg(url); // our own SVG string, only the URL goes in it
+    $("ob-done-text").textContent = `${name} is on your dashboard with ${prog.textContent}. They can scan this with their phone, or you can email them the invite from your own email:`;
     // Written as the PT, since it goes from the PT's own email.
     const msg = `Hi ${name},\n\nI've just invited you to join my gym app. Your program "${prog.textContent}" is ready for you. Sign up here and you can log your sets on your phone as you train:\n\n${url}\n\n${me.name}`;
     $("ob-mail").href = `mailto:${encodeURIComponent(email)}?subject=${encodeURIComponent(`${me.name} invited you to their gym app`)}&body=${encodeURIComponent(msg)}`;
