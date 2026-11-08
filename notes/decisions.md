@@ -409,3 +409,16 @@ Follows the 2026-11-07 entry above. Built in `COMP4020/meta/`.
   panel rises and settles), and for New feature to keep what I've typed if I
   click off it to check another feature. Kept for the browser tab only, not
   across sessions, as I said.
+
+## 2026-11-08: The notification bell goes before the feature name
+
+- Asked to move each feature's bell from the top right (after the time and
+  status) to the top left, before the name, and to show it on every feature,
+  greyed out when the feature can't notify right now. I didn't want it in the
+  row with Edit, Notes and Drop, because it's a different type of button. Asked
+  Claude what it thought: it agreed, since the bell is a setting that stays on,
+  like a star or flag in a mail app, while the bottom row is actions.
+- Greyed out means the feature has no agent (planned, dropped, or merged with
+  its folder removed). It can still be clicked, so a planned feature can be
+  set to notify before its agent starts. The bells still only show in the
+  "select" notification mode, the only one where they do anything.

@@ -102,6 +102,10 @@
   #mention div.on { background:var(--fg); color:var(--bg); }
   #mention small { opacity:.6; margin-left:6px; }
   button.sq { width:30px; height:30px; padding:0; display:inline-grid; place-items:center; }
+  button.bell { width:26px; height:26px; align-self:flex-start; margin-right:-4px; }
+  button.bell svg.i { width:15px; height:15px; }
+  button.bell.off { opacity:.35; }
+  button.bell.off.on { opacity:.45; }
   .brand { display:flex; align-items:center; gap:10px; }
   .brand img { width:30px; height:30px; }
   @media (prefers-color-scheme: dark) { .brand img { filter:invert(1); } }
@@ -279,8 +283,16 @@ const MENTION_HINT = `<div class="hint">@ to tag a related feature. The agent re
 const port = (slug) => all.find((x) => x.slug === slug).port;
 // Time, status, then the bell, in that order on every card.
 const head = (f, cls, label, when) => { const [k, detail] = kind(f); return `<span class="meta">${when}</span>
-      <span class="pill ${k} ${cls}"><span class="dot"></span>${k}${detail ? `<span class="detail">· ${esc(detail)}</span>` : ""}</span>
-      ${mode === "select" && f.worktree ? `<button class="sq ${bells.has(f.slug) ? "on" : ""}" data-act="bell" title="${bells.has(f.slug) ? "Notifying you about this feature. Click to stop." : "Notify me about this feature"}">${bells.has(f.slug) ? ICON.all : ICON.bell}</button>` : ""}`; };
+      <span class="pill ${k} ${cls}"><span class="dot"></span>${k}${detail ? `<span class="detail">· ${esc(detail)}</span>` : ""}</span>`; };
+// The bell sits before the name: it's a setting on the feature, not an
+// action like the buttons at the bottom. Only shown in "select" mode, where
+// it matters. Greyed out while the feature has no agent to hear from.
+function bellBtn(f) {
+  if (mode !== "select") return "";
+  const on = bells.has(f.slug), can = !!f.worktree;
+  const why = { planned: "It can notify you once an agent starts. Turning this on now means it will.", merged: "Its agent has finished and its folder is removed, so there's nothing to notify you about.", dropped: "Dropped, so there's nothing to notify you about." }[f.status] || "No agent running for it right now.";
+  return `<button class="sq bell ${on ? "on" : ""} ${can ? "" : "off"}" data-act="bell" title="${can ? (on ? "Notifying you about this feature. Click to stop." : "Notify me about this feature") : why}">${on ? ICON.all : ICON.bell}</button>`;
+}
 // Every card ends with the same row: everyday buttons on the left, the one
 // that moves the feature on (in black) on the right.
 const actions = (left, right) => `<div class="row actions">${left}<span class="grow" style="min-width:0"></span>${right}</div>`;
@@ -305,6 +317,7 @@ function card(f) {
     ${st.denied?.length ? `<div class="msg bad">Blocked in the background run (open the session to allow):\n${esc(st.denied.join("\n"))}</div>` : ""}`;
   return `<div class="card" data-slug="${f.slug}">
     <div class="row">
+      ${bellBtn(f)}
       <div class="grow head" data-act="collapse" title="${c ? "Show details" : "Collapse to title, status and buttons"}">
         <div class="title"><span class="chev">${c ? "▸" : "▾"}</span>${esc(f.title)}${f.merged && cls !== "merged" ? " <span class='meta'>· merged</span>" : ""}</div>
         ${c ? "" : details}
@@ -344,6 +357,7 @@ function simpleCard(f) {
   const leftover = f.status === "dropped" && f.dir && !f.removed;
   return `<div class="card past ${cls}" data-slug="${f.slug}">
     <div class="row">
+      ${bellBtn(f)}
       <div class="grow">
         <div class="title">${esc(f.title)}</div>
         <div class="meta">${when}${spent(f.usage) ? " · " + spent(f.usage) : ""}${prev ? ` · continues “${esc(prev.title)}”` : ""}${later.length ? " · continued in " + later.map((x) => "“" + esc(x.title) + "”").join(", ") : ""}</div>

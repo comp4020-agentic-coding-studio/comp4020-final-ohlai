@@ -110,8 +110,10 @@ were imported on 2026-11-08, with their notes copied word for word into each
   `PONYTAIL_DEFAULT_MODE=full` in the agents' environment, so every agent runs
   it at full and nothing else changes.
 - **Bells**: notifications when an agent needs me, finishes, fails or is
-  interrupted. Silent, only features with their bell on, or all. Only while
-  the page is open.
+  interrupted. Silent, only features with their bell on, or all. Each
+  feature's bell is before its name (select mode only), greyed out while it
+  has no agent but still clickable, so a planned feature can be set ahead.
+  Only while the page is open.
 - Filters: All, then one per status from most to least urgent (Waiting,
   Working, Planned, Merged, Dropped). All is sorted the same way, and within
   waiting, needing me comes before being cut off, then finished. Search is
