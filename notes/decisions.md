@@ -422,3 +422,10 @@ Follows the 2026-11-07 entry above. Built in `COMP4020/meta/`.
   its folder removed). It can still be clicked, so a planned feature can be
   set to notify before its agent starts. The bells still only show in the
   "select" notification mode, the only one where they do anything.
+
+## 2026-11-08: New logo, a moth
+
+- Swapped the M-shaped logo for a moth. The dashboard's copy
+  (`tools/feature-agents/logo.png`) is cut out of the black frame and white card
+  the original came on, cropped to the moth, scaled to 256px and made
+  transparent, the same way as the first one.

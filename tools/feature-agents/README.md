@@ -1,6 +1,6 @@
 # Cannu: parallel agent management
 
-The feature agents dashboard, called Cannu (logo in `logo.png`). Not part of the app. This is the tool I used to build the app: one git
+The feature agents dashboard, called Cannu (a moth logo, `logo.png`). Not part of the app. This is the tool I used to build the app: one git
 branch, folder and Claude Code session per feature, with one page that shows
 what every agent is doing and lets me plan features, talk to the agents, and
 merge their work. Node built-ins only, nothing to install.
