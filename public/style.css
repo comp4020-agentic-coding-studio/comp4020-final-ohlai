@@ -442,8 +442,7 @@ body.chatpage[data-view="desktop"] .compose { max-width: 1120px; margin: 0 auto;
 .landing { min-height: 100vh; display: flex; flex-direction: column; }
 .landing main { width: 100%; max-width: 1120px; padding: 0 16px 48px; flex: 1; }
 .landing main.narrow { max-width: 440px; padding-top: 24px; }
-header.site, footer.site { display: flex; justify-content: space-between; align-items: center; gap: 12px; max-width: 1120px; width: 100%; margin: 0 auto; padding: 16px; }
-footer.site { color: var(--muted); }
+header.site { display: flex; justify-content: space-between; align-items: center; gap: 12px; max-width: 1120px; width: 100%; margin: 0 auto; padding: 16px; }
 .brand { font-weight: 700; font-size: 1.15rem; color: var(--ink); text-decoration: none; letter-spacing: -0.01em; }
 header.site nav { display: flex; gap: 12px; align-items: center; }
 header.site nav a:not(.btn) { color: var(--ink); text-decoration: none; font-weight: 600; }
@@ -549,8 +548,8 @@ body[data-view="desktop"] .drawer { inset: auto 24px 0 auto; margin: 0; height: 
 .day-head { display: flex; gap: 10px; align-items: center; margin-bottom: 10px; }
 .day-name { font-size: 1.1rem; font-weight: 600; max-width: 320px; }
 .day-head .rmday { margin-left: auto; }
-.ex-head, .exrow { display: grid; grid-template-columns: minmax(180px, 2fr) 80px 100px 100px minmax(140px, 2fr) 44px; gap: 8px; align-items: center; }
-.ex-head { color: var(--muted); font-size: 0.78rem; padding: 0 2px 4px; }
+.builder .ex-head, .exrow { display: grid; grid-template-columns: minmax(180px, 2fr) 80px 100px 100px minmax(140px, 2fr) 44px; gap: 8px; align-items: center; }
+.builder .ex-head { color: var(--muted); font-size: 0.78rem; padding: 0 2px 4px; }
 .exlist { list-style: none; margin: 0 0 10px; padding: 0; display: grid; gap: 6px; }
 .exrow input { padding: 8px 10px; }
 .exrow .rm { padding: 8px 0; }
