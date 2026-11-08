@@ -45,3 +45,7 @@ As for "Links from before accounts existed" im happy with your recs.
 Yes remove old page addresses.
 
 Just leave the old data for now.
+
+## 2026-11-08 21:34 (dashboard)
+
+yes this is a better fit for what were trying to do. yes invite link just goes to login once used. im confused by what you mean with program links for a loggedin client

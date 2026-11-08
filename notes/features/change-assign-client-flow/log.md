@@ -114,3 +114,26 @@ Kept: sets with no session (old data), grouped by day, as I asked.
 Not touched yet: the ended-program banner, `moved_to` and the `/join` forward. They depend on the next question.
 
 `pnpm check`: 16 pass.
+
+## 2026-11-08 21:40 Invites are to the app, not to a program
+
+On the invite I said: "if we send an invite link to a client it should be an invite to the app not a program so they should always be able to use that link to sign up but that link shuold not be tied to a program. The program shuold be tied to the user. Does that make sense? Is that how youve implemented it atm?"
+
+It wasn't. Until now (see "Built the onboard flow" above) the `/join/<token>` invite was the program's own client link. So changing a client's program before they signed up left their invite on the old program, which is why I'd added the "moved to a new program" banner, `moved_to` and the `/join` forwarding in "Change program, and Duplicate on Programs".
+
+I gave two options: A, an invites table, or B, keep the token on the program but look up the current program. I recommended A. Then: "yes this is a better fit for what were trying to do. yes invite link just goes to login once used. im confused by what you mean with program links for a loggedin client"
+
+On program links I explained it in plain words: when Ana taps "Day 1" on her dashboard, her phone opens an address like `/p/Xk3f9...`. Before this, that address was also what got emailed. Now nobody sees or shares it; it's just where the Day 1 button goes. I'm keeping it as it is, since changing it would change nothing for the PT or the client, and said so in case you want it gone.
+
+What changed:
+
+- New `invites` table in `server.js` (token, PT, name, email, created, used). Additive.
+- Onboard client (`POST /api/templates/:id/assign`) now also makes an invite and returns its token. The dashboard popup builds the `/join/<invite>` link from that.
+- `GET /api/invite/<token>` gives the name, email, PT name and the client's current program title. Once used, it just returns `{ used: true }` and `public/join.html` sends them to `/login?next=/me`.
+- `POST /api/invite/<token>` signs up (or logs into an existing client account with that email), links every program this PT has for the invite's email that has no account yet, marks the invite used and logs them in. The client can still fix their name and email.
+- Removed: `/api/p/<token>/claim` completely, the `moved_to` field, the "moved you to a new program" banner on the program page, and the `/join` forward. An ended program still can't start a workout and shows no Start buttons ("Ended"), but nothing in the app links to one.
+- Wording that still talked about setting a password from a link: chat and check-in hints in the dashboard side panel, the inbox empty state, the check-ins empty state and the landing page now talk about the invite.
+- New ADR `docs/adr/0005-invites-and-changing-programs.md`, which replaces the "Claiming" part of ADR 3.
+- Spec: the helper now returns the invite, and a `join()` helper signs up through it. The invite test checks the sign-up page, the invite details, a bad token, a bad email, a short password, signing up with an edited name and email, and that a used invite returns `{ used: true }` and refuses a second sign-up. The "before sign-up" test now checks that the same invite shows and gets the new program. The change-program test checks the client's `/me` has the new program and note, and no `pt_token`. The dashboard test checks another PT can't change the client's program (the old "can't claim with a PT link" check went with the endpoint).
+
+Checks: `pnpm check`, 16 pass. Clicked through in headless Chrome: logged in as the PT through the login form, onboarded Ben, changed his program to "Strength block (copy)" with a note before he signed up, and the dashboard showed one Ben row on the new program. At 390px with no login, opened the invite: it said "Your program "Strength block (copy)" is ready". Typed a password, clicked Sign up, landed on `/me` with only the new program and the note. Opened the invite again with no login and it went to `/login?next=/me`.

@@ -239,7 +239,7 @@
         el("button", { type: "button", textContent: "Change program", onclick: () => { changeProgram(x); } }),
         x.client_user_id
           ? el("a", { href: `/chat/${x.client_user_id}`, className: "btn", textContent: `Message${x.unread ? ` (${x.unread} new)` : ""}` })
-          : el("span", { className: "muted", textContent: `Chat opens once ${x.client_name} sets a password from their link.` })),
+          : el("span", { className: "muted", textContent: `Chat opens once ${x.client_name} signs up from their invite.` })),
       el("h3", { textContent: "Last 7 days" }),
       el("ul", { className: "plain" }, ...x.days.map((d) => {
         const w = x.week.filter((s) => s.day === d).at(-1);
@@ -251,7 +251,7 @@
         : el("p", { className: "muted", textContent: "Nothing logged yet." }),
       el("h3", {}, "Latest check-in ", el("a", { href: `/checkins#c${x.client_user_id}`, className: "muted", textContent: "All check-ins" })),
       x.checkin ? checkinCard(x.checkin)
-        : el("p", { className: "muted", textContent: x.client_user_id ? `${x.client_name} hasn't checked in yet.` : `Check-ins open once ${x.client_name} sets a password.` }),
+        : el("p", { className: "muted", textContent: x.client_user_id ? `${x.client_name} hasn't checked in yet.` : `Check-ins open once ${x.client_name} signs up.` }),
       el("h3", { textContent: "Lifts" }),
       el("p", { className: "muted", textContent: "Click a lift to see its progress chart." }),
       liftList("stalled"), liftList("up"), liftList("steady"), liftList("new"),
@@ -290,7 +290,7 @@
     $("ob-go").disabled = false;
     if (!ok) { $("ob-err").textContent = data.error; return; }
     me ??= (await api("/api/me"))[0].me;
-    const url = `${location.origin}/join/${data.clientToken}`;
+    const url = `${location.origin}/join/${data.invite}`;
     $("ob-link").href = $("ob-link").textContent = url;
     $("ob-done-text").textContent = `${name} is on your dashboard with ${prog.textContent}. Email them this invite from your own email:`;
     // Written as the PT, since it goes from the PT's own email.

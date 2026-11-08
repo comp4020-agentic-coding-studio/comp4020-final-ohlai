@@ -55,7 +55,7 @@
           el("span", { className: t.unread ? "preview unread" : "preview muted",
             textContent: !t.last ? "No messages yet" : `${t.last.sender_id === t.id ? "" : "You: "}${t.last.image ? "Photo" : t.last.body}` })),
         t.unread ? el("span", { className: "badge", textContent: t.unread }) : null)))
-      : [el("li", { className: "muted pad", textContent: threads.length ? "No clients match." : "No conversations yet. A client shows up here once they set a password from their link." })]));
+      : [el("li", { className: "muted pad", textContent: threads.length ? "No clients match." : "No conversations yet. A client shows up here once they sign up from their invite." })]));
   }
 
   // Opening a thread marks it read on the server, so the list refreshes after.

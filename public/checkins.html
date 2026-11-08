@@ -67,7 +67,7 @@
         ...(mine.length ? [checkinCard(mine[0])] : []),
         mine.length > 1 ? el("details", {}, el("summary", { textContent: `${mine.length - 1} earlier` }), ...mine.slice(1).map(checkinCard)) : null);
     }) : [el("section", { className: "panel" }, el("p", { className: "muted",
-      textContent: "No clients with an account yet. Once a client sets a password from their link, they can check in." }))]));
+      textContent: "No clients with an account yet. Once a client signs up from their invite, they can check in." }))]));
     if (first && location.hash) document.querySelector(location.hash)?.scrollIntoView();
   }
   load(true);

@@ -22,9 +22,20 @@ async function program(pt?: string, client_email = `client-${unique()}@example.c
   const saved = await api("/api/templates", { name: "Spec block", exercises: [{ day: "Day 1", name: "Squat", sets: 3, reps: "5" }] }, pt);
   const made = await api(`/api/templates/${(await saved.json()).id}/assign`, { client_name: "Client", client_email }, pt);
   expect(made.status).toBe(201);
-  const { ptToken, clientToken } = await made.json();
+  const { ptToken, clientToken, invite } = await made.json();
   const client = await (await api(`/api/p/${clientToken}`)).json();
-  return { pt, ptToken, clientToken, client, exercise_id: client.exercises[0].id };
+  return { pt, ptToken, clientToken, invite, client, exercise_id: client.exercises[0].id };
+}
+
+// The client signs up from their invite. Returns the response and their login cookie.
+async function join(invite: string, body: object = { password: "password123" }) {
+  const res = await api(`/api/invite/${invite}`, body);
+  return { res, cookie: cookieOf(res) };
+}
+// Who a signed-up client is and which PT they have.
+async function whoAmI(cookie: string) {
+  const me = await (await api("/api/me", undefined, cookie)).json();
+  return { client_user_id: me.me.id, pt_user_id: me.pts[0]?.id, me };
 }
 
 it("a client logs sets in a workout, the PT sees them and cannot log", async () => {
@@ -62,28 +73,32 @@ it("rejects a program with no exercises, or from someone not logged in as a PT",
   expect((await api("/api/templates", body)).status).toBe(401);
 });
 
-it("an invite link opens the sign-up page, and the client can fix the name and email the PT typed", async () => {
-  const { pt, clientToken } = await program();
-  const page = await api(`/join/${clientToken}`);
+it("an invite is to the app: the client signs up, can fix the name and email, and it only works once", async () => {
+  const { pt, invite } = await program();
+  const page = await api(`/join/${invite}`);
   expect(page.status).toBe(200);
   expect(await page.text()).toContain("Sign up");
+  expect(await (await api(`/api/invite/${invite}`)).json()).toMatchObject({ name: "Client", pt_name: "PT", program: "Spec block" });
+  expect((await api("/api/invite/nope")).status).toBe(404);
+
   const email = `fixed-${unique()}@example.com`;
-  expect((await api(`/api/p/${clientToken}/claim`, { name: "Ana", email: "not-an-email", password: "password123" })).status).toBe(400);
-  const joined = await api(`/api/p/${clientToken}/claim`, { name: "Ana", email, password: "password123" });
-  expect(joined.status).toBe(200);
-  expect((await joined.json()).program).toMatchObject({ client_name: "Ana", client_email: email });
+  expect((await join(invite, { name: "Ana", email: "not-an-email", password: "password123" })).res.status).toBe(400);
+  expect((await join(invite, { name: "Ana", email, password: "short" })).res.status).toBe(400);
+  const { res, cookie } = await join(invite, { name: "Ana", email, password: "password123" });
+  expect(res.status).toBe(200);
+  expect((await whoAmI(cookie)).me.programs.map((p: { title: string }) => p.title)).toEqual(["Spec block"]);
   expect((await api("/api/login", { email, password: "password123" })).status).toBe(200);
   const dash = await (await api("/api/dash", undefined, pt)).json();
   expect(dash.clients.map((c: { client_name: string }) => c.client_name)).toContain("Ana");
-  // The invite only works once.
-  expect((await api(`/api/p/${clientToken}/claim`, { password: "password123" })).status).toBe(409);
+  // Once used, the invite just says so (the page sends them to log in) and can't sign up again.
+  expect(await (await api(`/api/invite/${invite}`)).json()).toEqual({ used: true });
+  expect((await join(invite)).res.status).toBe(409);
 });
 
 it("changing a client's program keeps every logged set, and waits if they're mid-workout", async () => {
-  const { pt, clientToken, exercise_id } = await program();
-  const claimed = await api(`/api/p/${clientToken}/claim`, { password: "password123" });
-  const client = cookieOf(claimed);
-  const old = (await claimed.json()).program;
+  const { pt, clientToken, invite, exercise_id } = await program();
+  const { cookie: client } = await join(invite);
+  const old = (await (await api(`/api/p/${clientToken}`)).json()).program;
   const { id: template_id } = await (await api("/api/templates", { name: "Block 2", exercises: [{ day: "Day A", name: "Deadlift", sets: 3, reps: "5" }] }, pt)).json();
   const other = await signupPT("Other PT");
   expect((await api(`/api/programs/${old.id}/change`, { template_id }, other)).status).toBe(404);
@@ -100,11 +115,10 @@ it("changing a client's program keeps every logged set, and waits if they're mid
   const finished = await (await api(`/api/p/${clientToken}/finish`, {})).json();
   expect(finished.ended).toBe(true);
   expect(finished.logs).toMatchObject([{ set_no: 1, reps: 5, weight: 100 }]);
-  expect(finished.moved_to).toBeTruthy();
   expect((await api(`/api/p/${clientToken}/start`, { day: "Day 1" })).status).toBe(409);
-  const next = await (await api(`/api/p/${finished.moved_to}`)).json();
-  expect(next.role).toBe("client"); // the client link leads to the new client link, never a PT link
-  expect(next).toMatchObject({ program: { title: "Block 2", client_user_id: old.client_user_id }, change_note: "New block, go easy on the deadlifts." });
+  const mine = await (await api("/api/me", undefined, client)).json();
+  expect(mine.programs).toMatchObject([{ title: "Block 2", change_note: "New block, go easy on the deadlifts." }]);
+  expect(JSON.stringify(mine)).not.toContain("pt_token");
 
   dash = await (await api("/api/dash", undefined, pt)).json();
   expect(dash.clients.map((c: { title: string }) => c.title)).toEqual(["Block 2"]);
@@ -114,14 +128,15 @@ it("changing a client's program keeps every logged set, and waits if they're mid
   expect(me.workouts).toHaveLength(1);
 });
 
-it("changing the program before the client signs up moves the invite to the new program", async () => {
-  const { pt, clientToken } = await program();
+it("changing the program before the client signs up: the same invite gets them the new one", async () => {
+  const { pt, clientToken, invite } = await program();
   const old = (await (await api(`/api/p/${clientToken}`)).json()).program;
   const { id: template_id } = await (await api("/api/templates", { name: "Block 2", exercises: [{ name: "Row" }] }, pt)).json();
   expect((await api(`/api/programs/${old.id}/change`, { template_id }, pt)).status).toBe(200);
-  const { moved_to } = await (await api(`/api/p/${clientToken}`)).json();
-  expect((await api(`/api/p/${clientToken}/claim`, { password: "password123" })).status).toBe(409);
-  expect((await api(`/api/p/${moved_to}/claim`, { password: "password123" })).status).toBe(200);
+  expect((await (await api(`/api/invite/${invite}`)).json()).program).toBe("Block 2");
+  const { res, cookie } = await join(invite);
+  expect(res.status).toBe(200);
+  expect((await whoAmI(cookie)).me.programs.map((p: { title: string }) => p.title)).toEqual(["Block 2"]);
 });
 
 it("duplicating a program makes a separate copy", async () => {
@@ -142,18 +157,16 @@ it("a PT's dashboard shows their own clients and nobody else's", async () => {
   const theirs = await (await api("/api/dash", undefined, b)).json();
   expect(theirs.clients).toEqual([]);
   expect((await api("/api/dash")).status).toBe(401);
-  // Nobody can take over a program with its PT link.
-  expect((await api(`/api/p/${a.ptToken}/claim`, {}, b)).status).toBe(403);
+  // Another PT can't change their program.
+  expect((await api(`/api/programs/${mine.clients[0].program_id}/change`, { template_id: 1 }, b)).status).toBe(404);
 });
 
 it("a client signs up from their invite, then only their own PT can message them", async () => {
   const email = `client-${unique()}@example.com`;
-  const { pt, clientToken } = await program(undefined, email);
-  expect((await api(`/api/p/${clientToken}/claim`, { password: "short" })).status).toBe(400);
-  const claimed = await api(`/api/p/${clientToken}/claim`, { password: "password123" });
-  expect(claimed.status).toBe(200);
-  const client = cookieOf(claimed);
-  const { program: p } = await claimed.json();
+  const { pt, invite } = await program(undefined, email);
+  const { res, cookie: client } = await join(invite);
+  expect(res.status).toBe(200);
+  const p = await whoAmI(client);
 
   // and can log in with it later
   expect((await api("/api/login", { email, password: "password123" })).status).toBe(200);
@@ -208,10 +221,9 @@ it("templates belong to the PT who saved them", async () => {
 });
 
 it("a client's check-in reaches their own PT and nobody else, and shows in the inbox list", async () => {
-  const { pt, clientToken } = await program();
-  const claimed = await api(`/api/p/${clientToken}/claim`, { password: "password123" });
-  const client = cookieOf(claimed);
-  const { program: p } = await claimed.json();
+  const { pt, invite } = await program();
+  const { cookie: client } = await join(invite);
+  const p = await whoAmI(client);
 
   expect((await api("/api/checkins", { questions: [{ text: "Knee pain?", kind: "scale" }, { text: "Notes", kind: "text" }] }, pt)).status).toBe(200);
   const form = await (await api(`/api/checkin/${p.pt_user_id}`, undefined, client)).json();

@@ -7,8 +7,8 @@
   <link rel="stylesheet" href="/style.css" />
   <script src="/theme.js"></script>
 </head>
-<!-- Where the invite link from "Onboard client" lands. The link is the program's
-     client link, so signing up here is the same claim as the banner on /p/. -->
+<!-- Where the invite link from "Onboard client" lands. The invite is to the app,
+     not a program: signing up links whatever program the PT has given them. -->
 <body class="landing">
 <header class="site"><a href="/" class="brand">Program</a></header>
 <main class="narrow">
@@ -30,23 +30,20 @@
 <script type="module">
   import { $, api } from "/ui.js";
   const tok = location.pathname.split("/").pop();
-  const [data, ok] = await api(`/api/p/${tok}`);
-  // The PT changed their program before they signed up: the invite follows it.
-  if (ok && data.moved_to) location.replace(`/join/${data.moved_to}`);
-  else if (!ok || data.role !== "client") $("err").textContent = "This invite link doesn't work. Ask your PT to send it again.";
-  else if (data.claimed) location.replace("/login?next=/me");
+  const [data, ok] = await api(`/api/invite/${tok}`);
+  if (!ok) $("err").textContent = data.error ?? "This invite link doesn't work. Ask your PT to send it again.";
+  else if (data.used) location.replace("/login?next=/me"); // already signed up: it's just a way back in
   else {
-    const p = data.program;
-    $("hi").textContent = `Hi ${p.client_name}`;
-    $("sub").textContent = `${p.pt_name} just invited you to join their gym app. Your program "${p.title}" is ready.`;
-    $("jName").value = p.client_name;
-    $("jEmail").value = p.client_email;
+    $("hi").textContent = `Hi ${data.name}`;
+    $("sub").textContent = `${data.pt_name} just invited you to join their gym app.${data.program ? ` Your program "${data.program}" is ready.` : ""}`;
+    $("jName").value = data.name;
+    $("jEmail").value = data.email;
     $("join").hidden = false;
   }
 
   $("join").onsubmit = async (e) => {
     e.preventDefault();
-    const [res, ok] = await api(`/api/p/${tok}/claim`, { name: $("jName").value, email: $("jEmail").value, password: $("jPass").value });
+    const [res, ok] = await api(`/api/invite/${tok}`, { name: $("jName").value, email: $("jEmail").value, password: $("jPass").value });
     if (!ok) { $("err").textContent = res.error; return; }
     location.href = "/me";
   };

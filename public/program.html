@@ -157,13 +157,6 @@
   async function renderBanner() {
     const { role, claimed, program } = state;
     const b = $("banner");
-    // An old link to a program that's been replaced points on to the new one.
-    if (state.ended) {
-      return b.replaceChildren(el("div", { className: "card notice" },
-        el("p", { textContent: role === "pt" ? `${program.client_name} has moved to a new program. This one is kept for their history.`
-          : `${program.pt_name} has moved you to a new program. Your sets from this one are kept.` }),
-        state.moved_to ? el("a", { href: `/p/${state.moved_to}`, className: "btn primary", textContent: "Open the new program" }) : ""));
-    }
     b.replaceChildren();
   }
 
@@ -251,7 +244,7 @@
       ["Last", all.length ? fmtDay(all.at(-1).start) : "–"]].map(stat));
 
     const dayNames = [...new Set(exercises.map((e) => e.day))];
-    // An ended program is history only: no Start buttons, the banner links to the new one.
+    // An ended program is history only, so no Start buttons.
     const picks = state.ended ? [] : dayNames.map((d) => {
       const lastDone = all.filter((w) => w.day === d).at(-1);
       return el("article", { className: "card pick" },

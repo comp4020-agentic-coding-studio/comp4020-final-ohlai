@@ -49,3 +49,25 @@
 ## 2026-11-08 Duplicate a program
 
 - Asked for: "add an option to duplicate a program in the programs page." Makes "{name} (copy)", which you then edit.
+
+## 2026-11-08 Drop support for old links
+
+- Came up: I said "we can assume that no one has gotten an old link to a program so we dont have to depreciate them we can just dont aknowledge them or support them".
+- Picked: remove the dashboard footer about old programs, the "Add to my dashboard" and "Set a password" banners on program links, the PT side of claiming, `POST /api/programs`, and the `/templates` and `/new` redirects ("im happy with your recs", "Yes remove old page addresses"). Reword the login hint to point at the invite.
+- Rejected for now: removing support for sets with no session. "Just leave the old data for now."
+
+## 2026-11-08 Invites are to the app, not a program
+
+- Came up: "if we send an invite link to a client it should be an invite to the app not a program so they should always be able to use that link to sign up but that link shuold not be tied to a program. The program shuold be tied to the user."
+- Options: A, an invites table (token, PT, name, email, used), with programs tied to the client by email until sign-up, then by account; B, keep the token on the program but look up the current program.
+- Picked: A. "yes this is a better fit for what were trying to do." ADR: `docs/adr/0005-invites-and-changing-programs.md`.
+- This replaces the earlier "Where the invite link goes" decision, where `/join/<token>` used the program's client link.
+
+## 2026-11-08 A used invite
+
+- Picked: "yes invite link just goes to login once used."
+
+## 2026-11-08 Program links inside the app
+
+- Came up: whether to keep `/p/<token>` as the address of a program once a client is logged in, or rebuild it around the login. I wasn't clear the first time ("im confused by what you mean with program links for a loggedin client").
+- What I did: kept `/p/<token>` as it is, since nobody shares it any more and changing it changes nothing anyone sees. I explained it again and said so. Waiting to hear if you want it gone.
