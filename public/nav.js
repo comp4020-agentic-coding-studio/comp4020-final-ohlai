@@ -2,6 +2,7 @@
 // A highlight slides to the tapped icon, then the page changes.
 // shortcut: own icons and styling; swap for the Macros nav once its source is pulled from atlas.
 import { el } from "/ui.js";
+import "/call.js"; // a call from the PT rings on every client app page
 
 const LINKS = [
   ["/me", "Dashboard", "M3 13h8V3H3zm0 8h8v-6H3zm10 0h8V11h-8zm0-18v6h8V3z"],

@@ -436,6 +436,38 @@ body.chatpage[data-view="desktop"] .compose { max-width: 1120px; margin: 0 auto;
 .photo:focus-within { outline: 3px solid var(--accent); outline-offset: 2px; }
 .chatpage .error { position: fixed; bottom: 76px; left: 16px; }
 
+/* video call: no backplate, just floating cards like the chat drawer. Each
+   video card is sized in call.js to its video's exact shape, so the video
+   fills it edge to edge with the card's rounded corners. Nothing sits on top
+   of the other person's video; your camera and the status + End are their
+   own cards beside it (below it on a phone). */
+.call { max-width: none; max-height: none; padding: 0; border: 0; background: none; overflow: visible; color: var(--ink); }
+.call[open] { display: flex; align-items: flex-start; gap: 12px; }
+.call::backdrop { background: rgba(0, 0, 0, 0.45); backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px); }
+.callcard { border-radius: 22px; background: var(--card); overflow: hidden; box-shadow: 0 30px 80px -30px rgba(0, 0, 0, 0.6); flex: none; }
+.callcard video { display: block; width: 100%; height: 100%; object-fit: cover; background: var(--soft); }
+.callcard video.self { transform: scaleX(-1); } /* a mirror, like every video app */
+.call-side { display: flex; flex-direction: column; gap: 12px; width: 250px; }
+.call-panel { display: flex; flex-direction: column; gap: 14px; padding: 16px; }
+.call-status { margin: 0; font-weight: 600; }
+.call .actions { display: flex; gap: 10px; }
+.call .actions button { flex: 1; border-radius: 12px; }
+.call .end { background: var(--warn); border-color: var(--warn); color: var(--bg); }
+@media (max-width: 699px) {
+  .call[open] { flex-direction: column; align-items: center; }
+  .call-side { flex-direction: row; align-items: flex-start; width: calc(100vw - 24px); }
+  .call-panel { flex: 1; min-width: 0; }
+}
+
+/* Chat compose bar: icon buttons, the text box and Send all one height, and
+   the two icon buttons the same square size. */
+.compose { align-items: stretch; }
+.compose .photo { width: 46px; height: 46px; padding: 0; margin: 0; flex: none; border-radius: 10px; } /* margin: the photo button is a <label>, which has a top margin */
+.compose input:not([type="file"]), .compose button.primary { height: 46px; padding-top: 0; padding-bottom: 0; }
+/* On the client's phone the Call button sits top right, not in the compose bar. */
+.drawer-head h2 { flex: 1; }
+.topcall { width: 44px; height: 44px; padding: 0; display: inline-grid; place-items: center; border-radius: 50%; flex: none; }
+
 /* landing and login */
 .landing { min-height: 100vh; display: flex; flex-direction: column; }
 .landing main { width: 100%; max-width: 1120px; padding: 0 16px 48px; flex: 1; }
