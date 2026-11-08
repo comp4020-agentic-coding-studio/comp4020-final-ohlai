@@ -12,9 +12,6 @@ The older features below keep their notes inline.
 ### logout conformation
 - 2026-11-07: Built in its own branch (`feat/logout-conformation`). Notes, prompts and decisions are in `features/logout-conformation/`.
 
-### toggles and nav bar
-- 2026-11-07: Built in its own branch (`feat/toggles-and-nav-bar`). Notes, prompts and decisions are in `features/toggles-and-nav-bar/`.
-
 ### Client app for the phone: nav, dashboard, settings, dark mode
 - 2026-11-06: No toggle. Bottom pill nav (Dashboard, Settings). Dashboard has
   program days as shortcuts, the last three workouts that expand, and an all
@@ -102,6 +99,9 @@ The older features below keep their notes inline.
   server.
 
 ## Done
+
+### toggles and nav bar
+- 2026-11-07: Built in its own branch (`feat/toggles-and-nav-bar`). Notes, prompts and decisions are in `features/toggles-and-nav-bar/`.
 
 ### Server-side log of who did what (crit 10)
 - 2026-10-19: `audit()` in `server.js`, events table, ADR 0002. Tagged
