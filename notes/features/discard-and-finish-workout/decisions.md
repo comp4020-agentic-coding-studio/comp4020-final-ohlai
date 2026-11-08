@@ -12,3 +12,11 @@ Options the agent gave:
 What I picked: none of these exactly. Both buttons, made smaller, go on the same line as the day name.
 
 Why: having them on a row of their own at the top looked ugly and weird.
+
+## 2026-11-09 Where Discard takes the client
+
+What came up: after Discard, the client landed on the program page's picker, the full list of days. I said it should go back to the dash.
+
+What I picked: after Discard, a signed-up client goes to their dashboard (`/me`).
+
+Left as it was, as small details: a link-only client, who has no dashboard, stays on the picker. Finish still stays on the program page, because I only asked about Discard.

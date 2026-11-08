@@ -24,3 +24,13 @@ What changed:
 Checked: screenshots at 390px in light and dark on the feature app (port 8090), with a seeded client in an open "Upper A" workout. The two pills sit on the right of the day name, with no horizontal scroll. Finish is ink-filled (black in light, white in dark) and Discard is the soft grey. `pnpm check` passed (20 tests).
 
 What didn't work first: Chrome headless on Windows won't make a window 390px wide, so the first screenshots laid out wider and looked cut off on the right. Loading the page in a 390px iframe inside a wider window gave a true phone-width render.
+
+## 2026-11-09 00:31 Discard goes back to the dashboard
+
+I said: "its still going back to the full program page instead of the dash after you discard"
+
+Before: Discard called `act("discard")`, which re-rendered the same `/p/<token>` page. With no open workout, that page shows the program's picker (every day with a Start button, plus recent workouts).
+
+Now: `public/program.html` has a `discard()` function. After the server confirms the discard, it sends a signed-up client to `/me`, their dashboard, which is where they start a workout from (`me.html` starts a day and then opens `/p/<token>`). A client who only has the link and no account (`state.claimed` false) has no dashboard, so they stay on the picker as before. Finish is unchanged: it still shows the finished state on the program page.
+
+Checked: a script seeded a PT, a client who signed up from their invite and an open "Upper A" workout. Then in real Chrome, logged in as that client, it clicked Discard and the confirm popup's Discard button. The page went from `/p/<token>` to `/me`, and the server's `open_session` was null afterwards. `pnpm check` passed (20 tests).

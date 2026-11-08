@@ -191,7 +191,7 @@
       $("sub").textContent = `${program.title}, from ${program.pt_name}. Tick each set as you finish it.`;
       // Small, on the day's name line, so they don't take a row of their own.
       $("dayActions").append(
-        el("button", { type: "button", className: "small", textContent: "Discard", onclick: async () => { if (await ask("Discard this workout?", "Its sets go too.", "Discard")) act("discard"); } }),
+        el("button", { type: "button", className: "small", textContent: "Discard", onclick: async () => { if (await ask("Discard this workout?", "Its sets go too.", "Discard")) discard(); } }),
         el("button", { type: "button", className: "small primary", textContent: "Finish", onclick: finish }));
       const cur = all.find((w) => w.id === open.id)?.logs ?? [];
       const drawStats = () => $("stats").replaceChildren(...[
@@ -249,6 +249,12 @@
     $("list").replaceChildren(...picks,
       recent.length ? el("h2", { textContent: "Recent workouts" }) : "",
       recent.length ? el("ul", { className: "recent" }, ...recent) : "");
+  }
+
+  // Back to the client's dashboard, where they pick a workout. A link-only
+  // client has no dashboard, so they stay on the program's picker.
+  async function discard() {
+    if ((await act("discard")) && state.claimed) location.href = "/me";
   }
 
   async function finish() {
