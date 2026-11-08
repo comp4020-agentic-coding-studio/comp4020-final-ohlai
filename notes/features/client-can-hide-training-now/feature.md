@@ -8,4 +8,4 @@ Kept by the feature agents dashboard (`tools/feature-agents/`). Its notes are ne
 
 ## What I asked for
 
-Your PT sees "Training now" while a workout is open, so they know you might message with a question. This would let you turn it off. Make sure that the PT side can see that the client has disabled the feature not just that they are not training.
+Your PT sees "Training now" while a workout is open, so they know you might message with a question. This would let you turn it off. Make sure that the PT side can see that the client has disabled the feature not just that they are not training otherwise its confusing for the pt
