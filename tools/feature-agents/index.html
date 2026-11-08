@@ -71,7 +71,15 @@
   @media (prefers-reduced-motion: reduce) { .seg .thumb, .seg button { transition:none; } }
   button.sq.on { background:var(--fg); color:var(--bg); }
   .head { cursor:pointer; user-select:none; }
-  .chev { display:inline-block; width:14px; color:var(--mute); font-size:11px; }
+  /* Fold arrow: drawn like the other icons, faint until you hover, and it turns
+     when you fold or unfold the card. */
+  .chev { display:inline-block; width:14px; height:14px; margin:0 4px -2px -2px; color:var(--mute); opacity:.55; transition:opacity .2s; }
+  .chev path { fill:none; stroke:currentColor; stroke-width:2.2; stroke-linecap:round; stroke-linejoin:round; }
+  .chev.open { transform:rotate(90deg); }
+  .head:hover .chev { opacity:1; }
+  .chev.turn { animation:unfold .25s cubic-bezier(.16,1,.3,1); } .chev.turn:not(.open) { animation-name:fold; }
+  @keyframes unfold { from { transform:rotate(0); } } @keyframes fold { from { transform:rotate(90deg); } }
+  @media (prefers-reduced-motion: reduce) { .chev.turn { animation:none; } }
   .filters { display:flex; gap:10px; align-items:center; flex-wrap:wrap; margin-bottom:16px; }
   .chips { display:flex; gap:6px; flex-wrap:wrap; flex:1; }
   .chips button { border-radius:8px; padding:4px 11px; font-size:12.5px; }
@@ -243,6 +251,7 @@ const store = { get(k, d) { try { return JSON.parse(localStorage.getItem(k)) ?? 
 let mode = store.get("notifyMode", "silent");
 const bells = new Set(store.get("notifyBells", []));
 const collapsed = new Set(store.get("collapsed", []));
+let turned = null; // the card just folded or unfolded, so only its arrow animates
 const ago = (iso) => { if (!iso) return ""; const s = (Date.now() - new Date(iso)) / 1000; return s < 60 ? "just now" : s < 3600 ? Math.round(s/60) + "m ago" : s < 86400 ? Math.round(s/3600) + "h ago" : Math.round(s/86400) + "d ago"; };
 const day = (iso) => (iso ? iso.slice(0, 10) : "");
 const api = async (url, body) => { const r = await fetch(url, body === undefined ? {} : { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body) }); return r.json(); };
@@ -287,13 +296,19 @@ const port = (slug) => all.find((x) => x.slug === slug).port;
 const head = (f, cls, label, when) => { const [k, detail] = kind(f); return `<span class="meta">${when}</span>
       <span class="pill ${k} ${cls}"><span class="dot"></span>${k}${detail ? `<span class="detail">· ${esc(detail)}</span>` : ""}</span>`; };
 // The bell sits before the name: it's a setting on the feature, not an
-// action like the buttons at the bottom. Only shown in "select" mode, where
-// it matters. Greyed out while the feature has no agent to hear from.
+// action like the buttons at the bottom. It's on every card and always says
+// whether you'll hear about this feature: struck through (no) or ringing
+// (yes), never a plain bell. Muted and "all" decide it for every card, so the
+// bells are greyed out and can't be clicked. In "select" each one is off
+// until clicked, and greyed out while the feature has no agent to hear from.
 function bellBtn(f) {
-  if (mode !== "select") return "";
-  const on = bells.has(f.slug), can = !!f.worktree;
-  const why = { planned: "No agent yet. You can turn this on once it's started.", merged: "Its agent has finished and its folder is removed, so there's nothing to notify you about.", dropped: "Dropped, so there's nothing to notify you about." }[f.status] || "No agent running for it right now.";
-  return `<button class="sq bell ${on ? "on" : ""} ${can ? "" : "off"}" data-act="bell" ${can ? "" : 'aria-disabled="true"'} title="${can ? (on ? "Notifying you about this feature. Click to stop." : "Notify me about this feature") : why}">${on ? ICON.all : ICON.bell}</button>`;
+  const on = mode === "all" || (mode === "select" && bells.has(f.slug));
+  const can = mode === "select" && !!f.worktree;
+  const noAgent = { planned: "No agent yet. You can turn this on once it's started.", merged: "Its agent has finished and its folder is removed, so there's nothing to notify you about.", dropped: "Dropped, so there's nothing to notify you about." }[f.status] || "No agent running for it right now.";
+  const title = mode === "silent" ? "Notifications are muted. Change it with the bells at the top."
+    : mode === "all" ? "Notifying you about every feature. Pick the middle option at the top to choose which."
+    : !f.worktree ? noAgent : on ? "Notifying you about this feature. Click to stop." : "Not notifying you about this feature. Click to turn it on.";
+  return `<button class="sq bell ${on && can ? "on" : ""} ${can ? "" : "off"}" data-act="bell" ${can ? "" : 'aria-disabled="true"'} title="${title}">${on ? ICON.all : ICON.off}</button>`;
 }
 // Every card ends with the same row: everyday buttons on the left, the one
 // that moves the feature on (in black) on the right.
@@ -321,7 +336,7 @@ function card(f) {
     <div class="row">
       ${bellBtn(f)}
       <div class="grow head" data-act="collapse" title="${c ? "Show details" : "Collapse to title, status and buttons"}">
-        <div class="title"><span class="chev">${c ? "▸" : "▾"}</span>${esc(f.title)}${f.merged && cls !== "merged" ? " <span class='meta'>· merged</span>" : ""}</div>
+        <div class="title"><svg class="chev ${c ? "" : "open"} ${turned === f.slug ? "turn" : ""}" viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></svg>${esc(f.title)}${f.merged && cls !== "merged" ? " <span class='meta'>· merged</span>" : ""}</div>
         ${c ? "" : details}
       </div>
       ${head(f, cls, label, ago(st.at))}
@@ -513,7 +528,7 @@ async function onClick(e) {
   const say = (msg, cls = "") => { s.msg = msg; s.cls = cls; render(all); refresh(); };
   const base = `/api/features/${slug}`;
   if (act === "expand") { s.full = !s.full; return render(all); }
-  if (act === "collapse") { collapsed.has(slug) ? collapsed.delete(slug) : collapsed.add(slug); store.set("collapsed", [...collapsed]); return render(all); }
+  if (act === "collapse") { collapsed.has(slug) ? collapsed.delete(slug) : collapsed.add(slug); store.set("collapsed", [...collapsed]); turned = slug; render(all); turned = null; return; }
   // Feedback and Notes open a collapsed card back up.
   if ((act === "fb" || act === "notes") && collapsed.has(slug)) {
     collapsed.delete(slug); store.set("collapsed", [...collapsed]);

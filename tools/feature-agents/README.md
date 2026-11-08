@@ -110,14 +110,16 @@ were imported on 2026-11-08, with their notes copied word for word into each
   `PONYTAIL_DEFAULT_MODE=full` in the agents' environment, so every agent runs
   it at full and nothing else changes.
 - **Bells**: notifications when an agent needs me, finishes, fails or is
-  interrupted. Silent, only features with their bell on, or all. Each
-  feature's bell is before its name (select mode only), greyed out and
-  unclickable while it has no agent.
+  interrupted. Silent, only features with their bell on, or all. Every
+  card has a bell before its name, struck through (no) or ringing (yes),
+  never a plain bell. Muted and all set every bell and grey them out. In
+  select each is off until clicked, and greyed out and unclickable while the
+  feature has no agent.
   Only while the page is open.
 - Filters: All, then one per status from most to least urgent (Waiting,
   Working, Planned, Merged, Dropped). All is sorted the same way, and within
   waiting, needing me comes before being cut off, then finished. Search is
-  next to them. Click a card's title to collapse it.
+  next to them. Click a card's title to fold it; its arrow turns.
 - Every card ends with one row of buttons: everyday ones on the left, and on
   the right in black the one that moves the feature on (Start agent, Check
   and merge, Remove worktree).

@@ -447,3 +447,23 @@ Follows the 2026-11-07 entry above. Built in `COMP4020/meta/`.
   while a popup is open to scroll the popup's content, even with the pointer
   outside it. Done: the page can't scroll while a popup is open, and scrolling
   over the dimmed page scrolls the popup.
+
+## 2026-11-08: Fold arrow, braiding mockups, and bells on every card
+
+- **Fold arrow.** Asked to see the fold arrow options visually. Claude made a
+  page of live options (a drawn chevron, a fade with no icon, plus and minus,
+  and words saying what's folded). I picked the drawn chevron: it's drawn like
+  the other icons, faint until you hover, and turns when a card folds. I said
+  nothing else from that page was needed for now (thread line, working
+  animations, popup animations). I liked the subtle copy idea ("Nothing
+  spinning right now") but it isn't built yet, and I agreed buttons like Merge
+  should never get silk wording.
+- **Braiding.** Asked for mockups of a working animation where three strands
+  are braided together. Four versions on the same page: a flowing plait, one
+  being plaited, an upright plait, and a rope twist. Not chosen yet.
+- **Bells on every card.** Changes the bell entries above. Asked for the bells
+  to show whatever the top notification setting is: muted makes every bell
+  grey and struck through, all makes every bell grey and ringing, and in
+  select each bell is struck through until clicked, then ringing. A card's
+  bell should never be a plain bell. Features with no agent stay greyed out
+  and can't be clicked in select.
