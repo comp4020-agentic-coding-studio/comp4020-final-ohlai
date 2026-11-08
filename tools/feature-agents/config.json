@@ -22,6 +22,10 @@
     "Bash(git commit:*)",
     "Bash(ls:*)",
     "Bash(cat:*)",
+    "Bash(echo:*)",
+    "Bash(tail:*)",
+    "Bash(python:*)",
+    "Bash(powershell:*)",
     "Bash(git merge:*)"
   ],
   "headlessDisallowedTools": [

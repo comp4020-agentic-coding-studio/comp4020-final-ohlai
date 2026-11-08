@@ -594,3 +594,24 @@ Follows the 2026-11-07 entry above. Built in `COMP4020/meta/`.
   by how urgently I should see them (waiting first). This changes the earlier
   decision that the chips were in urgency order too. Chips and cards now have
   separate lists in `index.html`.
+
+## 2026-11-08: Background turns may also run echo, tail, python and powershell
+
+- Came up because a background run on "Client can hide training now" was
+  blocked on four commands: a `python` heredoc, the `apprestart` curl followed
+  by `pnpm check`, an `echo` of the slug, and `powershell -c "pnpm check"`. I
+  asked for them to be added to the allow list.
+- Added `Bash(echo:*)`, `Bash(tail:*)`, `Bash(python:*)` and
+  `Bash(powershell:*)` to `headlessAllowedTools` in `config.json`. `git push`,
+  `checkout` and `reset` are still refused. `python` and `powershell` can run
+  any script, so they are much broader than the others. Claude flagged that
+  and I kept them. Whether the curl and echo commands that chain several
+  commands with `;` now pass is not checked.
+
+## 2026-11-08: "last:" on a card's subtitle wraps as one piece
+
+- Asked for the subtitle to wrap so "last: start feature: ..." doesn't break
+  halfway through its line. The `last: <commit>` part is now one unbreakable
+  unit, so when the line is full it drops whole to the next line. I said
+  "after 2 committed", which I took to mean after the commit count, not that it
+  always starts a new line. Not looked at in the browser yet.
