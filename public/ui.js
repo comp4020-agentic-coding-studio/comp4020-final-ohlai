@@ -26,9 +26,25 @@ export function ago(t) {
   return days <= 0 ? "Today" : days === 1 ? "Yesterday" : `${days} days ago`;
 }
 
-export async function logout() {
-  await api("/api/logout", {});
-  location.href = "/";
+// Asks first, so a stray tap on Log out doesn't sign you out.
+export function logout() {
+  const cancel = el("button", { type: "button", textContent: "Cancel", autofocus: true });
+  const ok = el("button", { type: "button", className: "primary", textContent: "Log out" });
+  const d = el("dialog", { className: "confirm" },
+    el("h3", { textContent: "Log out?" }),
+    el("p", { textContent: "You'll need to log in again to get back in." }),
+    el("div", { className: "actions" }, cancel, ok));
+  cancel.onclick = () => { d.close(); };
+  ok.onclick = async () => {
+    ok.disabled = true;
+    await api("/api/logout", {});
+    location.href = "/";
+  };
+  d.onclick = (e) => { if (e.target === d) d.close(); }; // tap outside the box
+  d.onclose = () => { document.documentElement.classList.remove("locked"); d.remove(); };
+  document.body.append(d);
+  document.documentElement.classList.add("locked");
+  d.showModal();
 }
 
 // Sends you to log in, coming back here after.
