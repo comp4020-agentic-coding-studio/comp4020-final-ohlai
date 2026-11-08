@@ -78,3 +78,15 @@ What changed:
 Checked: after restarting the app, in real Chrome as a client who joined through their invite: ticking a set logged it on the server and showed the rest timer, Finish landed on `/me` with the workout saved and no picker flash, and reopening `/p/<token>` went to `/me`. Logged in as the PT, opening `/p/<pt token>` went to `/dash`. `GET /api/p/<pt token>` still returned the program for the lift card, and `/api/p/<token>/events` now gives 404. Screenshots of the workout at 390px in light and dark look the same as before. `pnpm check` passed (20 tests).
 
 Left alone: CLAUDE.md still lists "PT program view" among the PT pages under "Who's on what screen". That page doesn't exist any more. I haven't edited CLAUDE.md, and I'm asking about it.
+
+## 2026-11-09 00:58 The blur no longer lifts before the dashboard
+
+I said: "it is still flashing something up after i click discard but maybe thats just the blur dissapearing?"
+
+It was. The confirm popup (`ask()` in `public/ui.js`) closed as soon as Discard was tapped, which took away the blurred backdrop. The workout page then sat there, unblurred, while the discard went to the server and `/me` loaded. That's the flash. The old picker was already gone (the 00:40 entry).
+
+Now:
+- `ask()` takes an optional fourth argument, a function to run on yes. While it runs, the popup stays up with both buttons disabled, Esc and tapping outside do nothing, and the popup only closes if the function returns false. If the function leaves the page, the popup and its blur stay on screen until the browser paints `/me`. Everywhere else that calls `ask()` (Delete program, Log out) passes nothing new and works as before.
+- `public/program.html`: Discard and Finish pass `() => endWorkout(...)` to `ask()`. `endWorkout` returns false if the server refuses, so the popup closes and the error shows on the page. Otherwise it calls `location.replace("/me")` and returns true.
+
+Checked in real Chrome as a client who joined through their invite, once each for Discard and Finish (after ticking a set): a watcher on the page saw neither a popup close nor a Start button before the page left, the page landed on `/me`, and the server had the right state (discarded: no session; finished: one saved session). `pnpm check` passed (20 tests).

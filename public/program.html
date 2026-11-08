@@ -156,7 +156,7 @@
     $("sub").textContent = `${program.title}, from ${program.pt_name}. Tick each set as you finish it.`;
     // Small, on the day's name line, so they don't take a row of their own.
     $("dayActions").replaceChildren(
-      el("button", { type: "button", className: "small", textContent: "Discard", onclick: async () => { if (await ask("Discard this workout?", "Its sets go too.", "Discard")) discard(); } }),
+      el("button", { type: "button", className: "small", textContent: "Discard", onclick: () => { ask("Discard this workout?", "Its sets go too.", "Discard", () => endWorkout("discard")); } }),
       el("button", { type: "button", className: "small primary", textContent: "Finish", onclick: finish }));
     const cur = workouts().find((w) => w.id === open.id)?.logs ?? [];
     const drawStats = () => $("stats").replaceChildren(...[
@@ -168,18 +168,20 @@
   }
 
   // Discard and Finish end the workout, so the page has nothing left to show.
-  // Straight to the dashboard without re-rendering, so nothing flashes first.
+  // It runs inside ask(), so the popup and its blur stay up until /me paints:
+  // closing first showed the bare workout for a moment. Returns true when
+  // leaving, false on an error so the popup closes and the error shows.
   // Every client has an account (they join through an invite), so /me is there.
   async function endWorkout(what) {
-    if (await api(`/api/p/${tok}/${what}`, {})) location.replace("/me");
+    if (!(await api(`/api/p/${tok}/${what}`, {}))) return false;
+    location.replace("/me");
+    return true;
   }
-  const discard = () => endWorkout("discard");
 
-  async function finish() {
+  function finish() {
     const open = state.open_session;
     const n = state.logs.filter((l) => l.session_id === open.id).length;
-    if (!(await ask(`Finish ${open.day}?`, n ? `${n} set${n > 1 ? "s" : ""} will be saved.` : "No sets logged, so this workout gets thrown away.", "Finish"))) return;
-    endWorkout("finish");
+    ask(`Finish ${open.day}?`, n ? `${n} set${n > 1 ? "s" : ""} will be saved.` : "No sets logged, so this workout gets thrown away.", "Finish", () => endWorkout("finish"));
   }
 
   function exerciseCard(ex) {

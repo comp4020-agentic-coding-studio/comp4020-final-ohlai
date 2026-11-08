@@ -33,3 +33,7 @@ where would the pt access the program view from?
 ## 2026-11-09 00:47 (dashboard)
 
 delete the pt view as well
+
+## 2026-11-09 00:54 (dashboard)
+
+it is still flashing something up after i click discard but maybe thats just the blur dissapearing?
