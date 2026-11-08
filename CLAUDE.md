@@ -63,6 +63,9 @@ effort making PT pages fit a phone.
 - An `onclick = (e) => ...` handler never returns a value (use braces, not
   `a && b`). One that returns false cancels the click, which once broke the
   client's Send button in the chat drawer.
+- Anything that can be null goes inside `el()` from `public/ui.js`, which
+  drops nulls. `replaceChildren` and `append` print a null as the text
+  "null", which once put "nullnullnull" in the PT's client card.
 - Test a form by clicking its button, not by calling submit in code, and check
   the result reached the server.
 - Schema changes are additive: add columns with a guarded `ALTER TABLE` in

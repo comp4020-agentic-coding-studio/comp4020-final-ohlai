@@ -15,7 +15,7 @@
       <h1 id="hi">Dashboard</h1>
     </div>
     <input type="search" id="q" placeholder="Search clients" aria-label="Search clients" />
-    <button type="button" popovertarget="pv-export">Export <span class="pv-tag">Preview</span></button>
+    <button type="button" popovertarget="pv-export">Export</button>
     <a href="/programs" class="btn primary">Assign a program</a>
   </header>
 
@@ -71,10 +71,19 @@
   <section class="dcard" id="d-side" hidden aria-labelledby="s-name"></section>
 </dialog>
 
-<div popover id="pv-export" class="pv">
-  <h3>Export</h3>
-  <p>Download your clients and their logged sets as a spreadsheet (CSV), for your own records or a client
-    review.</p>
+<div popover id="pv-export" class="pv built">
+  <h3>Export sets</h3>
+  <p>Every logged set as a spreadsheet (CSV), one row per set. Leave the dates empty for everything.</p>
+  <form method="get" action="/api/export.csv" id="exportForm">
+    <label for="x-client">Client</label>
+    <select name="client" id="x-client"><option value="">All clients</option></select>
+    <div class="row">
+      <div><label for="x-from">From</label><input type="date" name="from" id="x-from" /></div>
+      <div><label for="x-to">To</label><input type="date" name="to" id="x-to" /></div>
+    </div>
+    <input type="hidden" name="tz" id="x-tz" />
+    <div class="actions"><button type="submit" class="primary">Download CSV</button></div>
+  </form>
 </div>
 <div popover id="pv-nudge" class="pv">
   <h3>Nudge quiet clients</h3>
@@ -97,12 +106,23 @@
   const stalled = (x) => x.lifts.filter((l) => l.status === "stalled").length;
   const needs = (x) => quiet(x) || stalled(x) > 0 || x.unread > 0;
   let clients = [], selected = null, filter = "all";
+  // The server dates each set by the PT's own day, not UTC.
+  const tz = -new Date().getTimezoneOffset();
+  $("x-tz").value = tz;
+  // The form still submits (the download), the popover just gets out of the way.
+  $("exportForm").addEventListener("submit", () => $("pv-export").hidePopover());
+  const exportUrl = (email) => `/api/export.csv?client=${encodeURIComponent(email)}&tz=${tz}`;
 
   async function load(refresh) {
     const [data, ok] = await api(refresh === true ? "/api/dash?refresh" : "/api/dash");
     if (!ok) return toLogin();
     clients = data.clients;
     $("hi").textContent = `Hi ${data.me.name}`;
+    const pick = $("x-client"), was = pick.value;
+    const people = new Map(clients.map((x) => [x.client_email.toLowerCase(), x.client_name]));
+    pick.replaceChildren(el("option", { value: "", textContent: "All clients" }),
+      ...[...people].sort((a, b) => a[1].localeCompare(b[1])).map(([v, n]) => el("option", { value: v, textContent: n })));
+    pick.value = was;
     render();
   }
 
@@ -261,7 +281,8 @@
         x.client_user_id
           ? el("button", { type: "button", id: "msg", className: "primary", ariaPressed: String(side === "msg"),
             textContent: `Message ${x.client_name}${x.unread ? ` (${x.unread} new)` : ""}`, onclick: () => { openChat(x); } })
-          : el("span", { className: "muted", textContent: `Chat opens once ${x.client_name} sets a password from their link.` })),
+          : el("span", { className: "muted", textContent: `Chat opens once ${x.client_name} sets a password from their link.` }),
+        el("a", { href: exportUrl(x.client_email), className: "btn", textContent: "Export sets" })),
       el("h3", { textContent: "Last 7 days" }),
       el("ul", { className: "plain" }, ...x.days.map((d) => {
         const w = x.week.filter((s) => s.day === d).at(-1);
@@ -271,12 +292,13 @@
       x.recent.length ? el("ul", { className: "plain" }, ...x.recent.map((r) =>
         el("li", {}, `${r.day} · ${fmtDay(utc(r.at))}`, el("span", { className: "muted", textContent: ` ${r.sets} sets` }))))
         : el("p", { className: "muted", textContent: "Nothing logged yet." }),
-      el("h3", {}, "Latest check-in ", el("a", { href: `/checkins#c${x.client_user_id}`, className: "muted", textContent: "All check-ins" })),
+      el("h3", {}, "Latest check-in ", el("a", { href: x.client_user_id ? `/checkins#c${x.client_user_id}` : "/checkins", className: "muted", textContent: "All check-ins" })),
       x.checkin ? checkinCard(x.checkin)
         : el("p", { className: "muted", textContent: x.client_user_id ? `${x.client_name} hasn't checked in yet.` : `Check-ins open once ${x.client_name} sets a password.` }),
       el("h3", { textContent: "Lifts" }),
       el("p", { className: "muted", textContent: "Click a lift to see its progress chart." }),
-      liftList("stalled"), liftList("up"), liftList("steady"), liftList("new"),
+      // Wrapped in el(), which drops the nulls; replaceChildren alone prints them as "null".
+      el("div", {}, liftList("stalled"), liftList("up"), liftList("steady"), liftList("new")),
       el("h3", {}, "Private notes ", el("span", { className: "pv-tag", textContent: "Preview" })),
       el("textarea", { rows: 3, placeholder: `Only you see this. Injuries, goals, what ${x.client_name} said last session…`, ariaLabel: "Private notes (preview, not saved)" }),
       el("p", { className: "muted", textContent: "Not saved yet. This is a preview of the idea." }));
