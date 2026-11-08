@@ -8,7 +8,7 @@ const LINKS = [["/dash", "Dashboard"], ["/inbox", "Inbox"], ["/checkins", "Check
 export function mountSide() {
   const badge = el("span", { className: "badge", hidden: true });
   const nav = el("nav", { className: "side", ariaLabel: "Main" },
-    el("a", { href: "/dash", className: "brand", textContent: "Program" }),
+    el("a", { href: "/dash", className: "brand", textContent: "Spotter" }),
     el("ul", {}, ...LINKS.map(([href, text]) => el("li", {},
       el("a", { href, ariaCurrent: location.pathname === href ? "page" : null }, text, href === "/inbox" ? badge : null)))),
     el("div", { className: "side-foot" },

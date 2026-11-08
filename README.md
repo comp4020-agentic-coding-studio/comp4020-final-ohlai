@@ -1,4 +1,4 @@
-# Program
+# Spotter
 
 A PT writes a training program and invites a client to it. The client logs
 every set on their phone at the gym, and the PT sees what was actually lifted,
