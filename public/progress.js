@@ -24,6 +24,22 @@ export function scorer(reps, allSets) {
   return (s) => (s.weight ?? 0) + (step * (s.reps - lo)) / (hi - lo + 1);
 }
 
+// Progress across every lift: sessions are [{ at, best: { exerciseKey: score } }],
+// oldest first. Each lift counts its latest score minus its first, so the total
+// is how far all lifts have moved, in kg at the bottom of the rep range.
+export function summed(sessions) {
+  const first = new Map(), last = new Map();
+  return sessions.map(({ at, best }) => {
+    for (const [k, v] of Object.entries(best)) {
+      if (!first.has(k)) first.set(k, v);
+      last.set(k, v);
+    }
+    let gain = 0;
+    for (const [k, v] of last) gain += v - first.get(k);
+    return { at, gain };
+  });
+}
+
 // sessions: one array of sets per workout, oldest first.
 // "up": the last workout beat every one before it. "stalled": no new best in
 // the last three workouts. "new": not enough workouts to tell. Else "steady".

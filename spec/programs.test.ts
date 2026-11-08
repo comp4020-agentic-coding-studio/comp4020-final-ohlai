@@ -300,3 +300,19 @@ it("exports a PT's own clients' sets as CSV, never another PT's or a token", asy
   expect(await rows("/api/export.csv", await signupPT("Stranger"))).toHaveLength(1);
   expect((await api("/api/export.csv")).status).toBe(401);
 });
+
+it("the client dashboard sums progress over every lift, counting reps climbing at one weight", async () => {
+  const { invite, clientToken, exercise_id } = await program();
+  const { cookie } = await join(invite);
+  // Same weight, one more rep each time: no heavier, but still progress.
+  for (const reps of [5, 6, 7]) {
+    await api(`/api/p/${clientToken}/start`, { day: "Day 1" });
+    await api(`/api/p/${clientToken}/log`, { exercise_id, set_no: 1, reps, weight: 100 });
+    await api(`/api/p/${clientToken}/finish`, {});
+  }
+  const gains = (await whoAmI(cookie)).me.progress.map((p: { gain: number }) => p.gain);
+  expect(gains).toHaveLength(3);
+  expect(gains[0]).toBe(0);
+  expect(gains[1]).toBeGreaterThan(0);
+  expect(gains[2]).toBeGreaterThan(gains[1]);
+});

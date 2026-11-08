@@ -81,7 +81,8 @@ export function liftSummary(ex, hist) {
   return box;
 }
 
-function chart(per, key) {
+// per: [{ k: Date, [key]: number }]. Also draws the client dashboard's summed progress.
+export function chart(per, key, label = METRICS[key].label) {
   const W = 320, H = 150, L = 40, B = 22, T = 10, R = 10;
   const ys = per.map((p) => p[key]);
   let lo = Math.min(...ys), hi = Math.max(...ys);
@@ -93,7 +94,7 @@ function chart(per, key) {
   svg.setAttribute("viewBox", `0 0 ${W} ${H}`);
   svg.setAttribute("class", "chart");
   svg.setAttribute("role", "img");
-  svg.setAttribute("aria-label", `${METRICS[key].label} per session, ${per.map((p) => `${fmtDay(p.k)} ${+p[key].toFixed(1)}`).join(", ")}`);
+  svg.setAttribute("aria-label", `${label} per session, ${per.map((p) => `${fmtDay(p.k)} ${+p[key].toFixed(1)}`).join(", ")}`);
   const grid = [hi, (hi + lo) / 2, lo].map((v) => `<line class="grid" x1="${L}" x2="${W - R}" y1="${y(v)}" y2="${y(v)}"/><text class="axis" x="${L - 4}" y="${y(v) + 3}" text-anchor="end">${+v.toFixed(1)}</text>`);
   const ticks = per.map((p, i) => ({ p, i })).filter(({ i }) => per.length <= 5 || i % Math.ceil(per.length / 5) === 0)
     .map(({ p, i }) => `<text class="axis" x="${x(i)}" y="${H - 6}" text-anchor="middle">${fmtDay(p.k)}</text>`);

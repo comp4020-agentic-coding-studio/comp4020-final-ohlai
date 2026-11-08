@@ -2,7 +2,7 @@ import { createServer } from "node:http";
 import { readFileSync, writeFileSync, mkdirSync, existsSync } from "node:fs";
 import { randomBytes, scryptSync, timingSafeEqual } from "node:crypto";
 import { DatabaseSync } from "node:sqlite";
-import { trend } from "./public/progress.js";
+import { trend, scorer, summed } from "./public/progress.js";
 
 const DATA = process.env.DATA_DIR ?? (process.env.FLY_APP_NAME ? "/data" : "./data");
 const UPLOADS = `${DATA}/uploads`;
@@ -483,19 +483,27 @@ const server = createServer(async (req, res) => {
       const pts = [...new Map(programs.filter((p) => p.pt_user_id).map((p) => [p.pt_user_id, p.pt_name])).entries()]
         .map(([id, name]) => ({ id, name, unread: unread(me.id, id), checked_in: lastCheckin(id, me.id)?.at ?? null }));
       // The client's dashboard: each program's days, and every finished workout with its sets.
-      const workouts = [];
+      const workouts = [], scored = [];
       for (const p of programs) {
         const f = findProgram(p.client_token);
         const names = new Map(f.exercises.map((e) => [e.id, e.name]));
+        const score = new Map(f.exercises.map((e) => [e.id, scorer(e.reps, f.logs.filter((l) => l.exercise_id === e.id))]));
         p.days = [...new Set(f.exercises.map((e) => e.day))].map((d) => ({ day: d, exercises: f.exercises.filter((e) => e.day === d).map((e) => e.name) }));
         p.open = f.open_session?.day ?? null;
-        for (const s of f.sessions.filter((s) => s.finished_at))
+        for (const s of f.sessions.filter((s) => s.finished_at)) {
+          const logs = f.logs.filter((l) => l.session_id === s.id);
           workouts.push({ id: s.id, day: s.day, title: p.title, client_token: p.client_token, started_at: s.started_at, finished_at: s.finished_at,
-            sets: f.logs.filter((l) => l.session_id === s.id).map((l) => ({ exercise: names.get(l.exercise_id), set_no: l.set_no, reps: l.reps, weight: l.weight })) });
+            sets: logs.map((l) => ({ exercise: names.get(l.exercise_id), set_no: l.set_no, reps: l.reps, weight: l.weight })) });
+          const best = {};
+          for (const l of logs) best[l.exercise_id] = Math.max(best[l.exercise_id] ?? -Infinity, score.get(l.exercise_id)(l));
+          scored.push({ at: s.started_at, best });
+        }
       }
       workouts.sort((a, b) => b.started_at.localeCompare(a.started_at));
+      // The client's progress over every lift, one point per workout (public/progress.js).
+      const progress = summed(scored.sort((a, b) => a.at.localeCompare(b.at)));
       const current = programs.filter((p) => !p.ended_at).map(({ ended_at, ...p }) => p);
-      return send(res, 200, { me, programs: current, pts, workouts });
+      return send(res, 200, { me, programs: current, pts, workouts, progress });
     }
     if (req.method === "POST" && path === "/api/me/training") {
       if (me?.role !== "client") return send(res, 401, { error: "Log in as a client to change this." });

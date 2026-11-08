@@ -137,6 +137,14 @@ body[data-view="desktop"] .exercises { display: grid; grid-template-columns: 1fr
 /* exercise summary */
 .big { font-size: 1.3rem; margin: 12px 0 4px; }
 .accent { color: var(--accent); font-weight: 500; }
+/* client dashboard: last 7 days, one square per day */
+.habit { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.week { display: flex; gap: 6px; list-style: none; margin: 0; padding: 0; }
+.week li { width: 22px; height: 22px; border-radius: 6px; background: var(--soft); }
+.week li.on { background: var(--trend, var(--accent)); }
+.week li.today { box-shadow: inset 0 0 0 2px var(--line); }
+.week li.on.today { box-shadow: none; }
+.prog .big { margin: 4px 0 0; }
 .chart { width: 100%; max-width: 640px; height: auto; display: block; }
 .chart .grid { stroke: var(--line); }
 .chart .axis { fill: var(--muted); font-size: 10px; }
