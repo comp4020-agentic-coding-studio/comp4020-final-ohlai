@@ -737,3 +737,9 @@ Follows the 2026-11-07 entry above. Built in `COMP4020/meta/`.
   and chat boxes. Unchanged cards aren't touched, so scroll and selections in
   them survive. The pause while the mouse is down or text is selected stays,
   for cards that do change.
+
+## 2026-11-09: What the README says about real-time, judging and other apps
+
+- **Why real-time.** Options: chat that answers inside a rest period, the PT watching sets land, or both. Picked both, and added video: "video chat is helpful for your pt to monitor form which is very important and cant be done just through numbers (sets and reps) and cant be done at all if your pt is not there in person." Video calls are still being built, so the README says they're next.
+- **What has been judged.** I've used it on my phone at the gym, and classmates used it at the crits. No working PT has used it yet, so the README says whether the progress line reads the way a PT reads progress is still open.
+- **Other apps.** I only looked at Hevy, not Trainerize or TrueCoach, so the README only compares with Hevy.

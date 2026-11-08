@@ -1,107 +1,70 @@
 # Program
 
-A PT writes a training program and sends it to a client. The client opens it on
-their phone at the gym and logs every set as they go. The PT sees what was
-actually lifted, instead of whatever the client remembers by Friday.
+A PT writes a training program and invites a client to it. The client logs
+every set on their phone at the gym, and the PT sees what was actually lifted,
+as it's lifted.
 
-## Who it's for
-
-A PT and the clients they program for. The PT signs up and gets a dashboard of
-everyone they coach. Each client gets a private link to their program, which
-works straight away, and can set a password from it so they can log in on any
-device and message their PT. Nobody else can find a program or read a chat.
+To try it, log in as the demo PT, `oli@example.com`, or the demo client,
+`jack@example.com`. Both use the password `demo1234`, public on purpose. Use
+two browsers to see both sides at once.
 
 ## What good means here
 
-Good means the app fits what each person needs, where they are when they use
-it. The PT and the client want different things from the same program, so they
-get different views of the same data.
+Good means the app fits each person where they are when they use it. The PT
+and the client want different things from the same program, so they get
+different apps over the same data. Wroblewski's *Mobile First* argues the phone
+forces you to decide what matters. Only the client is on a phone, so only their
+side is built that way.
 
-**The client is on a phone, mid-set.** They're standing at a bench with sweaty
-hands and two minutes of rest. Their page opens in a phone layout and every row
-comes pre-filled with what they did last workout, so most of the time it's
-lift, tick, rest. The rest timer starts on its own and removing a set is a
-swipe. Anything that needs typing or a menu mid-session is a failure. I took the
-row layout from Hevy, which already gets this right.
+**The client is on a phone, mid-set,** with sweaty hands and two minutes of
+rest. Every row comes pre-filled from last workout, so most sets are one tap.
+The row layout is Hevy's, which already gets this right. There's no layout
+toggle: a client in the gym never wants the desktop view.
 
-**The PT is at a desk, planning.** They write programs and check in on clients
-between sessions, so their pages are built for a desktop. The dashboard answers
-the questions a PT has about a list of clients: who's gone quiet, who's done
-this week's sessions, and which lifts are moving or stalled. Each of those opens
-up into the detail behind it, down to the progress chart for one lift. That's
-the point of sending a program instead of a PDF.
+**The PT is at a desk, planning.** Their dashboard answers what a PT asks of a
+client list: who's gone quiet, who's done this week's sessions, and which lifts
+are moving or stalled. Progress is scored the way PTs program it, so adding
+reps and adding weight both push the line up.
 
-**Questions go to the PT, next to the training.** A client mid-program has
-small questions ("bench felt heavy, should I drop the weight?"). They message
-their PT from the app, with photos for form checks, and it shows up live on the
-other side. One thread per PT and client, kept for good like everything else.
+**It's real-time because the help is only useful during the session.** A client
+who asks "bench felt heavy, should I drop it?" needs the answer inside their
+rest, not on Friday. The PT sees sets land and a "Training now" marker, which
+the client can hide, so they know when a question is coming. Form is the one
+thing sets and reps can't show, and a PT can't check it from across town, so
+video calls are next.
 
-Either person can flip layouts, since sometimes the PT checks in from the gym
-floor. The default is just the guess that's right most of the time.
+**It's multi-user because the relationship is the product.** Shirky calls this
+situated software: built for a group that already exists, leaning on the trust
+it already has. A PT never sees another PT's clients, and a chat is only for
+the two people in it.
 
-**Progress has to read the way a PT reads it.** Most PTs program a rep range.
-You add reps at one weight until you hit the top, then go up a weight and drop
-back to the bottom. A chart of weight times reps dips every time you go up a
-weight. The default chart scores each set as the weight plus a share of one
-weight step for every rep above the bottom of the range, so adding reps and
-adding weight both push the line up.
-
-**What's logged stays logged.** A workout from eight weeks ago needs to still be
-there or the progress line means nothing.
-
-## How to use it
-
-To try it, log in on the live site as the demo PT, `oli@example.com`, or the
-demo client, `jack@example.com`. Both use the password `demo1234`, which is
-public on purpose.
-
-**As a PT.** Go to the home page and sign up. In Programs, click New program,
-add a day, and add that day's exercises under it. Save it, then press Assign to
-client on it, as many times as you have clients for it. Pick a client you
-already have or type a new one's name and email, and send them the link with
-the Email button (it opens your own mail app). Each client gets their own copy,
-so editing the program later only changes it for the next client. Your client
-shows up on the dashboard straight away. Click a client to see their week, recent workouts and which lifts
-are moving, and click a lift to see its chart. Once your client has set a
-password, Message opens your chat with them. The Inbox has every client
-conversation in one list. Check-ins is where you write the weekly questions
-your clients answer and read what they said.
-
-**As a client.** Open the link your PT sent you on your phone. Pick a workout,
-tick each set as you finish it (rows are filled in from last time), and press
-Finish. Set a password in the box at the top if you want to log in from another
-device or message your PT. After that you can log in from the home page, and
-My programs has your PT's weekly check-in.
+**What's logged stays logged.** A workout from eight weeks ago has to still be
+there, or the progress line means nothing. Changing a client's program keeps
+every set, and waits if they're mid-workout.
 
 ## What I chose not to build
 
-Accounts came late. For the first three weeks a private link was all there was,
-since it does the job for two people who already trust each other. They came in
-when the PT needed one place for all their clients and a client needed somewhere
-to ask questions, and the links still work so nobody has to sign up to start
-training. `docs/adr/0003-accounts-and-chat.md` has the reasoning. No video
-calls yet, that's next. No exercise library, because the PT already has names they
-use. No feed or leaderboards. No email from the server either. The PT's own
-mail app sends the link, so it comes from someone the client knows.
+No feed, leaderboard or exercise library. Sloan's "home-cooked meal" is an app
+for the people you know, and a PT's clients don't need strangers. No email from
+the server: the PT's own mail app sends the invite, so it comes from someone
+the client knows. No calendar of training sessions: when a client trains is
+their business. No desktop view for clients, yet.
 
 ## Enforced and judged
 
-The checks in `spec/` enforce that only the client link can log sets, that the
-client link never gives away the PT link, that removing a set closes the gap in
-set numbers, and that finishing a workout keeps its sets. They also check that a
-PT's dashboard only shows their own clients, that only a logged-in PT can write
-a program, and that only the PT and client on a program can read their chat. The rest I have to
-judge. Is logging really one tap between sets? I'll find out on my phone at the
-gym. Does the progress line match how a PT reads progress? That needs an actual
-PT.
+`spec/` enforces the rules good rests on. Only the client logs sets. Removing a
+set closes the gap and finishing keeps the workout. A program change keeps
+every set. A PT sees only their own clients, notes and exports. Only the PT and
+client on a program can read their chat and check-ins. An invite works once.
+
+The rest is judged. I've used it on my phone at the gym, which is how I judge
+one-tap logging. Classmates used it at the crits as PT and client from the URL
+alone. No working PT has used it yet, so whether the progress line reads the
+way a PT reads progress is still open.
 
 ## Sources
 
 - Robin Sloan, [An app can be a home-cooked meal](https://www.robinsloan.com/notes/home-cooked-app/).
-  Software for a few people you know gets to skip a lot of what public apps need.
 - Clay Shirky, [Situated Software](https://web.archive.org/web/20040411202042/http://www.shirky.com/writings/situated_software.html).
-  Building for one small group, and leaning on the trust that's already there.
 - Luke Wroblewski, [Mobile First](https://abookapart.com/products/mobile-first).
-  Starting from the phone forces you to work out what matters on the screen.
-- [Hevy](https://www.hevyapp.com/), the workout logger I copied the set rows
-  from.
+- [Hevy](https://www.hevyapp.com/), the workout logger the set rows come from.
