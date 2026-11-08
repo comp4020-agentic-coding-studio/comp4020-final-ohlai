@@ -68,3 +68,9 @@ Wording: I said "weight". The line is summed progress in kg (double progression 
 Checked: emulated a real touch and drag in headless Chrome at 390px, light and dark. The corner changed from "+37.6 kg, 6 Oct" to "+18.3 kg, 1 Sept" and the ring sat on the line at 1 Sept. `pnpm check` passes (19 tests).
 
 Also fixed in passing: the CSS that hides every dot but the last used `:last-of-type`, which only worked because the dots were the last circles in the SVG. The new ring is a circle too, so the last dot now has a `last` class instead.
+
+## 2026-11-09 Chevron buttons are rounded squares
+
+What I asked: "also make the chevron buttons rounded squares not circles"
+
+Before: the black start buttons on the program day cards were 40px circles (`border-radius: 50%`). Now they're 40px rounded squares with a 12px radius, the same radius as the other buttons in the mono style. One line in public/style.css (`.go`). The All workouts chevron has no background, so it's unchanged. Checked at 390px.

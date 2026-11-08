@@ -565,7 +565,7 @@ body.client main { padding-bottom: 120px; }
 .daypicks button small { color: var(--muted); font-size: 0.85rem; white-space: nowrap; }
 .daypicks .dp-ex { overflow: hidden; text-overflow: ellipsis; }
 .daypicks .open .dp-head small { color: var(--trend, var(--accent)); font-weight: 500; }
-.go { flex: none; display: grid; place-items: center; width: 40px; height: 40px; border-radius: 50%; background: var(--accent); color: var(--accent-ink); }
+.go { flex: none; display: grid; place-items: center; width: 40px; height: 40px; border-radius: 12px; background: var(--accent); color: var(--accent-ink); }
 .go svg { width: 18px; height: 18px; }
 .go.flat { width: auto; height: auto; background: none; color: var(--muted); }
 #all { display: flex; align-items: center; justify-content: space-between; }

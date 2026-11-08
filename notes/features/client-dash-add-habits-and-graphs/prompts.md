@@ -22,3 +22,7 @@ Also add a chevron to the view all workouts at the bottom of the history so you 
 ## 2026-11-09 00:01 (dashboard)
 
 also if you touch parts of the graph it should say what the weight was at that date and display the date in small text underneath the weight.
+
+## 2026-11-09 00:05 (dashboard)
+
+also make the chevron buttons rounded squares not circles
