@@ -2,8 +2,10 @@
 
 Kept by the feature agents dashboard (`tools/cannu/`). Its notes are next to this file: `prompts.md` (everything I said, word for word), `log.md` and `decisions.md`.
 
-- Status: planned
+- Status: building
 - Created: 2026-11-09 00:15
+- Started: 2026-11-09 10:37
+- Branch: feat/demo-accounts
 
 ## What I asked for
 
