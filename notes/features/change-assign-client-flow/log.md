@@ -49,3 +49,13 @@ Not done: sending the email from the backend (we picked mailto). No ADR, because
 I asked: "its saying wrong email or password. did you not liink or change the db?"
 
 Nothing about login or the users table changed. The feature app runs with its own `DATA_DIR` (`worktrees/change-assign-client-flow/data`), so it has a fresh database. My accounts from main aren't in it. The only accounts there are the ones the spec and my browser check made (all `@example.com`). I should have said that when I gave the URL, along with a login to use. Gave the test PT login from the browser check: `pt-1794124721078@example.com` / `password123`.
+
+## 2026-11-08 20:00 Onboard client button was white on white
+
+I asked: "the button on the dash is all white and i cant see the text. Also How should we handle changing a clients program?"
+
+Cause: `public/style.css` has `.apphead button { background: var(--card) }` for the plain header buttons (Export). It's more specific than `button.primary`, so my new `<button class="primary">` in the header got the card background with the white primary text. The old "Assign a program" was an `<a class="btn primary">`, which that rule doesn't touch, so it never showed up before. Fix: the rule is now `.apphead button:not(.primary)`. Checked in headless Chrome at 1366px in light (black button, white text) and dark (white button, black text).
+
+What I got wrong: my first browser check only screenshotted the dashboard with the popup open, so the button was blurred and I didn't notice it was blank. Added to CLAUDE.md "Every change": look at the page in light and dark, and with no popup open.
+
+Changing a client's program: asked with options before building anything (next entry once answered).

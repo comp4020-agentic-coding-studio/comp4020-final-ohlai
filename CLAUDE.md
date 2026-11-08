@@ -59,7 +59,9 @@ effort making PT pages fit a phone.
   start a new one) before checking a page or pointing me at a URL, and stop
   the old one, so I never end up looking at a stale server.
 - Look at the changed page at its width (see "Who's on what screen") before
-  calling it done.
+  calling it done, in light and dark, and with no popup open. A popup's
+  blurred backdrop hides what's behind it: the Onboard client button once
+  shipped white on white because it was only checked behind the blur.
 - An `onclick = (e) => ...` handler never returns a value (use braces, not
   `a && b`). One that returns false cancels the click, which once broke the
   client's Send button in the chat drawer.

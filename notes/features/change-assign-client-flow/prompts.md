@@ -21,3 +21,7 @@ Feature: Change assign client flow
 ## 2026-11-08 19:14 (dashboard)
 
 its saying wrong email or password. did you not liink or change the db?
+
+## 2026-11-08 20:01 (dashboard)
+
+the button on the dash is all white and i cant see the text. Also How should we handle changing a clients program?
