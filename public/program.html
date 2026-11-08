@@ -154,9 +154,6 @@
   // the Send button working.
   $("chatDrawer").onclick = (e) => { if (e.target === $("chatDrawer")) $("chatDrawer").close(); };
 
-  // Ties this link to an account: the PT adds it to their dashboard, the
-  // client sets a password. Both are optional; the link keeps working either way.
-  let viewer; // the logged-in user, if any
   async function renderBanner() {
     const { role, claimed, program } = state;
     const b = $("banner");
@@ -166,20 +163,6 @@
         el("p", { textContent: role === "pt" ? `${program.client_name} has moved to a new program. This one is kept for their history.`
           : `${program.pt_name} has moved you to a new program. Your sets from this one are kept.` }),
         state.moved_to ? el("a", { href: `/p/${state.moved_to}`, className: "btn primary", textContent: "Open the new program" }) : ""));
-    }
-    if (role === "pt" && !claimed) {
-      viewer ??= (await getJson("/api/me"))[0].me ?? null;
-      return b.replaceChildren(el("div", { className: "card notice" },
-        el("p", { textContent: "This program isn't on a dashboard yet." }),
-        viewer?.role === "pt"
-          ? el("button", { type: "button", className: "primary", textContent: "Add to my dashboard", onclick: () => act("claim") })
-          : el("button", { type: "button", className: "primary", textContent: "Log in to add it to your dashboard", onclick: toLogin })));
-    }
-    if (role === "client" && !claimed && !state.open_session) {
-      const pw = el("input", { type: "password", id: "pw", autocomplete: "new-password", minLength: 8 });
-      return b.replaceChildren(el("form", { className: "card notice", onsubmit: (e) => { e.preventDefault(); act("claim", { password: pw.value }); } },
-        el("label", { htmlFor: "pw", textContent: `Set a password to log in from any device and message ${program.pt_name}. Already have one? Use it here.` }),
-        el("div", { className: "row" }, pw, el("button", { type: "submit", className: "primary narrowbtn", textContent: "Save" }))));
     }
     b.replaceChildren();
   }

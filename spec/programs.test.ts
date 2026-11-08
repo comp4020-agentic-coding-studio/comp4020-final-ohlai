@@ -16,12 +16,11 @@ async function signupPT(name = "PT") {
   return cookieOf(res);
 }
 
+// A client onboarded the way the app does it: a saved program, then Onboard client.
 async function program(pt?: string, client_email = `client-${unique()}@example.com`) {
   pt ??= await signupPT();
-  const made = await api("/api/programs", {
-    title: "Spec block", client_name: "Client", client_email,
-    exercises: [{ day: "Day 1", name: "Squat", sets: 3, reps: "5" }],
-  }, pt);
+  const saved = await api("/api/templates", { name: "Spec block", exercises: [{ day: "Day 1", name: "Squat", sets: 3, reps: "5" }] }, pt);
+  const made = await api(`/api/templates/${(await saved.json()).id}/assign`, { client_name: "Client", client_email }, pt);
   expect(made.status).toBe(201);
   const { ptToken, clientToken } = await made.json();
   const client = await (await api(`/api/p/${clientToken}`)).json();
@@ -58,9 +57,9 @@ it("removing a set closes the gap, and finishing saves the workout", async () =>
 });
 
 it("rejects a program with no exercises, or from someone not logged in as a PT", async () => {
-  const body = { title: "x", client_name: "b", client_email: "b@x.com", exercises: [{ name: "Squat" }] };
-  expect((await api("/api/programs", { ...body, exercises: [] }, await signupPT())).status).toBe(400);
-  expect((await api("/api/programs", body)).status).toBe(401);
+  const body = { name: "x", exercises: [{ name: "Squat" }] };
+  expect((await api("/api/templates", { ...body, exercises: [] }, await signupPT())).status).toBe(400);
+  expect((await api("/api/templates", body)).status).toBe(401);
 });
 
 it("an invite link opens the sign-up page, and the client can fix the name and email the PT typed", async () => {
@@ -143,11 +142,11 @@ it("a PT's dashboard shows their own clients and nobody else's", async () => {
   const theirs = await (await api("/api/dash", undefined, b)).json();
   expect(theirs.clients).toEqual([]);
   expect((await api("/api/dash")).status).toBe(401);
-  // Another PT can't take over a program that's already on a dashboard.
-  expect((await api(`/api/p/${a.ptToken}/claim`, {}, b)).status).toBe(409);
+  // Nobody can take over a program with its PT link.
+  expect((await api(`/api/p/${a.ptToken}/claim`, {}, b)).status).toBe(403);
 });
 
-it("a client sets a password from their link, then only their own PT can message them", async () => {
+it("a client signs up from their invite, then only their own PT can message them", async () => {
   const email = `client-${unique()}@example.com`;
   const { pt, clientToken } = await program(undefined, email);
   expect((await api(`/api/p/${clientToken}/claim`, { password: "short" })).status).toBe(400);

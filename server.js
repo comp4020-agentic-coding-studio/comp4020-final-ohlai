@@ -397,11 +397,6 @@ const server = createServer(async (req, res) => {
   const path = url.pathname;
   try {
     if (req.method === "GET" && PAGES[path]) return send(res, 200, page(PAGES[path]), "text/html");
-    const moved = { "/templates": "/programs", "/new": "/programs/new" }[path];
-    if (req.method === "GET" && moved) {
-      res.writeHead(301, { location: moved + url.search });
-      return res.end();
-    }
     if (req.method === "GET" && STATIC_TYPE(path) && existsSync(new URL(`./public${path}`, import.meta.url)))
       return send(res, 200, page(path.slice(1)), STATIC_TYPE(path));
     if (req.method === "GET" && (path === "/readme" || path === "/readme/")) {
@@ -689,16 +684,6 @@ const server = createServer(async (req, res) => {
       return res.end(readFileSync(`${UPLOADS}/${im[1]}`));
     }
 
-    // ---------- programs ----------
-    if (req.method === "POST" && path === "/api/programs") {
-      if (me?.role !== "pt") return send(res, 401, { error: "Log in as a PT to write a program." });
-      const made = createProgram(await readJson(req), me);
-      if (!made) return send(res, 400, { error: "Need a title, the client's name, a valid email and at least one exercise." });
-      const found = findProgram(made.ptToken);
-      audit(asProgram(found), "create", 201, `created program ${JSON.stringify(found.program.title)} for ${JSON.stringify(found.program.client_name)}`);
-      return send(res, 201, made);
-    }
-
     const m = path.match(/^\/api\/p\/([\w-]+)(?:\/(log|unlog|remove|start|finish|discard|claim|events))?$/);
     if (m) {
       const found = findProgram(m[1]);
@@ -722,16 +707,10 @@ const server = createServer(async (req, res) => {
           return send(res, status, findProgram(m[1]));
         };
 
-        // Claiming ties a link to an account. The PT link joins the logged-in
-        // PT's dashboard. The client link makes (or logs into) the client's
-        // account, under the email the PT wrote the program for.
+        // Claiming is the client signing up from their invite (/join): it makes
+        // (or logs into) their account and ties it to the program.
         if (m[2] === "claim") {
-          if (found.role === "pt") {
-            if (me?.role !== "pt") return deny(401, "Log in as a PT to add this to your dashboard.");
-            if (p.pt_user_id && p.pt_user_id !== me.id) return deny(409, "This program is on another PT's dashboard.");
-            db.prepare("UPDATE programs SET pt_user_id = ? WHERE id = ?").run(me.id, p.id);
-            return done(`added it to ${JSON.stringify(me.name)}'s dashboard`);
-          }
+          if (found.role === "pt") return deny(403, "Only the client signs up from an invite.");
           if (p.client_user_id) return deny(409, "This program already has an account. Log in instead.");
           if (found.ended) return deny(409, "Your PT has moved you to a new program. Use the newest link they sent.");
           // The invite page (/join) lets the client fix the name and email the PT typed.

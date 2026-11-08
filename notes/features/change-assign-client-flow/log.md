@@ -87,3 +87,30 @@ Got wrong on the way:
 
 - The side panel showed "nullnullnull" above the lifts. `replaceChildren` prints `null` as text, and the panel already passed nulls for empty lift groups (it was there before this change, just never noticed). It now filters them out.
 - The ended program still showed "Start Day 1", which the server would refuse. It now shows no Start buttons and says "Ended".
+
+## 2026-11-08 21:25 Dropping support for old links
+
+I asked: "we can assume that no one has gotten an old link to a program so we dont have to depreciate them we can just dont aknowledge them or support them, Please check if we are doing any of that in the app atm?"
+
+I listed ten things in the app that only exist for old links or old data, with a recommendation for each. My answer:
+
+- On links from before accounts existed: "im happy with your recs."
+- "Yes remove old page addresses."
+- "Just leave the old data for now."
+- On the "old program links after a Change program" group: "i dont really get what you mean ... if we send an invite link to a client it should be an invite to the app not a program so they should always be able to use that link to sign up but that link shuold not be tied to a program. The program shuold be tied to the user. Does that make sense? Is that how youve implemented it atm?" That's the next entry.
+
+Removed in this commit:
+
+- Dashboard footer "Got a program from before you had an account? Open its PT link while you're logged in and add it here." (`public/dash.html`).
+- The "This program isn't on a dashboard yet / Add to my dashboard" banner on a PT link, and the PT side of `/api/p/<token>/claim`, which now refuses a PT link with 403 (`public/program.html`, `server.js`).
+- The "Set a password" banner on a client `/p/` link. `/join` does that now.
+- `POST /api/programs` (writing a program straight for a client). Nothing in the app called it any more. The spec helper `program()` now saves a program and onboards a client with it, the same way the app does, and the "rejects a program with no exercises" spec checks `/api/templates` instead.
+- The `/templates` and `/new` redirects. Both now 404.
+
+Changed: the login page hint "Client without a password yet? Open the link your PT sent you and set one there." is now "Client without a password yet? Open the invite your PT sent you."
+
+Kept: sets with no session (old data), grouped by day, as I asked.
+
+Not touched yet: the ended-program banner, `moved_to` and the `/join` forward. They depend on the next question.
+
+`pnpm check`: 16 pass.
