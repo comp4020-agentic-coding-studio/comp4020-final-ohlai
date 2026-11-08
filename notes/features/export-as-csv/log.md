@@ -41,3 +41,13 @@ I said: "once you click download csv it should close the popup"
 Before: the Export popup stayed open after Download CSV, so I had to close it myself. Now: a submit listener on the form in `public/dash.html` calls `hidePopover()`. It doesn't cancel the submit, so the download still happens.
 
 **Checked:** same headless Edge script, real click on Download CSV. Afterwards the popup is closed (`:popover-open` is false) and the file still downloaded with all 4 rows. `pnpm check` passes (13 tests).
+
+## 2026-11-08 21:08: merged main in
+
+I said: "Main has moved on and merging your branch conflicts in: {files}. Merge main into your branch, resolve the conflicts keeping both sides' intent, run the app and pnpm check, log what you did, and commit. @viewing-a-client-in-the-pt-dash  i think is was is conflicting". The `{files}` was left unfilled by the dashboard, so I ran the merge to find out. You were right: the only conflict was `public/dash.html`, from "viewing a client in the PT dash". `program.html` and `style.css` merged on their own.
+
+**The conflict.** That feature turned the client side panel into a dialog card, put "Message <name>" in it as the primary button that opens chat in a second card, and dropped "Open program" because you asked for it gone (its decisions.md, "Open program button"). My branch had "Open program" plus my "Export sets" next to it.
+
+**Resolved:** kept main's card as it is, with no Open program. Kept "Export sets" and put it after the Message button (or after the "Chat opens once..." note when the client hasn't set a password). Everything else from both sides merged without conflict: the export popup, the close-on-download listener, the exportUrl helper and `client_email` on dashboard rows.
+
+**Checked:** restarted the app through the dashboard, `pnpm check` passes (13 tests). Ran the headless Edge script again on port 8082: the Export popup still downloads all 4 rows and closes, and the new client card shows Export sets with the right link. "Open program" is gone as main wants. The "nullnullnull" line under Lifts is still there and comes from main, not this branch.

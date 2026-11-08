@@ -1,9 +1,12 @@
 # viewing a client in the PT dash
 
-Kept by the feature agents dashboard (`tools/feature-agents/`). Its notes are next to this file: `prompts.md` (everything I said, word for word), `log.md` and `decisions.md`.
+Kept by the feature agents dashboard (`tools/cannu/`). Its notes are next to this file: `prompts.md` (everything I said, word for word), `log.md` and `decisions.md`.
 
-- Status: planned
+- Status: merged
 - Created: 2026-11-08 18:19
+- Started: 2026-11-08 19:08
+- Branch: feat/viewing-a-client-in-the-pt-dash
+- Merged: 2026-11-08 20:30
 
 ## What I asked for
 

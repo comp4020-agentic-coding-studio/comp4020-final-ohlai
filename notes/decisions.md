@@ -711,3 +711,29 @@ Follows the 2026-11-07 entry above. Built in `COMP4020/meta/`.
   rebuilding while the mouse button is down or while there's a text selection
   in the list, and carries on once it's let go. Same idea as the existing rule
   that a refresh doesn't wipe what you're typing.
+
+## 2026-11-08: Feature setup seeds the demo data
+
+- Came up because the demo logins didn't work on any preview: setup copied
+  main's database, which on my machine is old enough to have no users, and
+  on a marker's fresh clone doesn't exist.
+- Options: re-seed my main database and keep copying, or have setup run
+  `scripts/seed-jack.js` on each feature's copy. Picked the seed in setup,
+  since it works on a fresh clone too and the script already skips what's
+  there. It starts the feature's app first, because the app creates the
+  tables. A failed seed stops setup like a failed install, and Retry picks it
+  up.
+- This changes "The database isn't in the repo" in `tools/README.md`: a
+  marker no longer seeds anything by hand.
+
+## 2026-11-08: Refreshes only redraw cards that changed
+
+- Came up because scrolled boxes and the page itself jumped every 2 seconds,
+  and selecting text didn't work. Changes "The page holds still while you
+  select text" above, which didn't fix it.
+- The list used to be rewritten from scratch on every refresh. Now each new
+  card's HTML is compared with what that card was last built from, and only
+  changed cards are swapped in. A swapped card keeps the scroll of its reply
+  and chat boxes. Unchanged cards aren't touched, so scroll and selections in
+  them survive. The pause while the mouse is down or text is selected stays,
+  for cards that do change.

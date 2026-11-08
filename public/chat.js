@@ -9,7 +9,7 @@ export function mountChat(root, other, { onLoad } = {}) {
   const err = el("p", { className: "error", role: "alert" });
   const form = el("form", { className: "compose" },
     el("label", { className: "btn photo", title: "Send a photo" },
-      el("span", { ariaHidden: "true", textContent: "📷" }), el("span", { className: "sr", textContent: "Send a photo" }), file),
+      el("span", { ariaHidden: "true", className: "ico", innerHTML: '<svg viewBox="0 0 24 24" fill="currentColor" fill-rule="evenodd"><path d="M5.5 7H7.3Q7.9 7 8.2 6.5L8.9 5.2Q9.4 4.2 10.5 4.2H13.5Q14.6 4.2 15.1 5.2L15.8 6.5Q16.1 7 16.7 7H18.5A3.5 3.5 0 0 1 22 10.5V16.5A3.5 3.5 0 0 1 18.5 20H5.5A3.5 3.5 0 0 1 2 16.5V10.5A3.5 3.5 0 0 1 5.5 7ZM12 9.8a3.6 3.6 0 1 0 0 7.2a3.6 3.6 0 1 0 0-7.2Z"/></svg>' }), el("span", { className: "sr", textContent: "Send a photo" }), file),
     el("label", { htmlFor: "chatText", className: "sr", textContent: "Message" }),
     text,
     el("button", { className: "primary", type: "submit", textContent: "Send" }));

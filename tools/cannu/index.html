@@ -53,6 +53,16 @@
   .hint { color: var(--mute); font-size:12px; }
   .msg { margin-top:8px; font-size:13px; white-space:pre-wrap; }
   .msg.bad { color: var(--bad); } .msg.good { color: var(--idle); }
+  /* Errors: a box about 3 lines tall that scrolls for the rest. */
+  .err { position:relative; margin-top:8px; border:2px solid color-mix(in srgb, var(--bad) 30%, transparent); border-radius:7px; background:var(--bg); }
+  .err { cursor:pointer; } .err.full pre { max-height:calc(6 * 1.45em + 16px); }
+  .err pre { margin:0; padding:8px 70px 8px 10px; font-size:12px; line-height:1.45; color:var(--bad); white-space:pre-wrap; word-break:break-word; max-height:calc(3 * 1.45em + 16px); overflow:auto; }
+  .err button { position:absolute; top:50%; transform:translateY(-50%); right:18px; font-size:12px; padding:3px 8px; color:var(--bad); background:color-mix(in srgb, var(--bad) 12%, transparent); border:2px solid color-mix(in srgb, var(--bad) 30%, transparent); display:inline-flex; align-items:center; gap:5px; }
+  .err button:hover { background:color-mix(in srgb, var(--bad) 22%, transparent); border-color:color-mix(in srgb, var(--bad) 45%, transparent); }
+  /* An open box keeps Copy where it sat in the 3 line box: half of that box's height. */
+  .err.full button { top:calc((3 * 1.45 * 12px + 16px) / 2); }
+  .err button span { min-width:6ch; text-align:left; } /* "Copied" is wider than "Copy"; keep the icon still */
+  .err button svg { width:14px; height:7px; fill:none; stroke:currentColor; stroke-width:2.2; stroke-linecap:round; }
   a { color: inherit; }
   details summary { cursor:pointer; color:var(--mute); font-size:13px; }
   .empty { color: var(--mute); text-align:center; padding: 30px; }
@@ -291,6 +301,17 @@ let filter = store.get("filter", "all");
 if (filter !== "all" && !KINDS.includes(filter)) filter = "all";
 let all = [];
 
+// One line of feedback under a card. Errors get a short scrolling box with a Copy button.
+function msgBlock(s) {
+  if (!s.msg) return "";
+  if (s.cls !== "bad") return `<div class="msg ${s.cls}">${esc(s.msg)}</div>`;
+  return errBlock(s, "msg", s.msg);
+}
+// Click the box to make it up to 2x taller, fitting the error (it still scrolls past that); click again to shrink it.
+function errBlock(s, key, text) {
+  return `<div class="err ${s.errFull?.[key] ? "full" : ""}" data-act="errexpand" data-key="${key}" title="Click to show more"><pre>${esc(text)}</pre><button data-act="copy" title="Copy the error"><svg viewBox="0 0 24 12" aria-hidden="true"><path d="M8 1H6a5 5 0 0 0 0 10h2M16 1h2a5 5 0 0 1 0 10h-2M8 6h8"/></svg><span>Copy</span></button></div>`;
+}
+
 // [status, detail]. The detail (needs you, background…) shows after it.
 function kind(f) {
   if (!f.worktree) return f.status === "building" ? ["waiting", ""] : [f.status, ""];
@@ -371,7 +392,7 @@ function card(f) {
   const body = `${st.activity && cls === "working" ? `<div class="activity" style="margin-top:6px">${esc(st.activity)}</div>` : ""}
     ${banner}
     ${st.lastReply && !s.fb ? `<div class="reply md ${s.full ? "full" : ""}" data-act="expand" title="Click to show all of it">${md(st.lastReply)}</div>` : ""}
-    ${st.denied?.length ? `<div class="msg bad">Blocked in the background run (open the session to allow):\n${esc(st.denied.join("\n"))}</div>` : ""}`;
+    ${st.denied?.length ? errBlock(s, "denied", "Blocked in the background run (open the session to allow):\n" + st.denied.join("\n")) : ""}`;
   return `<div class="card" data-slug="${f.slug}">
     <div class="row top">
       ${bellBtn(f)}
@@ -382,7 +403,7 @@ function card(f) {
     </div>
     ${c ? "" : body}
     ${s.fb && !c ? chatBox(f, s, cls) : ""}
-    ${s.msg ? `<div class="msg ${s.cls}">${esc(s.msg)}</div>` : ""}
+    ${msgBlock(s)}
     ${actions(`<span class="split"><button data-act="${f.appUp ? "app" : "appstart"}" title="${f.appUp ? "Open this feature's app" : "Start this feature's app and open it"}">Preview ↗</button><button data-act="appstop" title="Stop this feature's app" ${f.appUp ? "" : "disabled"}>✕</button></span>
       <button data-act="open">Open session</button>
       <button data-act="fb">${s.fb ? "Hide chat" : "Chat"}${st.queue?.length ? ` (${st.queue.length} waiting)` : ""}</button>
@@ -430,7 +451,7 @@ function simpleCard(f) {
       ${MENTION_HINT}
       <div class="row"><button data-act="reopen-plan" title="Records it on main without a branch or agent. Start it later from its card.">Save as planned</button><button class="primary" data-act="reopen-go">Start agent</button></div>
     </div>` : ""}
-    ${s.msg ? `<div class="msg ${s.cls}">${esc(s.msg)}</div>` : ""}
+    ${msgBlock(s)}
   </div>`;
 }
 
@@ -487,9 +508,8 @@ function render(features) {
   // Filter chips, with how many features each would show.
   const inGroup = (f, g) => g === "all" || kind(f)[0] === g;
   $("#chips").innerHTML = ["all", ...CHIPS].map((g) => `<button data-filter="${g}" title="${KIND_TIPS[g]}" class="${g === filter ? "on" : ""}">${cap(g)}<span class="n">${features.filter((f) => inGroup(f, g)).length}</span></button>`).join("");
-  // Rebuilding the cards mid-drag, or under a selection, throws the selection
-  // onto whatever HTML replaced it, which looked like the whole page selecting
-  // itself. Hold the cards still until the selection is let go.
+  // Replacing a card under a drag or a selection throws the selection onto
+  // the new HTML. Hold the cards still until it's let go.
   const sel = getSelection();
   if (mouseDown || (sel && !sel.isCollapsed && $("#list").contains(sel.anchorNode))) return;
   if (typing) { // don't wipe what you're typing, but keep open chats up to date
@@ -510,17 +530,47 @@ function render(features) {
   const urgent = { "needs-you": 0, stuck: 0, interrupted: 1, "not-started": 1, failed: 1, error: 2 };
   const rank = (f) => KINDS.indexOf(kind(f)[0]) * 10 + (urgent[status(f)[0]] ?? 5);
   shown.sort((a, b) => rank(a) - rank(b) || String(b.merged || b.dropped || b.started || b.created || "").localeCompare(String(a.merged || a.dropped || a.started || a.created || "")));
-  $("#list").innerHTML = shown.length ? shown.map((f) => (f.worktree ? card(f) : simpleCard(f))).join("")
-    : `<div class="card empty">${q ? "Nothing matches that search." : filter === "all" ? "No features yet. Add one with + New feature." : `Nothing is ${filter} right now.`}</div>`;
+  const html = shown.length ? shown.map((f) => (f.worktree ? card(f) : simpleCard(f)))
+    : [`<div class="card empty">${q ? "Nothing matches that search." : filter === "all" ? "No features yet. Add one with + New feature." : `Nothing is ${filter} right now.`}</div>`];
+  patchList(html);
   for (const f of shown) {
     const s = u(f.slug);
     const slot = s.fb && $(`[data-slug="${f.slug}"] [data-chat]`);
     if (!slot) continue;
     const old = keep[f.slug];
-    if (old) { slot.replaceWith(old); old.scrollTop = +old.dataset.top; }
+    if (old && old !== slot) { slot.replaceWith(old); old.scrollTop = +old.dataset.top; }
     if (!old || old.dataset.at !== String(f.st?.at) + (f.st?.queue?.length || 0)) loadChat(f.slug);
   }
   for (const ta of document.querySelectorAll(".compose textarea")) fitCompose(ta, true);
+}
+
+// The list is redrawn every 2 seconds. Rewriting all of it reset every
+// scrolled box inside the cards and briefly changed the page's height, so the
+// page jumped while scrolling. Now a card is only swapped when its HTML
+// changed, and the scroll of each box inside it carries over.
+function patchList(html) {
+  const list = $("#list");
+  const tpl = document.createElement("template");
+  tpl.innerHTML = html.join("");
+  const next = [...tpl.content.children];
+  next.forEach((el, i) => (el._html = html[i])); // what it was built from; the live DOM drifts (open chats, box sizes)
+  const old = new Map([...list.children].map((el) => [el.dataset.slug ?? "", el]));
+  let at = list.firstElementChild;
+  for (const el of next) {
+    const cur = old.get(el.dataset.slug ?? "");
+    let use = el;
+    if (cur && cur._html === el._html) use = cur; // unchanged: keep the node and its scroll
+    else if (cur) {
+      // Changed: carry over the scroll of each box, matched by position.
+      const tops = [...cur.querySelectorAll(".reply, .thread")].map((b) => b.scrollTop);
+      [...el.querySelectorAll(".reply, .thread")].forEach((b, i) => { if (tops[i]) requestAnimationFrame(() => (b.scrollTop = tops[i])); });
+    }
+    if (cur && use !== cur) cur.replaceWith(use);
+    else if (use !== at) list.insertBefore(use, at);
+    at = use.nextElementSibling;
+    old.delete(el.dataset.slug ?? "");
+  }
+  for (const el of old.values()) el.remove();
 }
 
 // The conversation, newest at the bottom. Reloaded when the agent's state
@@ -578,6 +628,8 @@ async function onClick(e) {
   const slug = b.closest("[data-slug]").dataset.slug; const s = u(slug); const act = b.dataset.act;
   const say = (msg, cls = "") => { s.msg = msg; s.cls = cls; render(all); refresh(); };
   const base = `/api/features/${slug}`;
+  if (act === "copy") { try { await navigator.clipboard.writeText(b.closest(".err").querySelector("pre").textContent); b.lastChild.textContent = "Copied"; } catch { b.lastChild.textContent = "Couldn't copy"; } setTimeout(() => { b.lastChild.textContent = "Copy"; }, 1500); return; }
+  if (act === "errexpand") { (s.errFull ??= {})[b.dataset.key] = !s.errFull[b.dataset.key]; return render(all); }
   if (act === "expand") { s.full = !s.full; return render(all); }
   if (act === "collapse") { collapsed.has(slug) ? collapsed.delete(slug) : collapsed.add(slug); store.set("collapsed", [...collapsed]); turned = slug; render(all); turned = null; return; }
   // Chat opens a folded card back up.
@@ -640,7 +692,7 @@ async function onClick(e) {
     const r = await api(`${base}/drop`, {}); return say(r.ok ? "" : r.msg, r.ok ? "" : "bad");
   }
   if (act === "merge") {
-    if (!(await ask("Check and merge?", "Runs pnpm check on the branch and merges it into main if it passes. Nothing is pushed.", "Check and merge"))) return;
+    if (!(await ask(`Check and merge “${all.find((x) => x.slug === slug).title}”?`,"Runs pnpm check on the branch and merges it into main if it passes. Nothing is pushed.", "Check and merge"))) return;
     say("Checking (starts the branch's server and runs pnpm check)…");
     const r = await api(`${base}/merge`, {});
     if (r.ok) return say(r.msg, "good");
@@ -803,6 +855,7 @@ $("#defaultsSave").onclick = async () => {
   if (r.msg) { $("#defaultsMsg").textContent = r.msg; return; }
   setModels(r); fillDefaults(r);
   $("#defaultsMsg").textContent = "Saved and committed on main.";
+  setTimeout(() => closeModal($("#defaultsDlg")), 700);
 };
 
 // ---------- @ mentions ----------
