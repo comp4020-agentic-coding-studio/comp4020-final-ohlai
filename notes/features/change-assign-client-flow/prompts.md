@@ -25,3 +25,9 @@ its saying wrong email or password. did you not liink or change the db?
 ## 2026-11-08 20:01 (dashboard)
 
 the button on the dash is all white and i cant see the text. Also How should we handle changing a clients program?
+
+## 2026-11-08 20:48 (dashboard)
+
+yes lets do option a, and then also add an option to duplicate a program in the programs page. 
+then if someones mid workout when you change just queue it to change for them once they finish their workout. but let the PT submit the change with a note letting them know. 
+Why would it live on the onboard client?? only have it on the clients side panel.

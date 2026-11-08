@@ -80,6 +80,61 @@ it("an invite link opens the sign-up page, and the client can fix the name and e
   expect((await api(`/api/p/${clientToken}/claim`, { password: "password123" })).status).toBe(409);
 });
 
+it("changing a client's program keeps every logged set, and waits if they're mid-workout", async () => {
+  const { pt, clientToken, exercise_id } = await program();
+  const claimed = await api(`/api/p/${clientToken}/claim`, { password: "password123" });
+  const client = cookieOf(claimed);
+  const old = (await claimed.json()).program;
+  const { id: template_id } = await (await api("/api/templates", { name: "Block 2", exercises: [{ day: "Day A", name: "Deadlift", sets: 3, reps: "5" }] }, pt)).json();
+  const other = await signupPT("Other PT");
+  expect((await api(`/api/programs/${old.id}/change`, { template_id }, other)).status).toBe(404);
+
+  // Mid-workout: queued, nothing moves yet.
+  await api(`/api/p/${clientToken}/start`, { day: "Day 1" });
+  await api(`/api/p/${clientToken}/log`, { exercise_id, set_no: 1, reps: 5, weight: 100 });
+  const queued = await api(`/api/programs/${old.id}/change`, { template_id, note: "New block, go easy on the deadlifts." }, pt);
+  expect(queued.status).toBe(202);
+  let dash = await (await api("/api/dash", undefined, pt)).json();
+  expect(dash.clients.find((c: { program_id: number }) => c.program_id === old.id).pending).toMatchObject({ title: "Block 2" });
+
+  // Finishing the workout makes the change. The old program and its set stay.
+  const finished = await (await api(`/api/p/${clientToken}/finish`, {})).json();
+  expect(finished.ended).toBe(true);
+  expect(finished.logs).toMatchObject([{ set_no: 1, reps: 5, weight: 100 }]);
+  expect(finished.moved_to).toBeTruthy();
+  expect((await api(`/api/p/${clientToken}/start`, { day: "Day 1" })).status).toBe(409);
+  const next = await (await api(`/api/p/${finished.moved_to}`)).json();
+  expect(next.role).toBe("client"); // the client link leads to the new client link, never a PT link
+  expect(next).toMatchObject({ program: { title: "Block 2", client_user_id: old.client_user_id }, change_note: "New block, go easy on the deadlifts." });
+
+  dash = await (await api("/api/dash", undefined, pt)).json();
+  expect(dash.clients.map((c: { title: string }) => c.title)).toEqual(["Block 2"]);
+  expect(dash.clients[0].last_workout).toBeTruthy(); // their history counts
+  const me = await (await api("/api/me", undefined, client)).json();
+  expect(me.programs.map((p: { title: string }) => p.title)).toEqual(["Block 2"]);
+  expect(me.workouts).toHaveLength(1);
+});
+
+it("changing the program before the client signs up moves the invite to the new program", async () => {
+  const { pt, clientToken } = await program();
+  const old = (await (await api(`/api/p/${clientToken}`)).json()).program;
+  const { id: template_id } = await (await api("/api/templates", { name: "Block 2", exercises: [{ name: "Row" }] }, pt)).json();
+  expect((await api(`/api/programs/${old.id}/change`, { template_id }, pt)).status).toBe(200);
+  const { moved_to } = await (await api(`/api/p/${clientToken}`)).json();
+  expect((await api(`/api/p/${clientToken}/claim`, { password: "password123" })).status).toBe(409);
+  expect((await api(`/api/p/${moved_to}/claim`, { password: "password123" })).status).toBe(200);
+});
+
+it("duplicating a program makes a separate copy", async () => {
+  const pt = await signupPT();
+  const { id } = await (await api("/api/templates", { name: "PPL", exercises: [{ day: "Push", name: "Bench" }] }, pt)).json();
+  expect((await api(`/api/templates/${id}/duplicate`, {}, await signupPT())).status).toBe(404);
+  const { id: copy } = await (await api(`/api/templates/${id}/duplicate`, {}, pt)).json();
+  await api(`/api/templates/${copy}`, { name: "PPL v2" }, pt);
+  const { templates } = await (await api("/api/templates", undefined, pt)).json();
+  expect(templates.map((t: { name: string }) => t.name)).toEqual(["PPL", "PPL v2"]);
+});
+
 it("a PT's dashboard shows their own clients and nobody else's", async () => {
   const a = await program();
   const b = await signupPT("Other PT");

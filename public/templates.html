@@ -48,6 +48,11 @@
           el("li", {}, el("span", { textContent: e.name }), el("span", { className: "muted num", textContent: ` ${e.sets} × ${e.reps}` })))))),
       el("div", { className: "actions" },
         el("a", { href: `/programs/new?edit=${t.id}`, className: "btn primary", textContent: "Edit" }),
+        el("button", { type: "button", textContent: "Duplicate", onclick: async () => {
+          const [data, ok] = await api(`/api/templates/${t.id}/duplicate`, {});
+          $("err").textContent = ok ? "" : data.error;
+          if (ok) { history.replaceState(null, "", `#p${data.id}`); load(); }
+        } }),
         el("button", { type: "button", textContent: "Delete", onclick: async () => {
           if (!confirm(`Delete "${t.name}"? Clients who already have it keep their copy.`)) return;
           const [data, ok] = await api(`/api/templates/${t.id}/delete`, {});

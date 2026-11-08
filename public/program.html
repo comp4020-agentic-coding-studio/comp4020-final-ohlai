@@ -160,6 +160,13 @@
   async function renderBanner() {
     const { role, claimed, program } = state;
     const b = $("banner");
+    // An old link to a program that's been replaced points on to the new one.
+    if (state.ended) {
+      return b.replaceChildren(el("div", { className: "card notice" },
+        el("p", { textContent: role === "pt" ? `${program.client_name} has moved to a new program. This one is kept for their history.`
+          : `${program.pt_name} has moved you to a new program. Your sets from this one are kept.` }),
+        state.moved_to ? el("a", { href: `/p/${state.moved_to}`, className: "btn primary", textContent: "Open the new program" }) : ""));
+    }
     if (role === "pt" && !claimed) {
       viewer ??= (await getJson("/api/me"))[0].me ?? null;
       return b.replaceChildren(el("div", { className: "card notice" },
@@ -253,7 +260,7 @@
     const { program, exercises } = state;
     const all = workouts().filter((w) => w.finished);
     $("title").textContent = program.title;
-    $("sub").textContent = `From ${program.pt_name}. Pick a workout to start.`;
+    $("sub").textContent = state.ended ? `From ${program.pt_name}. Ended.` : `From ${program.pt_name}. Pick a workout to start.`;
     $("actions").append(...navLinks());
     const weekAgo = Date.now() - 7 * 864e5;
     $("stats").replaceChildren(...[
@@ -261,7 +268,8 @@
       ["Last", all.length ? fmtDay(all.at(-1).start) : "–"]].map(stat));
 
     const dayNames = [...new Set(exercises.map((e) => e.day))];
-    const picks = dayNames.map((d) => {
+    // An ended program is history only: no Start buttons, the banner links to the new one.
+    const picks = state.ended ? [] : dayNames.map((d) => {
       const lastDone = all.filter((w) => w.day === d).at(-1);
       return el("article", { className: "card pick" },
         el("div", { className: "ex-head" },

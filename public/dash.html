@@ -95,6 +95,23 @@
   </section>
 </dialog>
 
+<!-- Change a client's program, from their side panel. -->
+<dialog id="ch" class="confirm onboard" aria-labelledby="ch-title">
+  <form id="ch-form">
+    <h3 id="ch-title">Change program</h3>
+    <p id="ch-sub"></p>
+    <label for="ch-prog">New program</label>
+    <select id="ch-prog" required></select>
+    <label for="ch-note">Note for them</label>
+    <textarea id="ch-note" rows="3" maxlength="1000"></textarea>
+    <p id="ch-err" class="error" role="alert"></p>
+    <div class="actions">
+      <button type="button" id="ch-cancel">Cancel</button>
+      <button type="submit" class="primary" id="ch-go">Change program</button>
+    </div>
+  </form>
+</dialog>
+
 <div popover id="pv-export" class="pv">
   <h3>Export</h3>
   <p>Download your clients and their logged sets as a spreadsheet (CSV), for your own records or a client
@@ -200,7 +217,7 @@
 
   function open(id) { selected = id; render(); $("d-close")?.focus(); }
   function close() { selected = null; render(); }
-  addEventListener("keydown", (e) => e.key === "Escape" && selected && !document.querySelector(":popover-open") && !$("ob").open && close());
+  addEventListener("keydown", (e) => e.key === "Escape" && selected && !document.querySelector(":popover-open") && !$("ob").open && !$("ch").open && close());
 
   // Side panel: the detail behind each number in a client's row.
   function detail() {
@@ -212,13 +229,16 @@
       el("h4", { textContent: STATUS[s] }),
       el("ul", { className: "plain" }, ...lifts(s).map((l) =>
         el("li", {}, el("a", { href: `/p/${x.pt_token}#ex-${l.id}`, textContent: l.name }), el("span", { className: "muted", textContent: ` ${l.day}` }))))) : null;
-    $("detail").replaceChildren(
+    // replaceChildren prints null as the text "null", so skipped sections are filtered out.
+    $("detail").replaceChildren(...[
       el("div", { className: "detail-head" },
         el("span", { className: "avatar big", ariaHidden: "true", textContent: x.client_name[0] }),
         el("div", {}, el("h2", { id: "d-name", textContent: x.client_name }), el("span", { className: "muted", textContent: x.title })),
         el("button", { type: "button", id: "d-close", ariaLabel: "Close", textContent: "✕", onclick: close })),
+      x.pending ? el("p", { className: "muted", textContent: `Moving to ${x.pending.title} once ${x.client_name} finishes this workout.` }) : null,
       el("div", { className: "actions" },
         el("a", { href: `/p/${x.pt_token}`, className: "btn primary", textContent: "Open program" }),
+        el("button", { type: "button", textContent: "Change program", onclick: () => { changeProgram(x); } }),
         x.client_user_id
           ? el("a", { href: `/chat/${x.client_user_id}`, className: "btn", textContent: `Message${x.unread ? ` (${x.unread} new)` : ""}` })
           : el("span", { className: "muted", textContent: `Chat opens once ${x.client_name} sets a password from their link.` })),
@@ -239,7 +259,7 @@
       liftList("stalled"), liftList("up"), liftList("steady"), liftList("new"),
       el("h3", {}, "Private notes ", el("span", { className: "pv-tag", textContent: "Preview" })),
       el("textarea", { rows: 3, placeholder: `Only you see this. Injuries, goals, what ${x.client_name} said last session…`, ariaLabel: "Private notes (preview, not saved)" }),
-      el("p", { className: "muted", textContent: "Not saved yet. This is a preview of the idea." }));
+      el("p", { className: "muted", textContent: "Not saved yet. This is a preview of the idea." })].filter(Boolean));
   }
 
   // Onboard: copies a saved program for the new client (same endpoint the
@@ -280,6 +300,38 @@
     $("ob-mail").href = `mailto:${encodeURIComponent(email)}?subject=${encodeURIComponent(`${me.name} invited you to their gym app`)}&body=${encodeURIComponent(msg)}`;
     $("ob-form").hidden = true;
     $("ob-done").hidden = false;
+  };
+
+  // Change program: the client gets a fresh copy of another saved program.
+  // Their old program ends but keeps every set. Mid-workout, it waits until they finish.
+  const ch = $("ch");
+  let changing;
+  async function changeProgram(x) {
+    changing = x;
+    const [data] = await api("/api/templates");
+    $("ch-prog").replaceChildren(...(data.templates ?? []).map((t) => el("option", { value: t.id, textContent: t.name })));
+    $("ch-sub").textContent = x.in_progress
+      ? `${x.client_name} is training now. The change happens when they finish this workout. Their sets so far stay in their history.`
+      : `${x.client_name} moves off ${x.title}. Everything they've logged stays in their history.`;
+    $("ch-note").placeholder = `Optional. ${x.client_name} sees this with their new program.`;
+    $("ch-note").value = $("ch-err").textContent = "";
+    $("ch-go").disabled = !data.templates?.length;
+    if (!data.templates?.length) $("ch-err").textContent = "Write a program first on the Programs page.";
+    document.documentElement.classList.add("locked");
+    ch.showModal();
+  }
+  $("ch-cancel").onclick = () => { ch.close(); };
+  ch.onclick = (e) => { if (e.target === ch) ch.close(); };
+  ch.onclose = () => { document.documentElement.classList.remove("locked"); };
+  $("ch-form").onsubmit = async (e) => {
+    e.preventDefault();
+    $("ch-go").disabled = true;
+    const [data, ok] = await api(`/api/programs/${changing.program_id}/change`, { template_id: Number($("ch-prog").value), note: $("ch-note").value });
+    $("ch-go").disabled = false;
+    if (!ok) { $("ch-err").textContent = data.error; return; }
+    ch.close();
+    if (!data.queued) selected = null; // their row now points at the new program
+    load(true);
   };
 
   $("q").oninput = render;

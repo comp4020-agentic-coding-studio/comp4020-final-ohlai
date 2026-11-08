@@ -59,3 +59,31 @@ Cause: `public/style.css` has `.apphead button { background: var(--card) }` for 
 What I got wrong: my first browser check only screenshotted the dashboard with the popup open, so the button was blurred and I didn't notice it was blank. Added to CLAUDE.md "Every change": look at the page in light and dark, and with no popup open.
 
 Changing a client's program: asked with options before building anything (next entry once answered).
+
+## 2026-11-08 21:00 Change program, and Duplicate on Programs
+
+I asked: "yes lets do option a, and then also add an option to duplicate a program in the programs page. then if someones mid workout when you change just queue it to change for them once they finish their workout. but let the PT submit the change with a note letting them know. Why would it live on the onboard client?? only have it on the clients side panel."
+
+Before: a client's program couldn't be changed at all. The only way was to assign a second program, which put the client on the dashboard twice.
+
+Now:
+
+- **Change program** is a button in the client's side panel on the dashboard (only there, not in Onboard client). It opens a popup in the same style as Onboard client: pick one of your saved programs, and an optional note for the client. If they're training, the popup says the change happens when they finish this workout.
+- The server (`POST /api/programs/:id/change` in `server.js`) makes the client a fresh copy of the picked program, linked to the same client account, and marks the old one ended. Nothing is deleted: the old program, its workouts and every logged set stay. That's why it's a new copy rather than editing their program in place. Logged sets point at the old program's exercises, and deleting an exercise deletes its sets (CLAUDE.md "Never").
+- **Mid-workout:** the PT can still submit. The change and note wait in `programs.pending_change` and happen when the client finishes or discards the workout. The side panel says "Moving to {program} once {name} finishes this workout." The PT gets a 202 with `queued: true` instead of the panel closing.
+- **The note** is saved on the new program (`change_note`) and shows on the client's dashboard (`/me`) as a card under the program title: "New program from {PT}" plus the note.
+- **Old links:** opening an ended program shows "{PT} has moved you to a new program. Your sets from this one are kept." with Open the new program, and no Start buttons. The client link leads to the new client link, the PT link to the new PT link, so a client never gets a PT link. Starting a workout on an ended program is refused on the server too.
+- If the PT changes the program before the client has signed up, the old `/join` link moves on to the new program's invite, and signing up on the old one is refused. Otherwise the account would have been attached to the ended program.
+- The dashboard, inbox titles and the client's day buttons only show current programs. "Last workout" on the dashboard also counts the client's ended programs with this PT, so changing someone's program doesn't make them show as "Hasn't started yet".
+- **Duplicate** on each card on Programs makes "{name} (copy)" with the same exercises, then you edit it. Server: `POST /api/templates/:id/duplicate`.
+- Schema: four new columns on programs (`ended_at`, `replaced_by`, `pending_change`, `change_note`) with guarded `ALTER TABLE`, so it's additive.
+
+Checks:
+
+- Three new specs in `spec/programs.test.ts`: a queued change mid-workout (another PT can't change it, the dashboard shows it pending, finishing makes the change, the old program keeps its set and won't start a new workout, the new link is a client link with the note, the dashboard and `/me` show only the new program and history still counts), a change before sign-up moving the invite, and Duplicate (another PT can't, and the copy is separate). `pnpm check`: 16 pass.
+- Clicked through in headless Chrome: Duplicate at 1366px; as the PT, opened Ana's panel while she was mid-workout, Change program, picked the copy, typed a note, clicked Change program and saw the "Moving to..." line; then as Ana at 390px, clicked Finish, saw the moved banner on the old program, and saw the note on `/me`. Checked `/me` in dark mode as well. No horizontal scroll at 390px.
+
+Got wrong on the way:
+
+- The side panel showed "nullnullnull" above the lifts. `replaceChildren` prints `null` as text, and the panel already passed nulls for empty lift groups (it was there before this change, just never noticed). It now filters them out.
+- The ended program still showed "Start Day 1", which the server would refuse. It now shows no Start buttons and says "Ended".

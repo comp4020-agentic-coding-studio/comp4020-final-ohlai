@@ -31,7 +31,9 @@
   import { $, api } from "/ui.js";
   const tok = location.pathname.split("/").pop();
   const [data, ok] = await api(`/api/p/${tok}`);
-  if (!ok || data.role !== "client") $("err").textContent = "This invite link doesn't work. Ask your PT to send it again.";
+  // The PT changed their program before they signed up: the invite follows it.
+  if (ok && data.moved_to) location.replace(`/join/${data.moved_to}`);
+  else if (!ok || data.role !== "client") $("err").textContent = "This invite link doesn't work. Ask your PT to send it again.";
   else if (data.claimed) location.replace("/login?next=/me");
   else {
     const p = data.program;
