@@ -269,3 +269,18 @@ Follows the 2026-11-07 entry above. Built in `COMP4020/meta/`.
   should hear. So there's an editable "Prompt for every agent" on the
   dashboard that goes at the start of each new agent's first prompt. Agents
   that already started don't get it.
+
+## 2026-11-08: The prompt for every agent becomes a system prompt
+
+- **What changed.** In the entry above, the text for every agent went at the
+  start of each new agent's first prompt. I changed it to a system prompt.
+  It's now added to every claude run with `--append-system-prompt`, so it
+  also reaches agents that had already started, on their next turn.
+- **What that changes for skills.** A slash command like `/ponytail full`
+  only runs from a typed message, not from a system prompt. So the system
+  prompt asks the agent to load the skill in words. Tested: an agent given
+  that system prompt loaded ponytail at full level on its first turn.
+- **Notification toggle look.** Asked for the toggle to look like the app's
+  black-and-white style with a sliding selection, then for square corners
+  instead of a pill, filled bell icons, and black for the selected one on a
+  white background. A feature's bell turns black and rings when it's on.
