@@ -599,8 +599,18 @@ async function onClick(e) {
     const inBox = document.activeElement?.closest?.(".compose");
     if (inBox) document.activeElement.blur();
     const after = (msg, cls) => { say(msg, cls); if (inBox) $(`[data-slug="${slug}"] .compose textarea`)?.focus(); };
+    // Show the message now instead of after the server answers and the chat
+    // reloads. The reload replaces this bubble; a failure removes it.
+    const chat = $(`[data-slug="${slug}"] [data-chat]`), box = $(`[data-slug="${slug}"] .compose textarea`);
+    let bubble;
+    if (chat) {
+      chat.querySelector(".hint")?.remove();
+      chat.insertAdjacentHTML("beforeend", `<div class="bubble me"><div class="md">${md(text)}</div><div class="who">You · sending…</div></div>`);
+      bubble = chat.lastElementChild; chat.scrollTop = chat.scrollHeight;
+    }
+    if (box) { box.value = ""; fitCompose(box); }
     const r = await api(`${base}/feedback`, { text });
-    if (r.msg) { s.draft = text; return after(r.msg, "bad"); }
+    if (r.msg) { bubble?.remove(); s.draft = text; if (box) { box.value = text; fitCompose(box); } return after(r.msg, "bad"); }
     return after(r.sent ? "" : { "busy-terminal": "Waiting: the agent is mid-turn in its terminal. Your message goes as soon as it finishes.", busy: "Waiting: the agent is mid-turn. Your message goes as soon as it finishes.", "not-started": "Waiting: the agent hasn't started yet. Your message goes once it has." }[r.why] || "");
   }
   if (act === "start") { say("Starting: making its branch and folder…"); const r = await api(`${base}/start`, {}); return say(r.msg || "Started. The agent begins in the background once setup finishes.", r.msg ? "bad" : "good"); }

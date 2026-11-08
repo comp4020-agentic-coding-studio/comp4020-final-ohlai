@@ -615,3 +615,13 @@ Follows the 2026-11-07 entry above. Built in `COMP4020/meta/`.
   unit, so when the line is full it drops whole to the next line. I said
   "after 2 committed", which I took to mean after the commit count, not that it
   always starts a new line. Not looked at in the browser yet.
+
+## 2026-11-08: Sent messages appear in the chat straight away
+
+- Asked for sent messages to show up quicker in the chat, since it took about
+  half a second after clicking Send. The bubble only appeared once the server
+  had answered and the chat reloaded from the saved transcript.
+- Now the bubble is added the moment Send is clicked, marked "You · sending…",
+  and the box clears at once. The normal reload replaces it. If the send
+  fails, the bubble is removed and the text goes back in the box with the
+  error. Not looked at in the browser yet.
