@@ -17,3 +17,7 @@ make them smaller and add them in line with the name of the programs day.
 ## 2026-11-09 00:32 (dashboard)
 
 its still going back to the full program page instead of the dash after you discard
+
+## 2026-11-09 00:34 (dashboard)
+
+wait it thuoght we phased out old links without accounts and removed that from being possible on the site?

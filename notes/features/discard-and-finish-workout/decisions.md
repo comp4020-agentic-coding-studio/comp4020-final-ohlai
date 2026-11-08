@@ -20,3 +20,9 @@ What came up: after Discard, the client landed on the program page's picker, the
 What I picked: after Discard, a signed-up client goes to their dashboard (`/me`).
 
 Left as it was, as small details: a link-only client, who has no dashboard, stays on the picker. Finish still stays on the program page, because I only asked about Discard.
+
+## 2026-11-09 No fallback for clients without an account
+
+What came up: the agent kept a "link-only client stays on the picker" case after Discard. I pointed out that we'd already phased out links without accounts (2026-11-08, change-assign-client-flow, "Drop support for old links").
+
+What I picked: no special case. After Discard, every client goes to `/me`. This replaces the "Left as it was" line in the entry above.

@@ -251,10 +251,10 @@
       recent.length ? el("ul", { className: "recent" }, ...recent) : "");
   }
 
-  // Back to the client's dashboard, where they pick a workout. A link-only
-  // client has no dashboard, so they stay on the program's picker.
+  // Back to the client's dashboard, where they pick a workout. Every client
+  // has an account (they join through an invite), so /me is always there.
   async function discard() {
-    if ((await act("discard")) && state.claimed) location.href = "/me";
+    if (await act("discard")) location.href = "/me";
   }
 
   async function finish() {
