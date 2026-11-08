@@ -14,3 +14,11 @@ Feature: QR code
 
 build our own encoder. there is a pretty optimised github one we can build off of here https://github.com/p2r3/ha.mr
 yes show itvite ready popup the same as the regular link
+
+## 2026-11-09 09:32 (terminal)
+
+try to fetch again and compare between ha.mr and you implementation
+
+## 2026-11-09 09:34 (terminal)
+
+ive clones ha.mr into documents/github/

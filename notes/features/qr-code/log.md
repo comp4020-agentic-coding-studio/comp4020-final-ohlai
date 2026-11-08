@@ -32,3 +32,19 @@ How it was checked:
 - Not done: scanning it with a real phone camera. The module-for-module match with segno is the stand-in for that.
 
 No `server.js` change, so no app restart was needed.
+
+## 2026-11-09 Comparing with ha.mr
+
+I said: "try to fetch again and compare between ha.mr and you implementation", then "ive clones ha.mr into documents/github/".
+
+The agent's own clone (into a temp folder) went through this time, but running code from it was blocked as untrusted downloaded code. I cloned it myself into `Documents/github/ha.mr` and the comparison ran from my copy. Nothing from ha.mr was copied into the app.
+
+What ha.mr actually is: a link shortener that works with no server. It squashes a URL (Huffman coding plus a dictionary of common domains) into a short `ha.mr/...` link, and its QR codes use the alphanumeric (uppercase) character set so they come out smaller. The QR encoding itself isn't ha.mr's own code. It's lean-qr (MIT, David Evans), a minified 7 KB file in `docs/lean-qr/`. So "build off ha.mr" really means comparing with lean-qr.
+
+Results (temp script, not in the repo):
+- Same output: with the same settings (byte mode, level M), lean-qr's code is identical, module for module, to ours with one of the 8 masks, for every URL tried. On 300 random invite URLs the whole code, mask included, was identical 204 times. The other 96 differ only in which mask was picked, since the two score the mask rules a bit differently, and either one scans.
+- Size: the same for invite links. A local invite (43 chars) and a fly.dev invite (58 chars) both come out 33x33 at level M in both.
+- Speed: lean-qr makes a code in about 0.18 ms, ours in about 1.3 ms. We make one code each time the popup opens, so it doesn't matter.
+- File size: ours 8.2 KB readable, lean-qr 7 KB minified.
+- One thing lean-qr does that ours doesn't: by default it bumps error correction as high as fits without making the code bigger. For the fly.dev invite it would use level Q (about 25% damage) at the same 33x33 instead of M (15%). That's free extra robustness, about 5 lines to add.
+- ha.mr's own tricks don't fit us. Alphanumeric mode needs uppercase, and invite tokens are case-sensitive base64url, so uppercasing would break them. Its link shortening sends people through the ha.mr domain, which would put the invite token on a third-party site, the same reason we ruled out an online QR service.
