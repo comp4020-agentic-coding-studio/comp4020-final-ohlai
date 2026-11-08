@@ -467,3 +467,26 @@ Follows the 2026-11-07 entry above. Built in `COMP4020/meta/`.
   select each bell is struck through until clicked, then ringing. A card's
   bell should never be a plain bell. Features with no agent stay greyed out
   and can't be clicked in select.
+
+## 2026-11-08: Card layout, Notes button gone, Drop asks first, chat box
+
+- **Fixed title row.** Folding a card moved its title, time and status,
+  because they were centred against the details underneath. Asked for them to
+  stay put with the subtitle fitting around them. The details now go on their
+  own line under the title row, lined up with the fold arrow.
+- **Preview first.** Asked for Preview to always be the leftmost button. Order
+  is now Preview | ✕, Open session, Chat, Drop.
+- **No Notes button.** Asked to remove it. The notes panel went with it.
+- **Drop asks first.** Asked for an "are you sure?" popup on Drop. It used the
+  browser's plain confirm box before; now it's a popup in the same style as
+  New feature. Claude used the same popup for Check and merge and Remove
+  worktree, which also had plain confirm boxes, so they all look the same. I
+  was told and said to go ahead.
+- **Buttons stay at the bottom.** Opening Chat put the chat under the button
+  row, so the buttons jumped up above the agent's reply. Asked for the button
+  row to stay the last thing on the card.
+- **Message box.** Asked for the chat input to be its own rounded box instead
+  of running to the edges of the card, with Send on its right. When the text
+  wraps, the box widens into Send's place and Send drops below it, animated
+  rather than jumping. Whether it wraps is measured at the one-line width, so
+  it can't flick back and forth when the wider box would fit the text again.

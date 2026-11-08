@@ -120,9 +120,14 @@ were imported on 2026-11-08, with their notes copied word for word into each
   Working, Planned, Merged, Dropped). All is sorted the same way, and within
   waiting, needing me comes before being cut off, then finished. Search is
   next to them. Click a card's title to fold it; its arrow turns.
-- Every card ends with one row of buttons: everyday ones on the left, and on
-  the right in black the one that moves the feature on (Start agent, Check
-  and merge, Remove worktree).
+- Every card ends with one row of buttons, even with its chat open: everyday
+  ones on the left with Preview first, and on the right in black the one that
+  moves the feature on (Start agent, Check and merge, Remove worktree). Drop,
+  Check and merge and Remove worktree ask "are you sure?" in a popup first.
+  There's no Notes button: the notes are in the repo.
+- A card's title row (bell, arrow, title, time, status) stays put when you
+  fold it; the details go underneath. The chat's message box has Send on its
+  right until the text wraps, then it widens and Send slides below it.
 
 ## Waiting and working
 
