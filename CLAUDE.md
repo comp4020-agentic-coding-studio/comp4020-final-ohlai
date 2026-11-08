@@ -70,6 +70,10 @@ effort making PT pages fit a phone.
   "null", which once put "nullnullnull" in the PT's client card.
 - Test a form by clicking its button, not by calling submit in code, and check
   the result reached the server.
+- A popup that loads what it acts on keeps its action button disabled until
+  the load finishes. On a second open, the nudge popup's Send could go to
+  last time's ticked list because it was clickable before the new list
+  arrived. When testing such a popup, wait for the load before clicking.
 - Schema changes are additive: add columns with a guarded `ALTER TABLE` in
   `server.js`, never drop data on the volume.
 - When the agent gets something wrong, the fix goes into this file or `spec/`,
