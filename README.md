@@ -4,8 +4,13 @@ A PT writes a training program and invites a client to it. The client logs
 every set on their phone at the gym, and the PT sees what was actually lifted,
 as it's lifted.
 
-To try it, log in as the demo PT, `marker@example.com`. Sam has five clients,
-each showing a different part of the app:
+To try it, log in as the demo PT, `sam@example.com`, and in a second browser
+as the client `priya.demo@example.com`. Both use the password `demo1234`.
+Priya shows the most of the client side: two programs' worth of workouts, a
+program change, check-ins and a chat with Sam.
+
+Sam has five clients, each showing a different part of the app. Any of them
+can log in:
 
 | Client | Login | What it shows |
 | --- | --- | --- |
@@ -15,8 +20,7 @@ each showing a different part of the app:
 | Ben Carter | `ben.demo@example.com` | Mid-workout, so "Training now" is on Sam's dashboard |
 | Chloe Martin | none | Invited, hasn't signed up yet |
 
-Every login uses the password `demo1234`, public on purpose. Use two browsers
-to see both sides at once. There's also a smaller pair, `oli@example.com` (PT)
+Every login uses the password `demo1234`, public on purpose. There's also a smaller pair, `oli@example.com` (PT)
 and `jack@example.com` (client), same password.
 
 ## What good means here

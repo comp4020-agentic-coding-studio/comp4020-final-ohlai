@@ -15,7 +15,7 @@
 // It only writes once: if Sam's account exists it does nothing.
 //
 // Logins, public on purpose (this repo is public), all password demo1234:
-//   PT:      marker@example.com
+//   PT:      sam@example.com
 //   Clients: priya.demo@example.com, tom.demo@example.com,
 //            mia.demo@example.com, ben.demo@example.com
 import { DatabaseSync } from "node:sqlite";
@@ -24,7 +24,7 @@ import { randomBytes, scryptSync } from "node:crypto";
 const DATA = process.env.DATA_DIR ?? (process.env.FLY_APP_NAME ? "/data" : "./data");
 const db = new DatabaseSync(`${DATA}/app.db`);
 const PASSWORD = "demo1234";
-const PT_EMAIL = "marker@example.com";
+const PT_EMAIL = "sam@example.com";
 
 if (db.prepare("SELECT 1 FROM users WHERE email = ?").get(PT_EMAIL)) {
   console.log(`Already seeded. Log in as ${PT_EMAIL}, password ${PASSWORD}.`);

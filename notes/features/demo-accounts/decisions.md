@@ -17,3 +17,17 @@ Options: add more clients to Oli, or make a new PT with their own clients.
 Picked (by the agent, open for me to change): a new PT, Sam, `marker@example.com`, with five clients that each show one part of the app (moving well with a program change, stalled, quiet and nudgeable, training now, invited not signed up). Oli and Jack stay as they are and are still in the README. All passwords are `demo1234` like the existing demo logins.
 
 Still to confirm with me: the email `marker@example.com` and the name Sam.
+
+## 2026-11-09: Sam's email is sam@example.com
+
+What came up: in the earlier entry I'd picked `marker@example.com` and left the name and email for me to confirm.
+
+Picked (by me): keep the name Sam, and change the email to `sam@example.com` (I typed "same@", the agent read it as "sam@"). This replaces the email in the entry above.
+
+## 2026-11-09: suggest Priya as the client to log in as
+
+What came up: I asked if we should suggest one client account so the marker can see the client side easily, even though every account uses `demo1234` and they could pick any.
+
+Options: list the clients with no suggestion, or point to one.
+
+Picked (by me, the agent chose which one): suggest one. I said a suggestion makes it easy for them to see the features. The agent picked Priya because her account shows the most of the client side. The full table stays so they can try the others.

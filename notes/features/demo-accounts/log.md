@@ -42,3 +42,11 @@ Ran it on this feature's `DATA_DIR` (twice, second run said "Already seeded"), t
 ### Not done
 
 - I haven't run it on the live Fly site. That writes to the real database, so it waits for you to say so (after merge and deploy).
+
+## 2026-11-09: Sam's email, and one suggested client login
+
+I said: "just change the email for Sam to be same@example.com shuold we suggest one account for the marker to log into to see the client side? I mean we will mention that the password for all are demo1234 so they can choose any but we should suggest one to make it easy for them to see the features."
+
+- Email: before it was `marker@example.com`, now it's `sam@example.com`. I read "same@" as a typo for "sam@" since the PT is called Sam (flagged to me to correct if not). Changed in `scripts/seed-demo.js` and `README.md`. Updated the one row in this feature's local database instead of reseeding, since the seed skips once the account exists.
+- README: before, it gave Sam's login and then a table of every client with no pick. Now it suggests one pair up top: Sam, plus Priya (`priya.demo@example.com`) in a second browser. It says why Priya (two programs' worth of workouts, a program change, check-ins, a chat with Sam), then keeps the full table and says any client can log in.
+- Checked: both logins return 200 on port 8097. `pnpm check` passes.
