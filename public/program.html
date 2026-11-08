@@ -56,7 +56,7 @@
 <script src="/view.js"></script>
 <script type="module">
   import { workouts as allWorkouts, exHistory as history_, liftSummary } from "/lift-chart.js";
-  import { api as getJson, toLogin, live } from "/ui.js";
+  import { api as getJson, toLogin, live, ask } from "/ui.js";
   import { mountChat } from "/chat.js";
   // The client link defaults to the phone layout, the PT link to desktop.
   const tok = location.pathname.split("/").pop();
@@ -205,7 +205,7 @@
       $("title").textContent = open.day;
       $("sub").textContent = `${program.title}, from ${program.pt_name}. Tick each set as you finish it.`;
       $("actions").append(
-        el("button", { type: "button", textContent: "Discard", onclick: () => confirm("Discard this workout and its sets?") && act("discard") }),
+        el("button", { type: "button", textContent: "Discard", onclick: async () => { if (await ask("Discard this workout?", "Its sets go too.", "Discard")) act("discard"); } }),
         el("button", { type: "button", className: "primary", textContent: "Finish", onclick: finish }));
       const cur = all.find((w) => w.id === open.id)?.logs ?? [];
       const drawStats = () => $("stats").replaceChildren(...[
@@ -267,7 +267,7 @@
   async function finish() {
     const open = state.open_session;
     const n = state.logs.filter((l) => l.session_id === open.id).length;
-    if (!confirm(n ? `Finish ${open.day}? ${n} sets will be saved.` : "No sets logged. Finish and throw this workout away?")) return;
+    if (!(await ask(`Finish ${open.day}?`, n ? `${n} set${n > 1 ? "s" : ""} will be saved.` : "No sets logged, so this workout gets thrown away.", "Finish"))) return;
     if (await act("finish")) { for (const k in rowCount) delete rowCount[k]; restEnd = 0; drawRest(); }
   }
 

@@ -20,9 +20,12 @@
   <p id="err" class="error" role="alert"></p>
 </main>
 
-<dialog id="assign" class="assign" aria-labelledby="a-title">
+<dialog id="assign" class="pop assign" aria-labelledby="a-title">
+  <div class="detail-head">
+    <div><h2 id="a-title">Assign</h2></div>
+    <button type="button" id="a-x" aria-label="Close">✕</button>
+  </div>
   <form id="aform" method="dialog">
-    <h3 id="a-title">Assign</h3>
     <fieldset class="who-pick">
       <legend class="sr">Who to assign it to</legend>
       <label><input type="radio" name="who" value="existing" checked /> A client you have</label>
@@ -45,7 +48,6 @@
     </div>
   </form>
   <section id="a-done" hidden>
-    <h3>Assigned</h3>
     <p class="muted" id="a-done-text"></p>
     <p class="share"><a id="a-link" target="_blank"></a></p>
     <div class="actions">
@@ -58,7 +60,7 @@
 
 <script src="/view.js"></script>
 <script type="module">
-  import { $, el, api, fmtDay, utc, toLogin } from "/ui.js";
+  import { $, el, api, fmtDay, utc, toLogin, ask } from "/ui.js";
   import { mountSide } from "/side.js";
   mountSide();
   const [who] = await api("/api/me");
@@ -87,7 +89,7 @@
         el("button", { type: "button", className: "primary", textContent: "Assign to client", onclick: () => openAssign(t) }),
         el("a", { href: `/programs/new?edit=${t.id}`, className: "btn", textContent: "Edit" }),
         el("button", { type: "button", textContent: "Delete", onclick: async () => {
-          if (!confirm(`Delete "${t.name}"? Clients you've already assigned it to keep their copy.`)) return;
+          if (!(await ask(`Delete ${t.name}?`, "Clients you've already assigned it to keep their copy.", "Delete"))) return;
           const [data, ok] = await api(`/api/templates/${t.id}/delete`, {});
           $("err").textContent = ok ? "" : data.error;
           if (ok) load();
@@ -114,7 +116,9 @@
     $("a-done").hidden = true;
     $("assign").showModal();
   }
-  $("a-cancel").onclick = $("a-close").onclick = () => $("assign").close();
+  $("a-cancel").onclick = $("a-close").onclick = $("a-x").onclick = () => { $("assign").close(); };
+  // Clicking the dimmed page around it closes it, like the client card on the dash.
+  $("assign").onclick = (e) => { if (e.target === $("assign")) $("assign").close(); };
 
   $("aform").onsubmit = async (e) => {
     e.preventDefault();
@@ -131,6 +135,7 @@
     $("a-done-text").textContent = `${body.client_name} has their own copy of ${current.name} and is on your dashboard. Send them this link:`;
     const msg = `Hi ${body.client_name},\n\nHere's your program "${current.name}". Open it on your phone at the gym and log each set as you go:\n\n${url}\n\n${who.me.name}`;
     $("a-mail").href = `mailto:${encodeURIComponent(body.client_email)}?subject=${encodeURIComponent("Your program: " + current.name)}&body=${encodeURIComponent(msg)}`;
+    $("a-title").textContent = "Assigned";
     $("aform").hidden = true;
     $("a-done").hidden = false;
   };

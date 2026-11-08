@@ -71,8 +71,8 @@
   <section class="dcard" id="d-side" hidden aria-labelledby="s-name"></section>
 </dialog>
 
-<div popover id="pv-export" class="pv built">
-  <h3>Export sets</h3>
+<div popover id="pv-export" class="pop pv built">
+  <h2>Export sets</h2>
   <p>Every logged set as a spreadsheet (CSV), one row per set. Leave the dates empty for everything.</p>
   <form method="get" action="/api/export.csv" id="exportForm">
     <label for="x-client">Client</label>
@@ -85,8 +85,8 @@
     <div class="actions"><button type="submit" class="primary">Download CSV</button></div>
   </form>
 </div>
-<div popover id="pv-nudge" class="pv">
-  <h3>Nudge quiet clients</h3>
+<div popover id="pv-nudge" class="pop pv">
+  <h2>Nudge quiet clients</h2>
   <p>One click sends every client who hasn't trained in 7 days a short chat message you've written once.</p>
 </div>
 
