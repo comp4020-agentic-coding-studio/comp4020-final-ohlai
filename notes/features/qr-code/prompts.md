@@ -26,3 +26,7 @@ ive clones ha.mr into documents/github/
 ## 2026-11-09 09:39 (dashboard)
 
 nah i think ours is ok for now.
+
+## 2026-11-09 09:40 (dashboard)
+
+is everything commited and ready to merge?
