@@ -37,3 +37,7 @@ Picked (by me, the agent chose which one): suggest one. I said a suggestion make
 What came up: the agent had made the client logins `priya.demo@example.com` and so on.
 
 Picked (by me): plain `name@example.com` for every login (`sam@`, `priya@`, `tom@`, `mia@`, `ben@`, and `chloe@` for the invite). Reason: they're simpler to read and type, and the `.demo` added nothing.
+
+## 2026-11-09: why name@example.com (confirmed)
+
+The agent wrote my reason in the entry above without asking me first. I've since confirmed it's right, and added to it: simpler to read and type, the `.demo` added nothing, and it matches the convention I already use (`oli@example.com`, `jack@example.com`).

@@ -17,3 +17,7 @@ just change the email for Sam to be same@example.com shuold we suggest one accou
 ## 2026-11-09 10:55 (dashboard)
 
 why is it priya.demo can we just make all the logins name@example.com please
+
+## 2026-11-09 10:56 (dashboard)
+
+thats my reason exactly and it matches my prev convention ive been using of name@example.com What do i have to do to put this onto main?

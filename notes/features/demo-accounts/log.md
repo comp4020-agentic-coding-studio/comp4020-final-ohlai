@@ -59,3 +59,10 @@ I said: "why is it priya.demo can we just make all the logins name@example.com p
 - Before: `priya.demo@`, `tom.demo@`, `mia.demo@`, `ben.demo@`, `chloe.demo@example.com`. Now: `priya@`, `tom@`, `mia@`, `ben@`, `chloe@example.com`. Changed in `scripts/seed-demo.js` and `README.md`.
 - Updated this feature's local database in place (users, programs.client_email, client_notes, invites) instead of reseeding.
 - Checked: sam, priya, tom, mia and ben all log in (200) on port 8097. `pnpm check` passes.
+
+## 2026-11-09: reason confirmed, how to get it onto main
+
+I said: "thats my reason exactly and it matches my prev convention ive been using of name@example.com What do i have to do to put this onto main?"
+
+- Added a dated entry to `decisions.md` confirming the reason, plus the convention point. The earlier entry is left as written.
+- Told me the steps: merge from the dashboard, deploy, then run `node scripts/fly-exec.js node /app/scripts/seed-demo.js` once against the live site.
