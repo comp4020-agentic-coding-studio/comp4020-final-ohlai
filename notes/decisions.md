@@ -509,3 +509,10 @@ Follows the 2026-11-07 entry above. Built in `COMP4020/meta/`.
   background. Now any ringing bell has the black background, and a greyed-out
   one is just faded. This also covers a feature whose bell was turned on in
   select and whose agent has since gone: it shows greyed black too.
+
+## 2026-11-08: Chat kept its scroll position
+
+- Said the chat kept scrolling back to the top. The page redraws every 2
+  seconds and moves the open chat into the new card, meaning to keep it as it
+  was, but taking an element out of the page resets its scroll to the top.
+  Now its scroll position is saved before each redraw and put back after.
