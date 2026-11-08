@@ -11,6 +11,8 @@
 <main>
   <div class="topbar"><h1 id="hi">Dashboard</h1></div>
   <div class="stats" id="stats"></div>
+  <div id="habits"></div>
+  <div id="progress"></div>
   <div id="programs"></div>
   <h2>Last workouts</h2>
   <div id="recent"></div>
@@ -25,7 +27,51 @@
   import { $, el, api, ago, utc, toLogin, live } from "/ui.js";
   import { mountNav } from "/nav.js";
   import { workoutCard } from "/workout-card.js";
+  import { chart } from "/lift-chart.js";
   mountNav();
+
+  const chevron = () => {
+    const s = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+    s.setAttribute("viewBox", "0 0 24 24");
+    s.innerHTML = `<path d="m9 6 6 6-6 6" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/>`;
+    return s;
+  };
+  $("all").append(el("span", { className: "go flat", ariaHidden: "true" }, chevron()));
+
+  const dayKey =(d) => d.toLocaleDateString("en-CA");
+  const wd = (d) => d.toLocaleDateString("en-AU", { weekday: "long" });
+
+  // The last seven days, oldest first, filled where a workout was logged. Today is outlined.
+  function habits(workouts) {
+    const trained = new Set(workouts.map((w) => dayKey(utc(w.started_at))));
+    const days = [...Array(7)].map((_, i) => new Date(Date.now() - (6 - i) * 864e5));
+    const n = days.filter((d) => trained.has(dayKey(d))).length;
+    return el("div", { className: "card habit" },
+      el("strong", { textContent: "Last 7 days" }),
+      el("ol", { className: "week", ariaLabel: `Worked out ${n} of the last 7 days` },
+        ...days.map((d, i) => el("li", {
+          className: (trained.has(dayKey(d)) ? "on" : "") + (i === 6 ? " today" : ""),
+          title: `${i === 6 ? "Today" : wd(d)}: ${trained.has(dayKey(d)) ? "worked out" : "rest"}` }))));
+  }
+
+  // Summed progress over every lift (server.js /api/me, public/progress.js).
+  function progress(points) {
+    if (points.length < 2) return null;
+    const short = (t) => utc(t).toLocaleDateString("en-AU", { day: "numeric", month: "short" });
+    // The corner shows the latest workout, or the one picked on the chart, with its date under it.
+    const val = el("span"), when = el("small", { className: "muted" });
+    const show = (i) => {
+      const p = points[i ?? points.length - 1];
+      val.textContent = `${p.gain >= 0 ? "+" : ""}${+p.gain.toFixed(1)}`;
+      when.textContent = short(p.at);
+    };
+    show(null);
+    return el("section", { className: "card prog" },
+      el("div", { className: "prog-head" },
+        el("span", {}, el("strong", { textContent: "Progress" }), el("br"), el("span", { className: "muted", textContent: `All lifts since ${short(points[0].at)}` })),
+        el("span", { className: "prog-num", ariaLive: "polite" }, val, el("small", { textContent: " kg" }), el("br"), when)),
+      chart(points.map((p) => ({ k: utc(p.at), gain: p.gain })), "gain", "Progress, all lifts", show));
+  }
 
   // Tapping a day starts it, so the client is one tap from logging.
   async function start(p, day) {
@@ -45,19 +91,29 @@
     const week = data.workouts.filter((w) => utc(w.started_at) >= weekAgo);
     $("stats").replaceChildren(...[["This week", week.length], ["Sets this week", week.reduce((s, w) => s + w.sets.length, 0)],
       ["Last", ago(data.workouts[0]?.started_at)]].map(([k, v]) => el("div", {}, el("small", { textContent: k }), el("strong", { textContent: v }))));
+    $("habits").replaceChildren(habits(data.workouts));
+    $("progress").replaceChildren(el("div", {}, progress(data.progress)));
 
     $("programs").replaceChildren(...data.programs.map((p) => {
       const open = p.days.find((d) => d.day === p.open);
+      // workouts are newest first, so the first match is the last time this day was done.
+      const lastDone = (d) => data.workouts.find((w) => w.client_token === p.client_token && w.day === d.day);
       return el("section", {},
         el("h2", { textContent: p.title }),
-        el("p", { className: "prog-from" }, `Program from ${p.pt_name}, ${p.days.length} day${p.days.length === 1 ? "" : "s"}. `,
-          el("a", { href: `/p/${p.client_token}`, textContent: "See it all" })),
+        el("p", { className: "prog-from", textContent: `Program from ${p.pt_name}, ${p.days.length} day${p.days.length === 1 ? "" : "s"}.` }),
         p.change_note ? el("div", { className: "card notice" },
           el("small", { className: "muted", textContent: `New program from ${p.pt_name}` }), el("p", { textContent: p.change_note })) : null,
-        el("div", { className: "daypicks" }, ...p.days.map((d) =>
-          el("button", { type: "button", onclick: () => { start(p, d.day); } },
-            el("strong", { textContent: d.day }),
-            el("small", { textContent: d === open ? "In progress, tap to carry on" : d.exercises.join(", ") })))));
+        el("div", { className: "daypicks" }, ...p.days.map((d) => {
+          const last = lastDone(d);
+          return el("button", { type: "button", className: d === open ? "open" : "", onclick: () => { start(p, d.day); } },
+            el("span", { className: "dp-text" },
+              el("span", { className: "dp-head" },
+                el("strong", { textContent: d.day }),
+                el("small", { textContent: d === open ? "In progress" : last ? `Last done ${ago(last.started_at).toLowerCase()}` : "Not done yet" })),
+              el("small", { className: "dp-ex", textContent: d.exercises.join(", ") })),
+            el("span", { className: "go", ariaHidden: "true" }, chevron()),
+            el("span", { className: "sr", textContent: d === open ? `, carry on` : `, start` }));
+        })));
     }));
 
     $("recent").replaceChildren(...(data.workouts.length ? data.workouts.slice(0, 3).map(workoutCard)
