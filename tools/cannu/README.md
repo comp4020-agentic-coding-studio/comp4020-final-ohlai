@@ -5,6 +5,10 @@ branch, folder and Claude Code session per feature, with one page that shows
 what every agent is doing and lets me plan features, talk to the agents, and
 merge their work. Node built-ins only, nothing to install.
 
+Trying it for the first time? Start with `../README.md`: what you need
+installed, the database that isn't in the repo, and a first feature end to
+end. This file is the reference for every button.
+
 ```
 node server.js        # then open http://localhost:4000
 ```
@@ -17,7 +21,7 @@ after a restart or log out. To start it at login, put a shortcut to
 
 ## Kept apart from the app
 
-- It lives in `tools/feature-agents/` and nothing in the app imports it.
+- It lives in `tools/cannu/` and nothing in the app imports it.
 - The Docker image only copies `server.js`, `README.md`, `scripts/seed-jack.js`
   and `public/`, so it never ships.
 - `pnpm check` doesn't cover it: TypeScript only checks `*.ts`, `spec/` and
@@ -92,8 +96,10 @@ were imported on 2026-11-08, with their notes copied word for word into each
 - **Retry setup**: re-runs setup. Each step skips what's already done.
   Unfinished setups also re-run when the dashboard starts.
 - **Reopen** (merged or dropped features): a new feature that continues
-  it, with a new branch from current main and a new session pointed at the old
-  notes.
+  it. **Start agent** makes a new branch from current main and a new session
+  pointed at the old notes. **Save as planned** records it as a planned
+  feature instead, still pointed at the old notes, to start later from its
+  card.
 - **@ tagging**: typing @ in a description or a chat message lists matching
   features. Picking one writes `@slug`, which points the agent at that
   feature's notes (recorded as Related in `feature.md`).
@@ -139,6 +145,12 @@ up, and **waiting** otherwise. The pill adds why when it matters:
 - **interrupted**: it was mid-turn when its process died. Use Carry on.
 - **error**: the last background run failed. Its output is on the card.
 - **never started**: the agent never got going.
+- **stuck**: it's mid-turn, but nothing has happened for 3 minutes: no hook
+  report and nothing written to its transcript. The card says what's still
+  running under the agent (usually a hook or a command that has hung), with
+  **End that step** to kill just that, so the agent carries on. For a
+  background turn there's also **Stop the turn**, after which Carry on picks it
+  back up. Stuck cards sort to the top with needs you, and ring the bell.
 - No detail: finished its turn, no session running. Messages go straight to it.
 
 Liveness comes from the claude process IDs that `launch.js` and background
@@ -148,7 +160,10 @@ runs record, checked against `tasklist`.
 
 Each worktree gets a gitignored `.claude/settings.local.json` with its `PORT`,
 `DATA_DIR`, `APP_URL`, git identity, and hooks that run this folder's
-`hook.js`. It's rewritten whenever the dashboard starts. The hook writes
+`hook.js`. It's rewritten whenever the dashboard starts. It also turns off
+the GitKraken hooks plugin for agents (it held a permission request open for
+20 minutes waiting for an answer in GitKraken) and turns off the Claude
+co-author line on their commits. The hook writes
 `local/state/<slug>.json` and appends every message to the feature's
 `prompts.md`. Time and cost per feature come from the transcripts Claude Code
 saves under `~/.claude/projects/`, priced at API rates.

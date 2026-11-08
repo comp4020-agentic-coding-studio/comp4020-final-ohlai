@@ -49,7 +49,7 @@ export function parseFeatureMd(slug, text) {
 
 export function featureMd(f) {
   const vals = { ...f, related: (f.refs || []).join(", ") };
-  let s = `# ${f.title}\n\nKept by the feature agents dashboard (\`tools/feature-agents/\`). Its notes are next to this file: \`prompts.md\` (everything I said, word for word), \`log.md\` and \`decisions.md\`.\n\n`;
+  let s = `# ${f.title}\n\nKept by the feature agents dashboard (\`tools/cannu/\`). Its notes are next to this file: \`prompts.md\` (everything I said, word for word), \`log.md\` and \`decisions.md\`.\n\n`;
   for (const k of FIELDS) if (vals[k.toLowerCase()]) s += `- ${k}: ${vals[k.toLowerCase()]}\n`;
   if (f.prompt) s += `\n## What I asked for\n\n${f.prompt}\n`;
   return s;

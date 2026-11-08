@@ -24,8 +24,8 @@
   .pill { display:inline-flex; align-items:center; gap:6px; font-size:12px; font-weight:600; padding:3px 9px; border-radius:99px; border:1px solid var(--line); white-space:nowrap; }
   .dot { width:8px; height:8px; border-radius:50%; background:var(--mute); }
   .working .dot { background:var(--work); animation: pulse 1.2s infinite; }
-  .needs-you .dot, .interrupted .dot, .not-started .dot { background:var(--you); }
-  .needs-you, .interrupted, .not-started { border-color: var(--you); }
+  .needs-you .dot, .interrupted .dot, .not-started .dot, .stuck .dot { background:var(--you); }
+  .needs-you, .interrupted, .not-started, .stuck { border-color: var(--you); }
   .idle .dot { background:var(--idle); } .merged .dot { background:var(--merged); } .error .dot, .failed .dot { background:var(--bad); }
   .pill.waiting { border-color:var(--you); } .pill.waiting .dot { background:var(--you); }
   .pill.error .dot, .pill.failed .dot { background:var(--bad); }
@@ -205,7 +205,7 @@
 
 <dialog class="modal" id="defaultsDlg">
   <div class="panel">
-    <header><h2>Agent defaults</h2><div class="hint">What every feature agent is given. Saved in <code>tools/feature-agents/agent-defaults.json</code> and committed on main. Agents that already started get changes from their next run.</div></header>
+    <header><h2>Agent defaults</h2><div class="hint">What every feature agent is given. Saved in <code>tools/cannu/agent-defaults.json</code> and committed on main. Agents that already started get changes from their next run.</div></header>
     <div class="body" id="defaultsBody"></div>
     <footer class="row"><button data-close>Close</button><span class="msg" id="defaultsMsg"></span><span class="grow" style="min-width:0"></span><button class="primary" id="defaultsSave">Save</button></footer>
   </div>
@@ -309,8 +309,8 @@ function status(f) {
   }
   const s = f.live?.state;
   // Once merged, that's the news, unless the agent is busy or needs you again.
-  if (f.merged && !["working", "needs-you", "interrupted", "error"].includes(s)) return ["merged", "merged"];
-  return [s, { working: f.live.background ? "working (background)" : "working", "needs-you": "needs you", idle: "idle, open", closed: "idle", error: "error", interrupted: "interrupted", "not-started": "never started" }[s] || "no session"];
+  if (f.merged && !["working", "needs-you", "interrupted", "error", "stuck"].includes(s)) return ["merged", "merged"];
+  return [s, { working: f.live.background ? "working (background)" : "working", stuck: "stuck", "needs-you": "needs you", idle: "idle, open", closed: "idle", error: "error", interrupted: "interrupted", "not-started": "never started" }[s] || "no session"];
 }
 
 const MENTION_HINT = `<div class="hint">@ to tag a related feature. The agent reads their notes first.</div>`;
@@ -356,7 +356,13 @@ function card(f) {
   let banner = "";
   if (setupStuck) banner = `<div class="banner">${f.setup.startsWith("failed") ? esc(f.setup) : "Setup was cut off (the dashboard or PC restarted)."} Retry picks up from the step it stopped at. <button data-act="retry">Retry setup</button></div>`;
   else if (cls === "interrupted" || cls === "error") banner = `<div class="banner">${cls === "error" ? "The last background run failed or was stopped. Its output is below." : "This agent stopped mid-turn: the dashboard, the PC or its terminal closed before it finished."} Anything it changed is still there, but may not be committed.<div class="row" style="margin-top:8px"><button class="primary" data-act="resume-bg">Carry on in the background</button><button data-act="resume-term">Carry on in a terminal</button></div></div>`;
-  else if (cls === "working" && !f.live?.background && st.at && Date.now() - Date.parse(st.at) > 5 * 60e3) banner = `<div class="banner">No activity from this agent for ${ago(st.at).replace(" ago", "")}. It's probably waiting for you to approve something in its terminal tab ("${esc(f.slug)}").</div>`;
+  else if (cls === "stuck") {
+    const w = f.stuck.waitingOn, quiet = ago(f.stuck.since).replace(" ago", "");
+    banner = `<div class="banner">No activity from this agent for ${quiet}${f.stuck.on ? `. Last thing it did: ${esc(f.stuck.on)}` : ""}.
+      ${w ? `It's still waiting on this, which has probably hung:<div class="meta" style="word-break:break-all; margin-top:4px"><code>${esc(w.cmd)}</code></div>`
+        : f.live.background ? "Nothing is running under it." : `It may be waiting for you to approve something in its terminal tab ("${esc(f.slug)}").`}
+      <div class="row" style="margin-top:8px">${w ? `<button class="primary" data-act="unstick" data-pid="${w.pid}">End that step</button>` : ""}${f.live.background ? `<button data-act="stopturn">Stop the turn</button>` : ""}</div></div>`;
+  }
   else if (cls === "not-started") banner = `<div class="banner">The terminal tab for this feature never started a session. <button data-act="resume-term">Start it now</button></div>`;
   const c = collapsed.has(f.slug);
   const details = `<div class="meta">created ${day(f.created)} · ${esc(f.branch)}${f.model ? " · " + esc(MODELS[f.model] || f.model) : ""} · ${git}${f.lastCommit ? ` · <span style="display:inline-block">last: ${esc(f.lastCommit)}</span>` : ""}</div>
@@ -418,11 +424,11 @@ function simpleCard(f) {
       <div class="row"><button class="primary" data-act="edit-save">Save</button></div>
     </div>` : ""}
     ${s.reopen ? `<div style="margin-top:10px; display:grid; gap:8px">
-      <div class="hint">Starts a new branch from current main with a new session. The agent reads this feature's notes first.</div>
+      <div class="hint">A new feature that continues this one. Start agent makes a new branch from current main with a new session, and the agent reads this feature's notes first. Save as planned records it to start later.</div>
       <input type="text" data-field="rtitle" value="${esc(s.rtitle || f.title + " (continued)")}">
       <textarea data-field="rprompt" data-mention data-self="${f.slug}" placeholder="What you want changed this time, and why.">${esc(s.rprompt)}</textarea>
       ${MENTION_HINT}
-      <div class="row"><button class="primary" data-act="reopen-go">Start agent</button></div>
+      <div class="row"><button data-act="reopen-plan" title="Records it on main without a branch or agent. Start it later from its card.">Save as planned</button><button class="primary" data-act="reopen-go">Start agent</button></div>
     </div>` : ""}
     ${s.msg ? `<div class="msg ${s.cls}">${esc(s.msg)}</div>` : ""}
   </div>`;
@@ -438,6 +444,7 @@ function notifyChanges(features) {
     lastState[f.slug] = now;
     if (!seenOnce || !was || was === now) continue;
     const what = now === "needs-you" ? "needs you"
+      : now === "stuck" ? "looks stuck"
       : was === "working" && (now === "idle" || now === "closed") ? "finished its turn"
       : now === "error" ? "background run failed"
       : now === "interrupted" && was !== "not-started" ? "was interrupted" : "";
@@ -495,7 +502,7 @@ function render(features) {
   const shown = features.filter((f) => inGroup(f, filter) && (!q || (f.title + " " + (f.prompt || "")).toLowerCase().includes(q)));
   // By status (waiting first, dropped last). Among waiting ones, needing you
   // comes before being cut off, then finished. Then newest first.
-  const urgent = { "needs-you": 0, interrupted: 1, "not-started": 1, failed: 1, error: 2 };
+  const urgent = { "needs-you": 0, stuck: 0, interrupted: 1, "not-started": 1, failed: 1, error: 2 };
   const rank = (f) => KINDS.indexOf(kind(f)[0]) * 10 + (urgent[status(f)[0]] ?? 5);
   shown.sort((a, b) => rank(a) - rank(b) || String(b.merged || b.dropped || b.started || b.created || "").localeCompare(String(a.merged || a.dropped || a.started || a.created || "")));
   $("#list").innerHTML = shown.length ? shown.map((f) => (f.worktree ? card(f) : simpleCard(f))).join("")
@@ -590,6 +597,7 @@ async function onClick(e) {
   }
   if (act === "open") { const r = await api(`${base}/open`, {}); return say(r.msg || "Opened a new terminal tab.", r.ok === false ? "bad" : ""); }
   if (act === "retry") { await api(`${base}/retry`, {}); return say("Retrying setup."); }
+  if (act === "unstick" || act === "stopturn") { const r = await api(`${base}/${act}`, { pid: b.dataset.pid }); return say(r.msg, r.ok ? "good" : "bad"); }
   if (act === "resume-bg" || act === "resume-term") { const r = await api(`${base}/resume`, { where: act === "resume-bg" ? "background" : "terminal" }); return say(r.msg, r.ok ? "good" : "bad"); }
   if (act === "send") {
     const text = s.draft.trim(); if (!text) return;
@@ -636,15 +644,15 @@ async function onClick(e) {
     return say(m, "bad");
   }
   if (act === "remove") { if (!(await (all.find((x) => x.slug === slug).status === "dropped" ? ask("Remove the worktree?", "Deletes this dropped feature's folder. Its branch is kept in git.", "Remove") : ask("Remove the worktree?", "Deletes this feature's folder and branch. The feature and its notes stay in the list.", "Remove")))) return; const r = await api(`${base}/remove`, {}); return say(r.msg, r.ok ? "good" : "bad"); }
-  if (act === "reopen-go") {
-    const f = all.find((x) => x.slug === slug);
+  if (act === "reopen-go" || act === "reopen-plan") {
+    const f = all.find((x) => x.slug === slug), plan = act === "reopen-plan";
     const title = (s.rtitle || f.title + " (continued)").trim(), prompt = s.rprompt.trim();
-    if (!prompt) return say("Say what you want changed this time.", "bad");
+    if (!prompt && !plan) return say("Say what you want changed this time.", "bad");
     say("Creating…");
-    const r = await api(`${base}/reopen`, { title, prompt });
+    const r = await api(`${base}/reopen`, { title, prompt, plan });
     if (r.msg) return say(r.msg, "bad");
     Object.assign(s, { reopen: false, rtitle: "", rprompt: "" });
-    return say(`Started ${r.branch}.`, "good");
+    return say(plan ? `Saved "${r.title}" as planned.` : `Started ${r.branch}.`, "good");
   }
 }
 

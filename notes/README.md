@@ -8,7 +8,7 @@ something real to come from. Claude writes to these during every session
   2026-11-08. `feature.md` is its title, status (planned, building, merged,
   dropped), dates and what I asked for. `prompts.md` is everything I
   said, word for word, written by a hook. `log.md` and `decisions.md` are what
-  Claude did and why. The feature agents dashboard in `tools/feature-agents/`
+  Claude did and why. The feature agents dashboard in `tools/cannu/`
   plans, starts, merges and closes these.
 - `features.md` was the board until 2026-11-08. Its features were imported
   into `features/<slug>/` (notes copied word for word into each `log.md`), and

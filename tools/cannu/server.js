@@ -178,6 +178,13 @@ function writeSettings(f) {
       GIT_AUTHOR_NAME: author.name, GIT_AUTHOR_EMAIL: author.email, GIT_COMMITTER_NAME: author.name, GIT_COMMITTER_EMAIL: author.email,
     },
     hooks: Object.fromEntries(events.map((e) => [e, [hook()]])),
+    // GitKraken's plugin holds every permission request open for up to a day
+    // waiting for an answer in GitKraken. A background turn can't answer, so
+    // it froze an agent for 20 minutes. Agents run without it.
+    enabledPlugins: { "gitkraken-hooks@gitkraken": false },
+    // No "Co-Authored-By: Claude" line on agents' commits.
+    includeCoAuthoredBy: false,
+    attribution: { commit: "", pr: "" },
   }, null, 2));
 }
 
@@ -549,8 +556,57 @@ async function overview() {
     const behind = exists ? Number(tryGit(APP, "rev-list", "--count", `${f.branch}..main`).out) || 0 : 0;
     const dirty = g("status", "--porcelain").split("\n").filter(Boolean).length;
     const lastCommit = g("log", "-1", "--format=%s (%cr)");
-    return { ...f, st, live: liveStatus(st), settingUp: settingUp.has(f.slug), ahead, behind, dirty, lastCommit, worktree: true, appUp: exists && (await portUp(f.port)), usage: usage(f) };
+    let live = liveStatus(st);
+    const stuckInfo = stuck(f, st, live);
+    if (stuckInfo) live = { ...live, state: "stuck" };
+    return { ...f, st, live, stuck: stuckInfo, settingUp: settingUp.has(f.slug), ahead, behind, dirty, lastCommit, worktree: true, appUp: exists && (await portUp(f.port)), usage: usage(f) };
   }));
+}
+
+// A turn that's gone quiet: working, but no hook report and nothing written
+// to its transcript for 3 minutes. Usually something it's waiting on has hung,
+// like a hook that never returns. Says what's still running under the agent.
+const QUIET = 3 * 60e3;
+function stuck(f, st, live) {
+  if (live.state !== "working") return null;
+  const t = path.join(os.homedir(), ".claude", "projects", f.dir.replace(/[^A-Za-z0-9]/g, "-"), `${st.session_id || f.sessionId}.jsonl`);
+  let last = Date.parse(st.at) || 0;
+  try { last = Math.max(last, fs.statSync(t).mtimeMs); } catch {}
+  if (Date.now() - last < QUIET) return null;
+  return { since: new Date(last).toISOString(), on: st.activity || "", waitingOn: childOf(st.headlessPid || st.pid) };
+}
+// The oldest process the agent started that's still running (a hook or a
+// command), or null. Cached for 15s since PowerShell is slow.
+const childCache = new Map();
+function childOf(pid) {
+  if (!pid) return null;
+  const c = childCache.get(pid);
+  if (c && Date.now() - c.at < 15e3) return c.r;
+  let r = null;
+  try {
+    const out = execFileSync("powershell", ["-NoProfile", "-Command", `Get-CimInstance Win32_Process -Filter "ParentProcessId=${Number(pid)}" | Where-Object Name -ne 'conhost.exe' | Sort-Object CreationDate | Select-Object -First 1 | ForEach-Object { "$($_.ProcessId) $($_.CommandLine)" }`], { encoding: "utf8", windowsHide: true }).trim();
+    const m = out.match(/^(\d+) ([\s\S]*)$/);
+    if (m) r = { pid: Number(m[1]), cmd: m[2].slice(0, 300) };
+  } catch {}
+  childCache.set(pid, { at: Date.now(), r });
+  return r;
+}
+// End the step a stuck agent is waiting on. The agent carries on from there.
+function unstick(f, pid) {
+  const st = readState(f.slug);
+  childCache.clear();
+  const c = childOf(st.headlessPid || st.pid);
+  if (!c || c.pid !== Number(pid)) return { ok: false, msg: "That step has already finished." };
+  try { execFileSync("taskkill", ["/PID", String(c.pid), "/T", "/F"], { windowsHide: true, stdio: "ignore" }); } catch {}
+  childCache.clear();
+  return { ok: true, msg: "Ended that step. The agent carries on from there." };
+}
+// End a stuck background turn. Its conversation is saved, so Carry on picks it up.
+function stopTurn(f) {
+  const st = readState(f.slug);
+  if (!st.headlessPid) return { ok: false, msg: "No background turn to stop." };
+  try { execFileSync("taskkill", ["/PID", String(st.headlessPid), "/T", "/F"], { windowsHide: true, stdio: "ignore" }); } catch {}
+  return { ok: true, msg: "Stopped the turn. Carry on picks it back up." };
 }
 
 function notes(f) {
@@ -624,8 +680,10 @@ http.createServer(async (req, res) => {
     if (req.method !== "POST") return send(res, 405, {});
     const b = await body(req);
     if (action === "reopen") {
-      if (!b.title?.trim() || !b.prompt?.trim()) return send(res, 400, { msg: "Needs a title and a prompt." });
-      return send(res, 200, createFeature(b.title.trim(), b.prompt.trim(), { continues: f.slug, refs: mentions(b.prompt, f.slug) }));
+      if (!b.title?.trim()) return send(res, 400, { msg: "Needs a title." });
+      if (!b.plan && !b.prompt?.trim()) return send(res, 400, { msg: "Needs a prompt to start an agent. Or save it as planned." });
+      const prompt = String(b.prompt || "").trim();
+      return send(res, 200, createFeature(b.title.trim(), prompt, { continues: f.slug, refs: mentions(prompt, f.slug), plan: !!b.plan }));
     }
     if (action === "drop") return send(res, 200, dropFeature(f));
     if (action === "remove" && f.status === "dropped" && f.dir && !f.removed) return send(res, 200, removeFeature(f));
@@ -654,6 +712,8 @@ http.createServer(async (req, res) => {
     if (action === "feedback") return send(res, 200, feedback(f, String(b.text || "").trim()));
     if (action === "resume") return send(res, 200, resume(f, b.where));
     if (action === "retry") { startSetup(f); return send(res, 200, { ok: true }); }
+    if (action === "unstick") return send(res, 200, unstick(f, b.pid));
+    if (action === "stopturn") return send(res, 200, stopTurn(f));
     if (action === "merge") return send(res, 200, await merge(f));
     if (action === "remove") return send(res, 200, removeFeature(f));
     send(res, 404, {});

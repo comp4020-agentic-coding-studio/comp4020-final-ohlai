@@ -625,3 +625,71 @@ Follows the 2026-11-07 entry above. Built in `COMP4020/meta/`.
   and the box clears at once. The normal reload replaces it. If the send
   fails, the bubble is removed and the text goes back in the box with the
   error. Not looked at in the browser yet.
+
+## 2026-11-08: pnpm scripts run in pnpm's own shell
+
+- Came up because a new feature's setup failed at `pnpm install`. The
+  `prepare` script uses `>/dev/null` and `|| true`, which cmd.exe doesn't
+  have, and pnpm uses cmd.exe on Windows.
+- Options: rewrite the script so it works in cmd and sh, or set
+  `shellEmulator: true` in `pnpm-workspace.yaml` so pnpm runs every script in
+  its own sh-like shell on every OS. Picked the setting: one line, and the
+  script stays as the course wrote it.
+
+## 2026-11-08: Cannu gets its own README and folder name
+
+- The dashboard folder is now `tools/cannu/` (was `tools/feature-agents/`),
+  matching the name on the page.
+- New `tools/README.md` for someone trying Cannu for the first time, like a
+  marker: what it is, what to install (Windows, node 24, mise, pnpm, git,
+  Claude Code), that I didn't ship the database and how to seed one, a first
+  feature end to end, and why my old cards look half there on a fresh clone.
+  `tools/cannu/README.md` stays the reference for every button.
+- Making it work on a Mac or Linux (`tasklist`, `taskkill`, PowerShell,
+  `wt.exe`) is left for later, if I have time. The README says it's Windows
+  only for now.
+- Old `feature.md` files and earlier notes still say `tools/feature-agents/`.
+  Notes are append-only, so they stay as written.
+
+## 2026-11-08: Reopen can save as planned
+
+- Reopen always started an agent straight away. Now it has **Save as
+  planned** next to **Start agent**, the same pair as + New feature. The
+  planned feature still continues the old one, so when it's started later the
+  agent is pointed at the old notes. A prompt is only needed to start an
+  agent.
+
+## 2026-11-08: Stuck agents show as stuck
+
+- Came up because an agent sat on working for 20 minutes behind a hung hook
+  and the card looked normal. I asked for a hung status plus a catch all for
+  when nothing changes for a couple of minutes.
+- The catch all is the status: a working agent with no hook report and
+  nothing written to its transcript for 3 minutes is **stuck**. The transcript
+  counts because a long thinking stretch or a slow command still writes to it
+  now and then, while a hung hook writes nothing. 3 minutes rather than 2 so a
+  long `pnpm check` doesn't trip it.
+- Saying what it's stuck on: the card shows the oldest process still running
+  under the agent, which was the hung hook this time, with **End that step**
+  to kill just that and let the agent carry on, and **Stop the turn** for a
+  background turn. It's orange like needs you, sorts to the top and rings the
+  bell.
+- Replaces the old banner on terminal sessions ("No activity for 5 minutes,
+  probably waiting for you to approve something"), which only showed for
+  terminal sessions, never background ones.
+
+## 2026-11-08: Agents run without the GitKraken hooks plugin
+
+- That plugin's PermissionRequest hook waits up to a day for an answer in
+  GitKraken. A background turn has no one to answer, so any command that
+  needs approval froze the agent instead of being denied. Each worktree's
+  `settings.local.json` now turns the plugin off for agents. My own sessions
+  still have it.
+
+## 2026-11-08: No Claude co-author line on agents' commits
+
+- I asked whether putting it in the Agent defaults system prompt would fix
+  it. It would mostly, but a prompt is a request the agent can forget, and
+  Claude Code adds the line itself. So each worktree's `settings.local.json`
+  sets `includeCoAuthoredBy: false` and an empty commit attribution, which
+  turns it off at the source. The prompt stays empty.
