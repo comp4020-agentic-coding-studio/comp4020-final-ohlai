@@ -693,3 +693,21 @@ Follows the 2026-11-07 entry above. Built in `COMP4020/meta/`.
   Claude Code adds the line itself. So each worktree's `settings.local.json`
   sets `includeCoAuthoredBy: false` and an empty commit attribution, which
   turns it off at the source. The prompt stays empty.
+
+## 2026-11-08: cd, grep, wc and head allowed in background turns, env isn't
+
+- Came up because an agent's first commands in a background turn were
+  blocked: Claude Code checks each part of `cd x && y` on its own, and `cd`
+  and `grep` weren't on the list. All four are read-only and agents use them
+  all the time, next to `cat`, `ls` and `tail`, which were already allowed.
+- `env` stays off. It prints every variable into the transcript and the card,
+  which can include whatever the course settings file passes in. Agents can
+  `echo "$PORT"` instead, which is already allowed.
+
+## 2026-11-08: The page holds still while you select text
+
+- Selecting text on a card jumped to selecting the whole page, because the
+  cards are rebuilt from scratch every 2 seconds. Now a refresh skips
+  rebuilding while the mouse button is down or while there's a text selection
+  in the list, and carries on once it's let go. Same idea as the existing rule
+  that a refresh doesn't wipe what you're typing.
