@@ -82,7 +82,8 @@ export function liftSummary(ex, hist) {
 }
 
 // per: [{ k: Date, [key]: number }]. Also draws the client dashboard's summed progress.
-export function chart(per, key, label = METRICS[key].label) {
+// With onPick, touching, dragging or arrow keys pick a point: onPick(i), or onPick(null) when let go.
+export function chart(per, key, label = METRICS[key].label, onPick) {
   const W = 320, H = 150, L = 40, B = 22, T = 10, R = 10;
   const ys = per.map((p) => p[key]);
   let lo = Math.min(...ys), hi = Math.max(...ys);
@@ -100,6 +101,35 @@ export function chart(per, key, label = METRICS[key].label) {
     .map(({ p, i }) => `<text class="axis" x="${x(i)}" y="${H - 6}" text-anchor="middle">${fmtDay(p.k)}</text>`);
   const pts = per.map((p, i) => `${x(i)},${y(p[key])}`).join(" ");
   svg.innerHTML = grid.join("") + ticks.join("") + `<polyline class="line" points="${pts}"/>` +
-    per.map((p, i) => `<circle class="dot" cx="${x(i)}" cy="${y(p[key])}" r="3.5"/>`).join("");
+    per.map((p, i) => `<circle class="dot${i === per.length - 1 ? " last" : ""}" cx="${x(i)}" cy="${y(p[key])}" r="3.5"/>`).join("");
+  if (!onPick) return svg;
+
+  svg.insertAdjacentHTML("beforeend", `<line class="cursor" y1="${T}" y2="${H - B}" hidden/><circle class="pick" r="5" hidden/>`);
+  const [cursor, dot] = [svg.querySelector(".cursor"), svg.querySelector(".pick")];
+  let at = null;
+  const pick = (i) => {
+    at = i;
+    for (const n of [cursor, dot]) n.toggleAttribute("hidden", i == null);
+    if (i != null) {
+      cursor.setAttribute("x1", x(i)); cursor.setAttribute("x2", x(i));
+      dot.setAttribute("cx", x(i)); dot.setAttribute("cy", y(per[i][key]));
+    }
+    onPick(i);
+  };
+  const near = (e) => {
+    const r = svg.getBoundingClientRect(), vx = ((e.clientX - r.left) / r.width) * W;
+    return Math.max(0, Math.min(per.length - 1, Math.round(((vx - L) / (W - L - R)) * (per.length - 1))));
+  };
+  svg.tabIndex = 0;
+  svg.onpointerdown = (e) => { svg.setPointerCapture(e.pointerId); pick(near(e)); };
+  svg.onpointermove = (e) => { if (e.pointerType === "mouse" || svg.hasPointerCapture(e.pointerId)) pick(near(e)); };
+  // A finger lifting keeps its point showing, so the number isn't hidden under it then gone.
+  svg.onpointerleave = (e) => { if (e.pointerType === "mouse") pick(null); };
+  svg.onkeydown = (e) => {
+    const d = { ArrowLeft: -1, ArrowRight: 1 }[e.key];
+    if (d) { e.preventDefault(); pick(Math.max(0, Math.min(per.length - 1, (at ?? per.length - 1) + d))); }
+    if (e.key === "Escape") pick(null);
+  };
+  svg.onblur = () => { pick(null); };
   return svg;
 }

@@ -50,3 +50,21 @@ I said I thought full-width cards with a black chevron button would look good an
 Checked at 390px in light and dark, no sideways scroll. `pnpm check` passes (19 tests). Files: public/me.html, public/style.css.
 
 The program page itself (`/p/<token>`) is still there and still reached when a day is started, and after finishing a workout. Only the dashboard link to it went.
+
+## 2026-11-09 00:01 Touch the progress graph to read a point
+
+What I asked: "also if you touch parts of the graph it should say what the weight was at that date and display the date in small text underneath the weight."
+
+What got built:
+
+- `public/lift-chart.js`: `chart()` takes an optional `onPick` callback. With it, touching the chart picks the nearest workout and dragging sideways moves along the line. A dashed vertical line and a hollow ring mark the picked point. When the finger lifts, the point stays picked so the number doesn't vanish the moment you look at it. A mouse hover works the same way and clears when the mouse leaves. The chart can be focused with the keyboard: left and right arrows step through workouts, Escape clears. Charts without `onPick` (the program page) are unchanged.
+- `public/me.html`: the number in the card's top right corner is what changes. It shows the picked workout's value ("+18.3 kg") with its date in small muted text under it ("1 Sept"). With nothing picked it shows the latest workout and its date, so the date line is always there and the layout doesn't jump. It's an `aria-live` region so a screen reader reads the new value.
+- `public/style.css`: `touch-action: pan-y` on the chart, so a sideways drag scrubs and an up-down swipe still scrolls the page. Styles for the cursor line and ring use tokens.
+
+Why the corner number and not a floating tooltip: the corner already shows the value and has room for the date, and a tooltip next to the point sits under your finger on a phone.
+
+Wording: I said "weight". The line is summed progress in kg (double progression score), not a bodyweight or lift weight, so it shows the same "+18.3 kg" the card already uses.
+
+Checked: emulated a real touch and drag in headless Chrome at 390px, light and dark. The corner changed from "+37.6 kg, 6 Oct" to "+18.3 kg, 1 Sept" and the ring sat on the line at 1 Sept. `pnpm check` passes (19 tests).
+
+Also fixed in passing: the CSS that hides every dot but the last used `:last-of-type`, which only worked because the dots were the last circles in the SVG. The new ring is a circle too, so the last dot now has a `last` class instead.

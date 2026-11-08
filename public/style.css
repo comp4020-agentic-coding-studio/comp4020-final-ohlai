@@ -148,9 +148,14 @@ body[data-view="desktop"] .exercises { display: grid; grid-template-columns: 1fr
 .week li.today:not(.on) { background: transparent; box-shadow: inset 0 0 0 3px var(--line); }
 .prog-head { align-items: flex-start; margin-bottom: 8px; }
 .prog-num { font-size: 1.15rem; font-weight: 500; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.prog-num { text-align: right; line-height: 1.3; }
 .prog-num small { color: var(--muted); font-size: 0.85rem; }
 /* Line with one end dot, like a sparkline: 30 dots on a phone-width card is noise. */
-.prog .chart .dot:not(:last-of-type) { display: none; }
+.prog .chart .dot:not(.last) { display: none; }
+/* Touch or drag along the line to read a workout's value (lift-chart.js). Vertical swipes still scroll. */
+.prog .chart { touch-action: pan-y; cursor: crosshair; border-radius: 8px; }
+.chart .cursor { stroke: var(--muted); stroke-width: 1; stroke-dasharray: 3 3; }
+.chart .pick { fill: var(--card); stroke: var(--trend, var(--accent)); stroke-width: 2.5; }
 /* Client pages: one size for secondary text, buttons a step down from the PT's desktop ones. */
 body.client .muted, body.client .daypicks button small, body.client .prog-from { font-size: 0.85rem; }
 body.client .card .actions { margin-top: 12px; }

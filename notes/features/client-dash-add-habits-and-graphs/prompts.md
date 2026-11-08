@@ -18,3 +18,7 @@ the text feels like it doesnt fit with the rest of the dash. Can you please go o
 
 for the habit tracker. Make the outlined box a ligher grey outline and also thicker inside - so it is the same size square from the outside as the others but there is a core of bg behind it. Also lets completely remove the see it all button in programs and instead lets somehow combine the ui from the see it all page (with the big black button to start the program day) and the current layout. I think it would look good if each day is a full width card but has a black button with a chevron on the right which means start? Idk what do you think?
 Also add a chevron to the view all workouts at the bottom of the history so you can tell your supposed to click into it which takes you to a new page.
+
+## 2026-11-09 00:01 (dashboard)
+
+also if you touch parts of the graph it should say what the weight was at that date and display the date in small text underneath the weight.

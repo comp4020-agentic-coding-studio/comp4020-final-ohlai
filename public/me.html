@@ -57,13 +57,20 @@
   // Summed progress over every lift (server.js /api/me, public/progress.js).
   function progress(points) {
     if (points.length < 2) return null;
-    const gain = points.at(-1).gain;
-    const since = utc(points[0].at).toLocaleDateString("en-AU", { day: "numeric", month: "short" });
+    const short = (t) => utc(t).toLocaleDateString("en-AU", { day: "numeric", month: "short" });
+    // The corner shows the latest workout, or the one picked on the chart, with its date under it.
+    const val = el("span"), when = el("small", { className: "muted" });
+    const show = (i) => {
+      const p = points[i ?? points.length - 1];
+      val.textContent = `${p.gain >= 0 ? "+" : ""}${+p.gain.toFixed(1)}`;
+      when.textContent = short(p.at);
+    };
+    show(null);
     return el("section", { className: "card prog" },
       el("div", { className: "prog-head" },
-        el("span", {}, el("strong", { textContent: "Progress" }), el("br"), el("span", { className: "muted", textContent: `All lifts since ${since}` })),
-        el("span", { className: "prog-num" }, `${gain >= 0 ? "+" : ""}${+gain.toFixed(1)}`, el("small", { textContent: " kg" }))),
-      chart(points.map((p) => ({ k: utc(p.at), gain: p.gain })), "gain", "Progress, all lifts"));
+        el("span", {}, el("strong", { textContent: "Progress" }), el("br"), el("span", { className: "muted", textContent: `All lifts since ${short(points[0].at)}` })),
+        el("span", { className: "prog-num", ariaLive: "polite" }, val, el("small", { textContent: " kg" }), el("br"), when)),
+      chart(points.map((p) => ({ k: utc(p.at), gain: p.gain })), "gain", "Progress, all lifts", show));
   }
 
   // Tapping a day starts it, so the client is one tap from logging.

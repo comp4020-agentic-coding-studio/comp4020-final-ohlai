@@ -42,6 +42,12 @@ What came up: the All workouts button at the bottom of the history didn't look l
 
 Picked: a chevron on the right, so it's clear it opens a new page.
 
+## 2026-11-09 Touching the progress graph shows that point's value and date
+
+What came up: I asked that touching the graph shows the value at that date, with the date in small text under it.
+
+Picked: touch or drag along the line, and the number in the card's top right corner switches to that workout, with the date in small text under it. The agent put it in the corner rather than in a floating tooltip because a tooltip sits under the finger on a phone. The point stays picked after letting go. I haven't said anything about those two choices yet.
+
 ## 2026-11-08 Open: what else the habit card shows (waiting on me)
 
 The example has three habits. The app only knows about workouts, so there's one "Workouts" row. Weekly check-in could be a second row since that data exists. Rows for meals, protein or weigh-ins would need new data. I haven't answered yet.
