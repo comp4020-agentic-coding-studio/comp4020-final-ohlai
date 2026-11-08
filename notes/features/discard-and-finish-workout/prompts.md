@@ -21,3 +21,7 @@ its still going back to the full program page instead of the dash after you disc
 ## 2026-11-09 00:34 (dashboard)
 
 wait it thuoght we phased out old links without accounts and removed that from being possible on the site?
+
+## 2026-11-09 00:38 (dashboard)
+
+On the login you have me and also on the regular jack@example.com it looks like it goes back to the program page for a fraction of a second before going back to the dashbaord. I dont want this. I want to fully delete that program page even if we have to rewrite or refactor some of the app to do so

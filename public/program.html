@@ -97,6 +97,9 @@
   async function load(refresh) {
     const data = await api(`/api/p/${tok}${refresh === true ? "?refresh" : ""}`);
     if (!data) return ($("title").textContent = "Program not found");
+    // This page is only the workout in progress. With none open, the client's
+    // place is their dashboard, where they pick a day.
+    if (data.role === "client" && !data.open_session) return location.replace("/me");
     if (data.role === "pt" && !state) {
       window.setDefaultView?.("desktop");
       // The client is the only one who writes, so only the PT view needs live updates.
@@ -154,9 +157,6 @@
       links.push(el("a", { className: "btn", textContent: "Export sets",
         href: `/api/export.csv?client=${encodeURIComponent(program.client_email)}&tz=${-new Date().getTimezoneOffset()}` }));
     }
-    if (role === "client" && claimed) {
-      links.push(el("a", { href: "/me", className: "btn", textContent: "Dashboard" }));
-    }
     return links;
   }
 
@@ -182,8 +182,6 @@
     $("dayActions").replaceChildren();
     clearInterval(durationTick);
     renderBanner();
-
-    if (role === "client" && !open) return renderPicker();
 
     const all = workouts();
     if (role === "client") {
@@ -220,48 +218,19 @@
     $("list").replaceChildren(...exercises.filter((e) => e.day === day).map((ex) => exerciseCard(ex, false)));
   }
 
-  // The client's home: pick a workout, see the recent ones.
-  function renderPicker() {
-    const { program, exercises } = state;
-    const all = workouts().filter((w) => w.finished);
-    $("title").textContent = program.title;
-    $("sub").textContent = state.ended ? `From ${program.pt_name}. Ended.` : `From ${program.pt_name}. Pick a workout to start.`;
-    $("actions").append(...navLinks());
-    const weekAgo = Date.now() - 7 * 864e5;
-    $("stats").replaceChildren(...[
-      ["Workouts", all.length], ["This week", all.filter((w) => w.start >= weekAgo).length],
-      ["Last", all.length ? fmtDay(all.at(-1).start) : "–"]].map(stat));
-
-    const dayNames = [...new Set(exercises.map((e) => e.day))];
-    // An ended program is history only, so no Start buttons.
-    const picks = state.ended ? [] : dayNames.map((d) => {
-      const lastDone = all.filter((w) => w.day === d).at(-1);
-      return el("article", { className: "card pick" },
-        el("div", { className: "ex-head" },
-          el("strong", { className: "ex-name", textContent: d }),
-          el("span", { className: "muted", textContent: lastDone ? `Last done ${fmtDay(lastDone.start)}` : "Not done yet" })),
-        el("p", { className: "notes", textContent: exercises.filter((e) => e.day === d).map((e) => `${e.sets} × ${e.name}`).join(", ") }),
-        el("button", { type: "button", className: "primary wide", textContent: `Start ${d}`, onclick: () => act("start", { day: d }) }));
-    });
-    const recent = all.slice(-5).reverse().map((w) =>
-      el("li", {}, el("span", { textContent: `${w.day ?? "Workout"} · ${fmtDay(w.start)}` }),
-        el("span", { className: "muted", textContent: `${w.logs.length} sets · ${+vol(w.logs).toFixed(0)} kg` })));
-    $("list").replaceChildren(...picks,
-      recent.length ? el("h2", { textContent: "Recent workouts" }) : "",
-      recent.length ? el("ul", { className: "recent" }, ...recent) : "");
+  // Discard and Finish end the workout, so the page has nothing left to show.
+  // Straight to the dashboard without re-rendering, so nothing flashes first.
+  // Every client has an account (they join through an invite), so /me is there.
+  async function endWorkout(what) {
+    if (await api(`/api/p/${tok}/${what}`, {})) location.replace("/me");
   }
-
-  // Back to the client's dashboard, where they pick a workout. Every client
-  // has an account (they join through an invite), so /me is always there.
-  async function discard() {
-    if (await act("discard")) location.href = "/me";
-  }
+  const discard = () => endWorkout("discard");
 
   async function finish() {
     const open = state.open_session;
     const n = state.logs.filter((l) => l.session_id === open.id).length;
     if (!(await ask(`Finish ${open.day}?`, n ? `${n} set${n > 1 ? "s" : ""} will be saved.` : "No sets logged, so this workout gets thrown away.", "Finish"))) return;
-    if (await act("finish")) { for (const k in rowCount) delete rowCount[k]; restEnd = 0; drawRest(); }
+    endWorkout("finish");
   }
 
   function exerciseCard(ex, client) {

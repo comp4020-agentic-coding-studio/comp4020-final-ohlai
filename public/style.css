@@ -251,8 +251,6 @@ body.client .wo summary { padding: 14px 16px; }
 .actions.top { margin: 0 0 12px; justify-content: flex-end; }
 .actions.top:empty { display: none; }
 .wide { width: 100%; margin-top: 12px; }
-.recent { list-style: none; padding: 0; margin: 0; }
-.recent li { display: flex; justify-content: space-between; gap: 8px; padding: 12px 0; border-bottom: 1px solid var(--line); }
 .swipe { position: relative; overflow: hidden; border-radius: 8px; }
 .swipe > .set { position: relative; background: var(--card); touch-action: pan-y; }
 .swipe > .set.done { background: linear-gradient(var(--done), var(--done)), var(--card); }

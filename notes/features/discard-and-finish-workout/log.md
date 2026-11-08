@@ -44,3 +44,19 @@ I was right. In the entry above the agent kept a fallback for a client with only
 Before: `discard()` only went to `/me` when `state.claimed` was true. Now: it always goes to `/me` after a successful discard (`public/program.html`). The earlier entry is left as it was, and this one replaces its "link-only client stays on the picker" part.
 
 Checked again in real Chrome as a client who joined from their invite: Discard, then confirm, landed on `/me`, and the server's `open_session` was null. `pnpm check` passed (20 tests).
+
+## 2026-11-09 00:40 Program picker page deleted
+
+I said: "On the login you have me and also on the regular jack@example.com it looks like it goes back to the program page for a fraction of a second before going back to the dashbaord. I dont want this. I want to fully delete that program page even if we have to rewrite or refactor some of the app to do so"
+
+Why it flashed: `discard()` called `act("discard")`, which saved the new state and re-rendered the page first. With no open workout, the render drew the old program picker (days with Start buttons, recent workouts). Only after that did `location.href = "/me"` run.
+
+Before: `/p/<token>` for a client was two pages in one. With a workout open it showed the workout. With none open it showed a picker of the program's days with Start buttons, recent workouts, stats and a Dashboard button. The client dashboard (`/me`) already does all of that, and starting a day there is how the app works now.
+
+Now (`public/program.html`, `public/style.css`):
+- The picker is gone: `renderPicker()`, the client's Dashboard link in `navLinks()`, and the `.recent` styles that only it used.
+- A client who opens `/p/<token>` with no workout open goes straight to `/me` (`location.replace`, so Back doesn't bounce them onto it again). That covers old tabs, the Back button after finishing, and an ended program.
+- Discard and Finish both call the API directly and then `location.replace("/me")`, without re-rendering, so nothing shows in between. Finish used to stay on the program page and show the picker. Now it goes to the dashboard too, because that page doesn't exist any more.
+- The workout screen itself, the exercise summary (`#ex-<id>`) and the PT view on the PT token are unchanged. The workout still lives at `/p/<token>`, which is the address the day buttons on `/me` open.
+
+Checked in real Chrome as a client who joined through their invite, once with Discard and once with Finish. Each time, after clicking the button and confirming, the page landed on `/me`, a watcher on the page saw no Start button appear before it left, and the server had no open workout. Opening `/p/<token>` again afterwards landed on `/me`. `pnpm check` passed (20 tests).

@@ -26,3 +26,13 @@ Left as it was, as small details: a link-only client, who has no dashboard, stay
 What came up: the agent kept a "link-only client stays on the picker" case after Discard. I pointed out that we'd already phased out links without accounts (2026-11-08, change-assign-client-flow, "Drop support for old links").
 
 What I picked: no special case. After Discard, every client goes to `/me`. This replaces the "Left as it was" line in the entry above.
+
+## 2026-11-09 Delete the client's program picker page
+
+What came up: after Discard, the old program page (the list of days with Start buttons) flashed for a moment before the dashboard loaded.
+
+What I picked: "fully delete that program page even if we have to rewrite or refactor some of the app to do so". The client only ever sees the workout in progress on `/p/<token>`. With no workout open, they go to `/me`.
+
+Follows from it: Finish now goes to the dashboard too, because the page it used to land on is gone. This replaces "Finish still stays on the program page" in the "Where Discard takes the client" entry.
+
+Why: I didn't want the flash, and the dashboard already does what that page did.
