@@ -68,3 +68,42 @@ chart, URL stayed `/dash`. Switched metric to Heaviest weight. No page
 errors. Also opened the client link's lift summary (`#ex-1`) at 390px to
 make sure the moved chart still works there: chart drawn, `scrollWidth` 390,
 back to the workout fine. `pnpm check` passes (12 tests).
+
+## 2026-11-08 20:13 to 20:20: chat in the side card, wider client card, no Open program
+
+What I asked: "clicking message jack from the dash popup should open the
+messenger on the side like the graph view. Also make the Client popup wider,
+and remove the view program button (you can already see the exercises in the
+popup)"
+
+Before (see the 19:08 entry): the client card had "Open program" (a link to
+`/p/<pt_token>`) and "Message" (a link to `/chat/<id>`, which left the dash).
+The client card was 420px. The second card only ever showed a lift.
+
+Now:
+
+- `public/dash.html`: the second card is now a general side card
+  (`#d-side`, was `#d-lift`) that holds either a lift or the chat. "Message
+  Jack" is a button that opens the chat in it, using `mountChat` from
+  `public/chat.js`, the same thread and compose box as the Inbox and the
+  program page drawer, so photos work too. Focus goes to the text box. The
+  side card's ✕ or Esc closes it and puts focus back on whichever button
+  opened it (the lift or Message). Opening a lift while the chat is open swaps
+  it, and the other way round. New messages show up live: the existing
+  `/api/events` stream already fires on chat, so the dash reloads the thread
+  when one comes in. "Open program" is gone.
+- `public/style.css`: client card 420px to 580px. When the side card is the
+  chat it fills the window height, the thread scrolls and the text box sits at
+  the bottom. Their messages get the soft background the Inbox uses.
+
+How I checked it: headless Chrome at 1440x900 as the demo PT. Dash grid still
+didn't move when the popup opened. Client card measured 580px, no Open
+program button. Clicked Message Jack: side card showed Jack's thread with
+focus in the text box. Typed a message and clicked Send (not a submit in
+code): it came back in the thread from the server and the box cleared. Esc
+closed the chat and focus went back to Message Jack, second Esc closed the
+popup. Lift card still works. No page errors. The two cards fit side by side
+at 1440px (580 + 16 + 480). `pnpm check` passes.
+
+Note: that test left a "Popup test ..." message from Oli to Jack in this
+feature's own data folder only.

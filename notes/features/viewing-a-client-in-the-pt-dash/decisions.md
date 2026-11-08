@@ -16,3 +16,12 @@ Newest at the bottom. Same format as `notes/decisions.md`.
   everything. "Open program" stays on the client card for the full program
   page. The chart code moved into `public/lift-chart.js` so the dash and the
   program page share one copy.
+
+## 2026-11-08: Messaging and size of the client popup
+
+- **Where Message opens.** It was a link to the chat page, which left the
+  dash. I asked for it to open in the side card next to the client card, the
+  same way a lift's graph does.
+- **Client card width.** I asked for it wider. Went from 420px to 580px.
+- **Open program button.** I asked to drop it, because the exercises are
+  already in the popup. Removed.

@@ -330,13 +330,19 @@ button.small, .chips button { white-space: nowrap; font-size: 0.82rem; padding: 
 .detail { max-width: calc(100vw - 48px); max-height: calc(100vh - 48px); padding: 0; border: 0; background: none; overflow: visible; color: var(--ink); }
 .detail[open] { display: flex; gap: 16px; align-items: flex-start; animation: confirm-in 0.2s ease-out; }
 .detail::backdrop { background: rgba(0, 0, 0, 0.25); backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px); }
-.dcard { width: 420px; max-height: calc(100vh - 48px); overflow-y: auto; padding: 20px; background: var(--card); border: 1px solid var(--line); border-radius: 18px; box-shadow: 0 30px 80px -30px rgba(0, 0, 0, 0.5); }
-#d-lift { width: 480px; animation: confirm-in 0.2s ease-out; }
-#d-lift .chart { max-width: none; }
-#d-lift .pills { flex-wrap: wrap; overflow: visible; }
+.dcard { width: 580px; max-height: calc(100vh - 48px); overflow-y: auto; padding: 20px; background: var(--card); border: 1px solid var(--line); border-radius: 18px; box-shadow: 0 30px 80px -30px rgba(0, 0, 0, 0.5); }
+#d-side { width: 480px; animation: confirm-in 0.2s ease-out; }
+#d-side .chart { max-width: none; }
+#d-side .pills { flex-wrap: wrap; overflow: visible; }
+/* The chat fills the card's height: thread scrolls, the text box stays at the bottom. */
+#d-side.chat { display: flex; flex-direction: column; height: calc(100vh - 48px); overflow: hidden; }
+#d-side.chat .thread { padding: 8px 2px; }
+#d-side.chat .thread li.theirs { background: var(--soft); box-shadow: none; }
+#d-side.chat .compose { padding: 10px 0 0; }
+#d-side.chat .compose input:not([type="file"]) { flex: 1; min-width: 0; }
 .detail h2:not(.detail-head h2) { font-size: 1rem; margin: 18px 0 6px; }
 .detail .linkish[aria-pressed="true"] { text-decoration-color: var(--ink); }
-@media (prefers-reduced-motion: reduce) { .detail[open], #d-lift { animation: none; } }
+@media (prefers-reduced-motion: reduce) { .detail[open], #d-side { animation: none; } }
 .detail-head { display: flex; align-items: center; gap: 12px; }
 .detail-head > div { flex: 1; display: grid; }
 .detail-head h2 { margin: 0; }
@@ -369,7 +375,7 @@ button.small, .chips button { white-space: nowrap; font-size: 0.82rem; padding: 
   .apphead { flex-wrap: wrap; }
   .ctable th:nth-child(n+3), .ctable td:nth-child(n+3) { display: none; }
   .detail[open] { flex-direction: column; overflow-y: auto; }
-  .dcard, #d-lift { width: 100%; max-height: none; }
+  .dcard, #d-side { width: 100%; max-height: none; }
   .inbox { grid-template-columns: 1fr !important; }
 }
 .empty { text-align: center; padding: 32px 16px; }

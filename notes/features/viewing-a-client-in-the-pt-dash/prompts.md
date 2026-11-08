@@ -9,3 +9,7 @@ The side popup forces the whole dash to wrap when it opens. Instead do a regular
 ---
 [Added by the dashboard, not my words]
 Feature: viewing a client in the PT dash
+
+## 2026-11-08 20:13 (dashboard)
+
+clicking message jack from the dash popup should open the messenger on the side like the graph view. Also make the Client popup wider, and remove the view program button (you can already see the exercises in the popup)
