@@ -9,7 +9,7 @@ import crypto from "node:crypto";
 import os from "node:os";
 import { spawn, execFileSync } from "node:child_process";
 import { DatabaseSync } from "node:sqlite";
-import { META, APP, WORKTREES, STATE, FEATURES_DIR, DEFAULTS_FILE, BUILT_IN, MODELS, defaults, fill, MD_KEYS, config, loadFeatures, saveRuntime, featureMd, readState, writeState, stamp, claudeBaseArgs, liveStatus, AUTO, resumeText, FEEDBACK } from "./lib.js";
+import { CLAUDE_SETTINGS, META, APP, WORKTREES, STATE, FEATURES_DIR, DEFAULTS_FILE, BUILT_IN, MODELS, defaults, fill, MD_KEYS, config, loadFeatures, saveRuntime, featureMd, readState, writeState, stamp, claudeBaseArgs, liveStatus, AUTO, resumeText, FEEDBACK } from "./lib.js";
 
 // If the dashboard was started from inside a Claude Code session, it carries
 // variables that would make every agent it launches a child of that session
@@ -432,9 +432,25 @@ function usage(f) {
 // an agent started without --model (no model on the feature or in the agent
 // defaults). Remembered in local/, so it still shows once a default is picked.
 const CLAUDE_DEFAULT = path.join(STATE, "..", "claude-default.json");
+function settingsModel() {
+  // The --settings file wins over the user's own settings, as it does for Claude Code.
+  for (const p of [CLAUDE_SETTINGS, path.join(os.homedir(), ".claude", "settings.json")]) {
+    if (!p) continue;
+    try {
+      const m = JSON.parse(fs.readFileSync(p, "utf8")).model;
+      if (typeof m === "string" && m) {
+        const id = m.replace(/\[.*\]$/, "").toLowerCase();
+        return Object.keys(MODELS).find((k) => k && (id === k || k.includes("-" + id + "-"))) || id;
+      }
+    } catch {}
+  }
+  return "";
+}
 function claudeDefault() {
+  if (defaults().model) return "";
+  const set = settingsModel();
+  if (set) return set;
   let known = null; try { known = JSON.parse(fs.readFileSync(CLAUDE_DEFAULT, "utf8")); } catch {}
-  if (defaults().model) return known?.model || "";
   for (const f of loadFeatures()) {
     if (f.model || !f.dir) continue;
     const l = usage(f).last;

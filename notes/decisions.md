@@ -564,3 +564,33 @@ Follows the 2026-11-07 entry above. Built in `COMP4020/meta/`.
   setting looks weird and asked for just "Agent default". It no longer names
   a model at all, even when the agent default is set to one. The Agent
   defaults popup still says "Claude Code's default (Opus 5.5)".
+
+## 2026-11-08: Agent default follows Claude Code's model setting
+
+- Came up because the default agent in Cannu didn't update when I changed the
+  model in Claude Code. Cannu guessed "Claude Code's default" from the newest
+  model in the agents' saved sessions and cached it in
+  `local/claude-default.json`, which still said Opus 5.5 while my settings said
+  `"model": "sonnet"`.
+- Options: keep guessing from sessions, or read the `model` setting. Picked
+  reading the setting, from the settings file in `config.json` first, then
+  `~/.claude/settings.json`. An alias like `sonnet` becomes
+  `claude-sonnet-5-5`. The old guess is only the fallback. This changes the
+  entry "Showing which model Claude Code's default is" above, which is still
+  there as written.
+- Not covered: `/model` inside a session isn't a settings change, so Cannu
+  can't see it.
+
+## 2026-11-08: Merged is purple
+
+- Asked for the merged status to be purple instead of black. My reason: there
+  was just too much black. Only the pill's dot changed (`#7c3aed`, and a
+  lighter `#a78bfa` in dark mode). The filter chip is still as it was.
+
+## 2026-11-08: Filter chips by timeline, cards by urgency
+
+- Asked for the filter chips at the top to go in the order of a feature's life:
+  All, Planned, Working, Waiting, Merged, Dropped. The cards below stay sorted
+  by how urgently I should see them (waiting first). This changes the earlier
+  decision that the chips were in urgency order too. Chips and cards now have
+  separate lists in `index.html`.
