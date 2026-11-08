@@ -42,3 +42,9 @@
 - This replaces the earlier "who counts as quiet" setup where Send went to every quiet client with no choice. Quiet is still worked out the same way (7+ days, or never trained).
 - Still open: whether the list should show every signed-up client and not just quiet ones. Asked, not answered.
 - Agent's call: Send is disabled while nobody is ticked, and while the list is loading.
+
+## 2026-11-09, why tick boxes for nudge by person
+
+- Adds the reason to "nudge by person" above, which said "I didn't say beyond picking it."
+- My reason: "it keep its contained without cluttering the interface with loads of nudge buttons for each person. while also giving you more control."
+- So: one place for the nudge, no extra Nudge button on every client, and I still choose exactly who gets it.

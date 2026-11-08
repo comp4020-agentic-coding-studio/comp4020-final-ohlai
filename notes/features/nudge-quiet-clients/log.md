@@ -70,4 +70,12 @@ It did show a real gap though. When the popup opens a second time, the old list 
 
 Checked: `pnpm check` passes, 19 tests. In headless Chrome at 1440px: unticked Jack, clicked Send. Before, Jack 4 and Sam 4 messages; after, Jack 4 and Sam 5. Popup closed. Screenshots of the list in light and dark with Jack unticked look right.
 
+## 2026-11-09, my reason for tick boxes
+
+I gave the reason for picking tick boxes over a Nudge button per person (see the 00:00 entry): "it keep its contained without cluttering the interface with loads of nudge buttons for each person. while also giving you more control."
+
+Added it to `decisions.md` as a new entry under "nudge by person". No code changed.
+
+Still open: whether the list should show every signed-up client and not just quiet ones.
+
 Open questions for me are in `decisions.md`.

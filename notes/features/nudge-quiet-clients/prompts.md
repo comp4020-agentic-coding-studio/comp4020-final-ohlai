@@ -31,3 +31,7 @@ maybe also being able to nudge by person would be good
 ## 2026-11-09 00:05 (dashboard)
 
 option 1
+
+## 2026-11-09 00:14 (dashboard)
+
+reason: it keep its contained without cluttering the interface with loads of nudge buttons for each person. while also giving you more control.
