@@ -36,15 +36,10 @@ change it.
 
 I didn't ship the database. `data/` is gitignored, so a fresh clone has no
 `data/app.db`. When Cannu sets up a feature it copies main's `data/app.db`
-into the feature's folder. With none to copy, the feature's app starts empty.
-
-To give feature apps the demo data, before starting a feature, from the repo
-root:
-
-```
-node server.js              # creates data/app.db, stop it once it's up
-node scripts/seed-jack.js   # adds Jack's ten weeks of training
-```
+into the feature's folder if there is one, starts the feature's app (which
+creates any missing tables), then runs `scripts/seed-jack.js` on it. So every
+feature's preview has Jack's ten weeks of training and the demo logins, with
+or without a database on main. You don't need to do anything.
 
 Demo logins: PT `oli@example.com` / `demo1234`, client `jack@example.com` /
 `demo1234`.
