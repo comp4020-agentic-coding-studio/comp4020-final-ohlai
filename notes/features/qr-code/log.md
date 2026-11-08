@@ -48,3 +48,7 @@ Results (temp script, not in the repo):
 - File size: ours 8.2 KB readable, lean-qr 7 KB minified.
 - One thing lean-qr does that ours doesn't: by default it bumps error correction as high as fits without making the code bigger. For the fly.dev invite it would use level Q (about 25% damage) at the same 33x33 instead of M (15%). That's free extra robustness, about 5 lines to add.
 - ha.mr's own tricks don't fit us. Alphanumeric mode needs uppercase, and invite tokens are case-sensitive base64url, so uppercasing would break them. Its link shortening sends people through the ha.mr domain, which would put the invite token on a third-party site, the same reason we ruled out an online QR service.
+
+## 2026-11-09 Not adding the error correction bump
+
+I said: "nah i think ours is ok for now." So the encoder stays at level M only, and the lean-qr style bump to the highest level that fits (from the entry above) isn't added. Recorded in `decisions.md`. Nothing in the code changed.

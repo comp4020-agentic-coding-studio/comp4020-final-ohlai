@@ -15,6 +15,13 @@
 - Picked: A. I said "yes show itvite ready popup the same as the regular link".
 - Why: it goes where the link already is. B would change what the server returns.
 
+## 2026-11-09 Keep our encoder as it is after comparing with ha.mr
+
+- What came up: comparing with ha.mr (which uses lean-qr) showed our encoder gives the same codes. One thing lean-qr does that ours doesn't is raise error correction as high as fits at the same size (level Q instead of M for a fly.dev invite, about 25% damage instead of 15%). The agent offered to add it, about 5 lines plus a test.
+- Options: add the error correction bump, or leave the encoder as it is.
+- Picked: leave it. I said "nah i think ours is ok for now."
+- Could come back later if a code ever fails to scan.
+
 ## 2026-11-09 QR code colours in dark mode (agent's call, small)
 
 - The QR code is always dark squares on a light plate, so in dark mode it sits on a white square. Some phone camera apps can't read a light-on-dark code. It still only uses the theme tokens (swapped in dark), no hex values.

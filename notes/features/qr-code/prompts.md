@@ -22,3 +22,7 @@ try to fetch again and compare between ha.mr and you implementation
 ## 2026-11-09 09:34 (terminal)
 
 ive clones ha.mr into documents/github/
+
+## 2026-11-09 09:39 (dashboard)
+
+nah i think ours is ok for now.
