@@ -674,13 +674,21 @@ document.addEventListener("wheel", (e) => {
   e.preventDefault();
   body.scrollTop += e.deltaMode === 1 ? e.deltaY * 16 : e.deltaY;
 }, { passive: false });
-let MODELS = {}, DEF = null;
+let MODELS = {}, DEF = null, CC = ""; // CC: the model Claude Code defaults to, when known
 function modelOptions(sel, withDefault) {
   const opts = Object.entries(MODELS).filter(([id]) => id || !withDefault);
-  return (withDefault ? `<option value="">Agent default (${esc(MODELS[DEF.model])})</option>` : "")
+  return (withDefault ? `<option value="">Agent default (${DEF.model ? esc(MODELS[DEF.model]) : CC ? esc(CC) + ", Claude Code's default" : "Claude Code's default"})</option>` : "")
     + opts.map(([id, name]) => `<option value="${id}" ${id === sel ? "selected" : ""}>${esc(name)}</option>`).join("");
 }
-async function loadDefaults() { const r = await api("/api/defaults"); MODELS = r.models; DEF = r.values; return r; }
+// "Claude Code's default" also says which model that is, when it's known.
+function setModels(r) {
+  MODELS = { ...r.models };
+  const id = r.claudeDefault, name = id && (Object.entries(r.models).find(([k]) => k && id.startsWith(k))?.[1] || id);
+  CC = name || "";
+  if (name) MODELS[""] += ` (${name})`;
+  DEF = r.values;
+}
+async function loadDefaults() { const r = await api("/api/defaults"); setModels(r); return r; }
 
 // New feature: what you've typed is kept for this browser tab, so closing the
 // popup to look at another feature doesn't lose it. Cleared once it's created.
@@ -770,7 +778,7 @@ $("#defaultsSave").onclick = async () => {
   for (const [k] of TEXTS) body[k] = $("#d_" + k).value.trim();
   const r = await api("/api/defaults", body);
   if (r.msg) { $("#defaultsMsg").textContent = r.msg; return; }
-  MODELS = r.models; DEF = r.values; fillDefaults(r);
+  setModels(r); fillDefaults(r);
   $("#defaultsMsg").textContent = "Saved and committed on main.";
 };
 

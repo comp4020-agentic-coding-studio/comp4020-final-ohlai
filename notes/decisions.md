@@ -542,3 +542,17 @@ Follows the 2026-11-07 entry above. Built in `COMP4020/meta/`.
   Ctrl+Enter the cursor is still in the box. Now sending steps out of the box,
   redraws, and puts the cursor back, and open chats keep updating while you
   type.
+
+## 2026-11-08: Showing which model "Claude Code's default" is
+
+- Asked to show what Claude Code's default is wherever the page says
+  "Claude Code's default". Claude Code doesn't report its default model, and
+  the course settings file passed with `--settings` holds the API key, so the
+  dashboard doesn't read it. Instead it uses the model recorded in the saved
+  sessions: the newest model used by an agent started with no model on the
+  feature or in the agent defaults. It's remembered in
+  `local/claude-default.json`, so it still shows after a default model is
+  picked. Right now it's Opus 5.5.
+- The model lists now say "Claude Code's default (Opus 5.5)", and New
+  feature's first option says "Agent default (Opus 5.5, Claude Code's
+  default)" rather than putting brackets inside brackets.

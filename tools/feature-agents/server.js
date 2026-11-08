@@ -393,7 +393,7 @@ function price(model, u) {
 // step before the next one, so time spent waiting on me doesn't count. Gaps
 // over 10 minutes (a permission prompt left waiting) count as 10.
 function readTranscript(file) {
-  const msgs = new Map(); let ms = 0, prev = 0;
+  const msgs = new Map(); let ms = 0, prev = 0, last = null;
   for (const line of fs.readFileSync(file, "utf8").split("\n")) {
     let e; try { e = JSON.parse(line); } catch { continue; }
     if (e.type !== "user" && e.type !== "assistant") continue;
@@ -404,9 +404,10 @@ function readTranscript(file) {
     if (t) prev = t;
     // A reply is saved as several lines with the same id. The last has the totals.
     if (e.type === "assistant" && e.message?.id && e.message.usage) msgs.set(e.message.id, e.message);
+    if (e.type === "assistant" && e.message?.model?.startsWith("claude")) last = { model: e.message.model, at: t };
   }
   let cost = 0; for (const m of msgs.values()) cost += price(m.model, m.usage);
-  return { ms, cost };
+  return { ms, cost, last };
 }
 const usageCache = new Map();
 function usage(f) {
@@ -421,8 +422,26 @@ function usage(f) {
       if (c?.mtime === mtime) r = c.r; else { r = readTranscript(p); usageCache.set(p, { mtime, r }); }
     } catch { continue; }
     total.ms += r.ms; total.cost += r.cost;
+    if (r.last && !(total.last?.at >= r.last.at)) total.last = r.last;
   }
   return total;
+}
+
+// What "Claude Code's default" actually is. Claude Code doesn't say, but each
+// saved session records the model it ran on, so it's the newest model used by
+// an agent started without --model (no model on the feature or in the agent
+// defaults). Remembered in local/, so it still shows once a default is picked.
+const CLAUDE_DEFAULT = path.join(STATE, "..", "claude-default.json");
+function claudeDefault() {
+  let known = null; try { known = JSON.parse(fs.readFileSync(CLAUDE_DEFAULT, "utf8")); } catch {}
+  if (defaults().model) return known?.model || "";
+  for (const f of loadFeatures()) {
+    if (f.model || !f.dir) continue;
+    const l = usage(f).last;
+    if (l && !(known?.at >= l.at)) known = l;
+  }
+  if (known) fs.writeFileSync(CLAUDE_DEFAULT, JSON.stringify(known));
+  return known?.model || "";
 }
 
 // ---------- merge, done, remove ----------
@@ -572,7 +591,7 @@ http.createServer(async (req, res) => {
         commitMain("Feature agents: update the agent defaults", path.relative(APP, DEFAULTS_FILE));
         for (const f of loadFeatures().filter(hasWorktree)) if (fs.existsSync(f.dir)) writeSettings(f); // new env
       }
-      return send(res, 200, { values: defaults(), builtIn: BUILT_IN, models: MODELS, plugins: userPlugins(), ponytailLevel: ponytailLevel() });
+      return send(res, 200, { values: defaults(), builtIn: BUILT_IN, models: MODELS, claudeDefault: claudeDefault(), plugins: userPlugins(), ponytailLevel: ponytailLevel() });
     }
     if (req.method === "POST" && url.pathname === "/api/features") {
       const { title, prompt, plan, model } = await body(req);
