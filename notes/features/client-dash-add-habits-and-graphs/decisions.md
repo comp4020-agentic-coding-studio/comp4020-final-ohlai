@@ -16,6 +16,12 @@ The agent picked, for now: each lift's latest best minus its first best, added o
 
 Agent's recommendation: keep latest minus first. I haven't answered yet.
 
+## 2026-11-08 Progress number and week strip were too big
+
+What came up: I said "+37.6 kg in range is wayyyy too big" and the habit tracker "is probably to big comapred to other elements", and asked for a pass over the whole client dashboard so the text sizes fit.
+
+Picked: the progress number is the same size as the stats numbers and moves into the card's header, the strip squares shrink to 16px, and secondary text on client pages is one size (0.85rem). The before and after is in log.md (2026-11-08 23:47). The agent also chose these: drop "in range", show one dot on the progress line instead of one per workout, and make client buttons a step smaller. I asked for the general pass, so I didn't pick those one by one.
+
 ## 2026-11-08 Open: what else the habit card shows (waiting on me)
 
 The example has three habits. The app only knows about workouts, so there's one "Workouts" row. Weekly check-in could be a second row since that data exists. Rows for meals, protein or weigh-ins would need new data. I haven't answered yet.

@@ -9,3 +9,7 @@ add a habit tracker (like github contributions) for workouts logged over the pas
 ---
 [Added by the dashboard, not my words]
 Feature: Client dash add habits and graphs
+
+## 2026-11-08 23:47 (dashboard)
+
+the text feels like it doesnt fit with the rest of the dash. Can you please go over the whole client dash and make it look more aesthetic with text are the correct sizes? For a start the +37.6 kg in range is wayyyy too big. Also like the habit tracker is probably to big comapred to other elements. Maybe you need to look at the site visually to see how the dashboard is failing miserably at having good design and just general UI. Can you try to remoeve the workout today - i want to see if you got the outlined square to show you havent logged something today but you still can.

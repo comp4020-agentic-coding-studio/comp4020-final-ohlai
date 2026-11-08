@@ -39,7 +39,7 @@
     const days = [...Array(7)].map((_, i) => new Date(Date.now() - (6 - i) * 864e5));
     const n = days.filter((d) => trained.has(dayKey(d))).length;
     return el("div", { className: "card habit" },
-      el("span", { textContent: "Workouts" }),
+      el("strong", { textContent: "Last 7 days" }),
       el("ol", { className: "week", ariaLabel: `Worked out ${n} of the last 7 days` },
         ...days.map((d, i) => el("li", {
           className: (trained.has(dayKey(d)) ? "on" : "") + (i === 6 ? " today" : ""),
@@ -50,10 +50,12 @@
   function progress(points) {
     if (points.length < 2) return null;
     const gain = points.at(-1).gain;
+    const since = utc(points[0].at).toLocaleDateString("en-AU", { day: "numeric", month: "short" });
     return el("section", { className: "card prog" },
-      el("small", { className: "muted", textContent: "Progress, all lifts" }),
-      chart(points.map((p) => ({ k: utc(p.at), gain: p.gain })), "gain", "Progress, all lifts"),
-      el("p", { className: "big" }, el("strong", { textContent: `${gain >= 0 ? "+" : ""}${+gain.toFixed(1)}` }), " kg in range"));
+      el("div", { className: "prog-head" },
+        el("span", {}, el("strong", { textContent: "Progress" }), el("br"), el("span", { className: "muted", textContent: `All lifts since ${since}` })),
+        el("span", { className: "prog-num" }, `${gain >= 0 ? "+" : ""}${+gain.toFixed(1)}`, el("small", { textContent: " kg" }))),
+      chart(points.map((p) => ({ k: utc(p.at), gain: p.gain })), "gain", "Progress, all lifts"));
   }
 
   // Tapping a day starts it, so the client is one tap from logging.

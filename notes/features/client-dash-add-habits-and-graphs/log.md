@@ -19,3 +19,20 @@ What got built:
 Checked: `pnpm check` passes (19 tests). Screenshots of `/me` at 390px in light and dark, logged in as Jack (seed data), no horizontal scroll (scrollWidth 390). Jack's seeded workouts were all over a month old so the strip was empty at first. I finished his open Push workout and logged one Pull set today through the client link to see a filled square, so this feature's data folder now has two extra small workouts for Jack.
 
 Not done, see decisions.md for the open questions: the strip only has a Workouts row (no other habits exist in the app yet), and squares aren't tappable.
+
+## 2026-11-08 23:47 Polish pass on the whole client dashboard
+
+What I asked: "the text feels like it doesnt fit with the rest of the dash. Can you please go over the whole client dash and make it look more aesthetic with text are the correct sizes? For a start the +37.6 kg in range is wayyyy too big. Also like the habit tracker is probably to big comapred to other elements. Maybe you need to look at the site visually to see how the dashboard is failing miserably at having good design and just general UI. Can you try to remoeve the workout today - i want to see if you got the outlined square to show you havent logged something today but you still can."
+
+Removing today's workout: there's no API to delete a finished workout (a set only goes away when the client removes it, and the client can only discard an open workout). This was the one-set Pull workout I logged myself as a test in the entry above, in this feature's own data folder, so I deleted that session (id 42) and its one set straight from the SQLite file. No real data was touched.
+
+What changed, before and after, all checked by screenshot at 390px in light and dark:
+
+- Progress number: before, "+37.6" at 1.3rem bold with "kg in range" under the chart, the biggest text on the page after the greeting. Now it sits top right of the card at 1.15rem, weight 500, the same as the stats numbers, with a small muted "kg". The card has a bold "Progress" title and a muted "All lifts since 28 July" under it, laid out like the workout cards. "in range" is gone because it meant nothing on its own.
+- Progress chart: before, a dot on every one of about 30 workouts, which looked busy at phone width. Now it's the line plus one dot on the latest point. The program page's per-lift chart still shows every dot.
+- Week strip: squares went from 22px to 16px and the gap from 6px to 5px. The label went from "Workouts" in regular weight to "Last 7 days" in bold like the other card titles. Today, when nothing's logged, is now an empty square with a muted outline. Before it was a grey fill with a faint outline, which barely looked different from the other days. The screenshot shows the outlined square on the right.
+- Stats card: "38 days ago" wrapped onto two lines. Columns now size to their content and the numbers don't wrap.
+- Secondary text on the dashboard was a mix of 0.8rem and 0.9rem (day buttons, program line, workout cards, PT card). On client pages it's all 0.85rem now.
+- The PT card buttons were desktop size (16px text, 12px by 16px padding) and looked heavy on a phone. On client pages they're 0.95rem with 10px by 14px padding. Workout card rows are a bit tighter (14px top and bottom).
+
+Files: public/me.html, public/style.css. `pnpm check` passes (19 tests).
