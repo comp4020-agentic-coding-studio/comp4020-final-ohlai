@@ -329,8 +329,7 @@ button.small, .chips button { white-space: nowrap; font-size: 0.82rem; padding: 
 
 .detail { max-width: calc(100vw - 48px); max-height: calc(100vh - 48px); padding: 0; border: 0; background: none; overflow: visible; color: var(--ink); }
 .detail[open] { display: flex; gap: 16px; align-items: flex-start; animation: confirm-in 0.2s ease-out; }
-.detail::backdrop { background: rgba(0, 0, 0, 0.25); backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px); }
-.dcard { width: 580px; max-height: calc(100vh - 48px); overflow-y: auto; padding: 20px; background: var(--card); border: 1px solid var(--line); border-radius: 18px; box-shadow: 0 30px 80px -30px rgba(0, 0, 0, 0.5); }
+.dcard { width: 580px; max-height: calc(100vh - 48px); overflow-y: auto; }
 #d-side { width: 480px; animation: confirm-in 0.2s ease-out; }
 #d-side .chart { max-width: none; }
 #d-side .pills { flex-wrap: wrap; overflow: visible; }
@@ -352,12 +351,10 @@ button.small, .chips button { white-space: nowrap; font-size: 0.82rem; padding: 
 .detail h4 { font-size: 0.78rem; text-transform: uppercase; letter-spacing: 0.04em; color: var(--muted); margin: 10px 0 4px; }
 .detail textarea { resize: vertical; }
 
-.pv { max-width: 420px; padding: 20px 22px; border: 1px solid var(--line); border-radius: 18px; background: var(--card); color: var(--ink); box-shadow: 0 30px 80px -30px rgba(0, 0, 0, 0.5); }
-.pv::backdrop { background: rgba(0, 0, 0, 0.25); }
-.pv h3 { margin: 0 0 8px; }
-.pv h3::after { content: "Preview, not built"; margin-left: 10px; font: 400 0.7rem "Share Tech Mono", ui-monospace, monospace; text-transform: uppercase; color: var(--muted); }
+.pv { max-width: 420px; }
+.pv h2::after { content: "Preview, not built"; margin-left: 10px; font: 400 0.7rem "Share Tech Mono", ui-monospace, monospace; text-transform: uppercase; color: var(--muted); }
 .pv p { margin: 0 0 10px; color: var(--muted); }
-.pv.built h3::after { content: none; }
+.pv.built h2::after { content: none; }
 .pv form .actions { margin-top: 14px; }
 .mock { opacity: 0.7; }
 
@@ -447,7 +444,7 @@ body:has(#rest:not([hidden])) .chatfab { bottom: 110px; } /* sit above the rest 
 .drawer { position: fixed; inset: auto 0 0 0; margin: 0 auto; width: 100%; max-width: 480px; height: 85vh; max-height: 85vh; padding: 0; border: 0; border-radius: 24px 24px 0 0; background: var(--bg); color: var(--ink); }
 body[data-view="desktop"] .drawer { inset: auto 24px 0 auto; margin: 0; height: 70vh; }
 .drawer[open] { display: flex; flex-direction: column; animation: drawer-up 0.22s ease-out; }
-.drawer::backdrop { background: rgba(0, 0, 0, 0.35); }
+.drawer::backdrop { background: rgba(0, 0, 0, 0.25); backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px); }
 .drawer-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 14px 16px 6px; }
 .drawer-head h2 { margin: 0; }
 .drawer-head button { width: 44px; height: 44px; padding: 0; border-radius: 50%; }
@@ -525,9 +522,7 @@ body[data-view="desktop"] .drawer { inset: auto 24px 0 auto; margin: 0; height: 
 .add-day { justify-self: start; background: var(--card); border: 1px dashed var(--muted) !important; }
 .builder-foot { display: flex; align-items: center; gap: 10px; justify-content: flex-end; position: sticky; bottom: 0; padding: 12px 0; background: var(--bg); }
 .builder-foot .error { margin: 0 auto 0 0; }
-.assign { width: min(480px, calc(100% - 32px)); padding: 20px 22px; border: 1px solid var(--line); border-radius: 18px; background: var(--card); color: var(--ink); box-shadow: 0 30px 80px -30px rgba(0, 0, 0, 0.5); }
-.assign::backdrop { background: rgba(0, 0, 0, 0.25); }
-.assign h3 { margin: 0 0 8px; }
+.assign { width: min(480px, calc(100% - 32px)); }
 .assign .actions { flex-wrap: nowrap; }
 .assign[open] { display: block; }
 .who-pick { border: 0; padding: 0; margin: 4px 0 0; display: flex; gap: 16px; }
@@ -582,15 +577,21 @@ html.theming, html.theming *, html.theming *::before, html.theming *::after {
 .notice input[type="checkbox"]:checked::before { transform: translateX(18px); background: var(--accent-ink); }
 @media (prefers-reduced-motion: reduce) { .notice input[type="checkbox"], .notice input[type="checkbox"]::before { transition: none; } }
 
-/* "Log out?" popup (ui.js logout) */
+/* Popups. Every one looks like the client card on the PT dash (.dcard):
+   a card over the blurred page, popping in, title and a round close top right. */
 html.locked { overflow: hidden; }
-.confirm { width: min(360px, calc(100% - 32px)); padding: 20px 22px; border: 1px solid var(--line); border-radius: 18px; background: var(--card); color: var(--ink); box-shadow: 0 30px 80px -30px rgba(0, 0, 0, 0.5); }
-.confirm[open] { animation: confirm-in 0.2s ease-out; }
-.confirm::backdrop { background: rgba(0, 0, 0, 0.25); backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px); animation: confirm-fade 0.2s ease-out; }
-.confirm h3 { margin: 0 0 8px; }
+/* The page behind any open popup doesn't scroll, so nothing pulls focus away. */
+html:has(dialog[open].pop, dialog[open].detail, dialog[open].drawer, .pop:popover-open) { overflow: hidden; }
+.pop, .dcard { padding: 20px; border: 1px solid var(--line); border-radius: 18px; background: var(--card); color: var(--ink); box-shadow: 0 30px 80px -30px rgba(0, 0, 0, 0.5); }
+.pop[open], .pop:popover-open { animation: confirm-in 0.2s ease-out; }
+.pop::backdrop, .detail::backdrop { background: rgba(0, 0, 0, 0.25); backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px); animation: confirm-fade 0.2s ease-out; }
+.pop > h2, .pop .detail-head { margin: 0 0 10px; }
+.pop .detail-head h2 { margin: 0; }
+/* ask() in ui.js: a yes/no question */
+.confirm { width: min(360px, calc(100% - 32px)); }
 .confirm p { margin: 0; color: var(--muted); }
 .confirm .actions { flex-wrap: nowrap; }
 .confirm .actions button { flex: 1; }
 @keyframes confirm-in { from { opacity: 0; transform: translateY(12px) scale(0.96); } }
 @keyframes confirm-fade { from { opacity: 0; } }
-@media (prefers-reduced-motion: reduce) { .confirm[open], .confirm::backdrop { animation: none; } }
+@media (prefers-reduced-motion: reduce) { .pop[open], .pop:popover-open, .pop::backdrop, .detail::backdrop { animation: none; } }
