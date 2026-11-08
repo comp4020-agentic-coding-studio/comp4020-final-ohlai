@@ -3,7 +3,8 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Feature agents</title>
+<title>Cannu</title>
+<link rel="icon" type="image/png" href="/logo.png">
 <style>
   :root { --bg:#fafafa; --card:#fff; --fg:#111; --mute:#666; --line:#e3e3e3; --work:#2563eb; --you:#d97706; --idle:#16a34a; --bad:#dc2626; }
   @media (prefers-color-scheme: dark) { :root { --bg:#0f0f10; --card:#18181b; --fg:#eee; --mute:#9a9a9a; --line:#2a2a2e; } }
@@ -19,12 +20,15 @@
   .grow { flex:1; min-width: 200px; }
   .title { font-weight:600; font-size:15px; }
   .meta { color:var(--mute); font-size:12.5px; }
+  .pill .detail { font-weight:400; color:var(--mute); }
   .pill { display:inline-flex; align-items:center; gap:6px; font-size:12px; font-weight:600; padding:3px 9px; border-radius:99px; border:1px solid var(--line); white-space:nowrap; }
   .dot { width:8px; height:8px; border-radius:50%; background:var(--mute); }
   .working .dot { background:var(--work); animation: pulse 1.2s infinite; }
   .needs-you .dot, .interrupted .dot, .not-started .dot { background:var(--you); }
   .needs-you, .interrupted, .not-started { border-color: var(--you); }
   .idle .dot { background:var(--idle); } .merged .dot { background:var(--fg); } .error .dot, .failed .dot { background:var(--bad); }
+  .pill.waiting { border-color:var(--you); } .pill.waiting .dot { background:var(--you); }
+  .pill.error .dot, .pill.failed .dot { background:var(--bad); }
   @keyframes pulse { 50% { opacity:.3 } }
   .activity { font-family: ui-monospace, monospace; font-size:12px; color:var(--mute); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; max-width: 100%; }
   .reply { margin-top:10px; padding:2px 12px; border-left:3px solid var(--line); max-height: 40em; overflow:auto; font-size:13px; cursor:pointer; }
@@ -98,13 +102,36 @@
   #mention div.on { background:var(--fg); color:var(--bg); }
   #mention small { opacity:.6; margin-left:6px; }
   button.sq { width:30px; height:30px; padding:0; display:inline-grid; place-items:center; }
+  .brand { display:flex; align-items:center; gap:10px; }
+  .brand img { width:30px; height:30px; }
+  @media (prefers-color-scheme: dark) { .brand img { filter:invert(1); } }
+  .brand h1 { margin:0; }
+  .brand h1 span { color:var(--mute); font-weight:500; }
+  /* Popups: the page dims and blurs, the panel rises and settles. */
+  dialog.modal { border:0; padding:0; background:none; color:var(--fg); max-width:min(680px, calc(100vw - 32px)); width:100%; overflow:visible; }
+  dialog.modal::backdrop { background:rgba(10,10,12,.35); backdrop-filter:blur(0); opacity:0; transition:opacity .28s ease, backdrop-filter .28s ease; }
+  dialog.modal.in::backdrop { opacity:1; backdrop-filter:blur(6px); }
+  .panel { background:var(--card); border:1px solid var(--line); border-radius:14px; box-shadow:0 24px 64px rgba(0,0,0,.22), 0 2px 8px rgba(0,0,0,.08);
+    max-height:calc(100vh - 64px); display:flex; flex-direction:column;
+    opacity:0; transform:translateY(14px) scale(.97); transition:opacity .2s ease, transform .2s ease; }
+  dialog.modal.in .panel { opacity:1; transform:none; transition:opacity .32s cubic-bezier(.16,1,.3,1), transform .42s cubic-bezier(.16,1,.3,1); }
+  @media (prefers-reduced-motion: reduce) { dialog.modal .panel, dialog.modal::backdrop { transition:none; } }
+  .panel header { padding:16px 20px 0; } .panel header h2 { margin:0; color:var(--fg); font-size:16px; }
+  .panel .body { padding:14px 20px; overflow:auto; display:grid; gap:10px; }
+  .panel footer { padding:12px 20px 16px; border-top:1px solid var(--line); }
+  .field { display:grid; gap:5px; } .field > label { font-weight:600; font-size:13px; }
+  .field .row { gap:8px; }
+  select { font:inherit; font-size:13px; padding:7px 10px; border-radius:7px; border:1px solid var(--line); background:var(--bg); color:var(--fg); }
+  .reset { font-size:12px; color:var(--mute); background:none; border:0; padding:0; text-decoration:underline; }
+  .fixed { font-size:12.5px; color:var(--mute); } .fixed li { margin:3px 0; }
+  .panel textarea.tall { min-height:110px; }
 </style>
 </head>
 <body>
 <main>
   <div class="row" style="margin-bottom:20px">
     <div class="grow">
-      <h1>Feature agents</h1>
+      <div class="brand"><img src="/logo.png" alt=""><h1>Cannu <span>- Parallel agent management</span></h1></div>
       <p class="sub" style="margin:0" id="totals">One branch, folder and Claude session per feature.</p>
     </div>
     <div class="seg" id="notify">
@@ -113,27 +140,10 @@
       <button data-mode="select" title="Notify me about features with their bell on"></button>
       <button data-mode="all" title="Notify me about every feature"></button>
     </div>
-    <button id="everyToggle" title="Added to the system prompt of every feature agent">System prompt</button>
-    <button class="primary" id="addToggle">+ Add feature</button>
+    <button id="defaultsOpen" title="Model, system prompt and everything else every agent is given">Agent defaults</button>
+    <button class="primary" id="newOpen">+ New feature</button>
   </div>
   <div class="msg bad" id="notifyMsg" hidden style="margin:-12px 0 12px"></div>
-
-  <div class="card" id="everyBox" hidden>
-    <div style="display:grid; gap:8px">
-      <div class="hint">Added to the system prompt of every feature agent on every run, including agents that already started: from their next background turn, or the next time you open their terminal. Slash commands don't run from a system prompt, so ask for a skill in words.</div>
-      <textarea id="every" placeholder="At the start of every session, load the ponytail skill at full level (Skill tool, skill ponytail:ponytail, args full) and follow it."></textarea>
-      <div class="row"><button class="primary" id="everySave">Save</button><button id="everyCancel">Close</button><span class="msg" id="everyMsg"></span></div>
-    </div>
-  </div>
-
-  <div class="card" id="addBox" hidden>
-    <div style="display:grid; gap:8px">
-      <input type="text" id="title" placeholder="Feature name, e.g. Client can hide Training now">
-      <textarea id="prompt" data-mention placeholder="What you want and why. Saved word for word in the feature's notes. Optional if you're only planning it."></textarea>
-      <div class="hint">@ to tag a related feature. The agent reads their notes first.</div>
-      <div class="row"><button class="primary" id="add">Start agent now</button><button id="addPlan" title="Records it on main without a branch or agent. Start it later from its card.">Save as planned</button><button id="addCancel">Cancel</button><span class="msg" id="addMsg"></span></div>
-    </div>
-  </div>
 
   <div class="filters">
     <div class="chips" id="chips"></div>
@@ -142,6 +152,28 @@
   <div id="list"></div>
 </main>
 <div id="mention" hidden></div>
+
+<dialog class="modal" id="newDlg">
+  <div class="panel">
+    <header><h2>New feature</h2></header>
+    <div class="body">
+      <input type="text" id="title" placeholder="Feature name, e.g. Client can hide Training now">
+      <textarea id="prompt" class="tall" data-mention placeholder="What you want and why. Saved word for word in the feature's notes. Optional if you're only planning it."></textarea>
+      <div class="hint">@ to tag a related feature. The agent reads their notes first.</div>
+      <div class="field"><label for="newModel">Model</label><select id="newModel"></select></div>
+    </div>
+    <footer class="row"><button data-close>Close</button><span class="msg" id="addMsg"></span><span class="grow" style="min-width:0"></span>
+      <button id="addPlan" title="Records it on main without a branch or agent. Start it later from its card.">Save as planned</button><button class="primary" id="add">Start agent</button></footer>
+  </div>
+</dialog>
+
+<dialog class="modal" id="defaultsDlg">
+  <div class="panel">
+    <header><h2>Agent defaults</h2><div class="hint">What every feature agent is given. Saved in <code>tools/feature-agents/agent-defaults.json</code> and committed on main. Agents that already started get changes from their next run.</div></header>
+    <div class="body" id="defaultsBody"></div>
+    <footer class="row"><button data-close>Close</button><span class="msg" id="defaultsMsg"></span><span class="grow" style="min-width:0"></span><button class="primary" id="defaultsSave">Save</button></footer>
+  </div>
+</dialog>
 <script>
 const $ = (s, el = document) => el.querySelector(s);
 const esc = (s) => String(s ?? "").replace(/[&<>"]/g, (c) => ({ "&":"&amp;", "<":"&lt;", ">":"&gt;", '"':"&quot;" }[c]));
@@ -212,16 +244,25 @@ const api = async (url, body) => { const r = await fetch(url, body === undefined
 // UI state kept across re-renders: open boxes, drafts, messages.
 const ui = {};
 const u = (slug) => (ui[slug] ??= { fb: false, draft: "", msg: "", cls: "", full: false, notes: false, reopen: false, rtitle: "", rprompt: "", edit: false, etitle: null, eprompt: null });
-// Filters, remembered per browser. Waiting = an agent has stopped and it's my
-// turn (it finished, needs me, or was interrupted), as opposed to working.
-let filter = store.get("filter", "active");
-const WAITING = ["needs-you", "idle", "closed", "interrupted", "error", "not-started", "failed"];
-const GROUPS = { all: () => true, active: (f) => ["planned", "building"].includes(f.status), waiting: (f) => f.status === "building" && WAITING.includes(status(f)[0]), planned: (f) => f.status === "planned", merged: (f) => f.status === "merged", dropped: (f) => f.status === "dropped" };
-const GROUP_NAMES = { all: "All", active: "Active", waiting: "Waiting", planned: "Planned", merged: "Merged", dropped: "Dropped" };
-const GROUP_TIPS = { all: "Every feature", active: "Planned or being built", waiting: "An agent has stopped and it's your turn", planned: "No branch or agent yet", merged: "In main", dropped: "Kept on record, not doing it" };
-if (!GROUPS[filter]) filter = "active";
+// Every feature has one status, and there's one filter per status, in order
+// of how much it needs looking at: waiting on you first, dropped last.
+const KINDS = ["waiting", "working", "planned", "merged", "dropped"];
+const KIND_TIPS = { all: "Every feature", waiting: "An agent has stopped and it's your turn: it finished, needs you, or was cut off", working: "An agent is working on it", planned: "No branch or agent yet", merged: "In main, finished", dropped: "Kept on record, not doing it" };
+const cap = (s) => s[0].toUpperCase() + s.slice(1);
+let filter = store.get("filter", "all");
+if (filter !== "all" && !KINDS.includes(filter)) filter = "all";
 let all = [];
 
+// [status, detail]. The detail (needs you, background…) shows after it.
+function kind(f) {
+  if (!f.worktree) return f.status === "building" ? ["waiting", ""] : [f.status, ""];
+  const [cls, label] = status(f);
+  if (cls === "merged") return ["merged", ""];
+  if (cls === "working") return ["working", f.settingUp ? label : f.live?.background ? "background" : ""];
+  return ["waiting", { closed: "", idle: "terminal open" }[cls] ?? label];
+}
+
+// The agent's state in detail, for banners and the waiting/working split.
 function status(f) {
   if (!f.worktree) return [f.status, f.status];
   if (f.setup && f.setup !== "ready") {
@@ -237,9 +278,9 @@ function status(f) {
 const MENTION_HINT = `<div class="hint">@ to tag a related feature. The agent reads their notes first.</div>`;
 const port = (slug) => all.find((x) => x.slug === slug).port;
 // Time, status, then the bell, in that order on every card.
-const head = (f, cls, label, when) => `<span class="meta">${when}</span>
-      <span class="pill ${cls}"><span class="dot"></span>${esc(label)}</span>
-      ${mode === "select" && f.worktree ? `<button class="sq ${bells.has(f.slug) ? "on" : ""}" data-act="bell" title="${bells.has(f.slug) ? "Notifying you about this feature. Click to stop." : "Notify me about this feature"}">${bells.has(f.slug) ? ICON.all : ICON.bell}</button>` : ""}`;
+const head = (f, cls, label, when) => { const [k, detail] = kind(f); return `<span class="meta">${when}</span>
+      <span class="pill ${k} ${cls}"><span class="dot"></span>${k}${detail ? `<span class="detail">· ${esc(detail)}</span>` : ""}</span>
+      ${mode === "select" && f.worktree ? `<button class="sq ${bells.has(f.slug) ? "on" : ""}" data-act="bell" title="${bells.has(f.slug) ? "Notifying you about this feature. Click to stop." : "Notify me about this feature"}">${bells.has(f.slug) ? ICON.all : ICON.bell}</button>` : ""}`; };
 // Every card ends with the same row: everyday buttons on the left, the one
 // that moves the feature on (in black) on the right.
 const actions = (left, right) => `<div class="row actions">${left}<span class="grow" style="min-width:0"></span>${right}</div>`;
@@ -255,7 +296,7 @@ function card(f) {
   else if (cls === "working" && !f.live?.background && st.at && Date.now() - Date.parse(st.at) > 5 * 60e3) banner = `<div class="banner">No activity from this agent for ${ago(st.at).replace(" ago", "")}. It's probably waiting for you to approve something in its terminal tab ("${esc(f.slug)}").</div>`;
   else if (cls === "not-started") banner = `<div class="banner">The terminal tab for this feature never started a session. <button data-act="resume-term">Start it now</button></div>`;
   const c = collapsed.has(f.slug);
-  const details = `<div class="meta">created ${day(f.created)} · ${esc(f.branch)} · ${git}${f.lastCommit ? " · last: " + esc(f.lastCommit) : ""}</div>
+  const details = `<div class="meta">created ${day(f.created)} · ${esc(f.branch)}${f.model ? " · " + esc(MODELS[f.model] || f.model) : ""} · ${git}${f.lastCommit ? " · last: " + esc(f.lastCommit) : ""}</div>
         ${spent(f.usage) ? `<div class="meta">${spent(f.usage)}</div>` : ""}
         ${prev ? `<div class="meta">Continues “${esc(prev.title)}”</div>` : ""}`;
   const body = `${st.activity && cls === "working" ? `<div class="activity" style="margin-top:6px">${esc(st.activity)}</div>` : ""}
@@ -383,8 +424,8 @@ function render(features) {
   $("#totals").textContent = `One branch, folder and Claude session per feature.${ms || cost ? ` All features: ${dur(ms)} agent time, ≈$${cost.toFixed(2)} at API prices.` : ""}`;
   const typing = document.activeElement?.closest?.("#list") && document.activeElement.matches("textarea, input[type=text]");
   // Filter chips, with how many features each would show.
-  const inGroup = (f, g) => GROUPS[g](f);
-  $("#chips").innerHTML = Object.keys(GROUPS).map((g) => `<button data-filter="${g}" title="${GROUP_TIPS[g]}" class="${g === filter ? "on" : ""}">${GROUP_NAMES[g]}<span class="n">${features.filter((f) => inGroup(f, g)).length}</span></button>`).join("");
+  const inGroup = (f, g) => g === "all" || kind(f)[0] === g;
+  $("#chips").innerHTML = ["all", ...KINDS].map((g) => `<button data-filter="${g}" title="${KIND_TIPS[g]}" class="${g === filter ? "on" : ""}">${cap(g)}<span class="n">${features.filter((f) => inGroup(f, g)).length}</span></button>`).join("");
   if (typing) return; // don't wipe what you're typing
   // Keep open notes and chat panels as they are (folds, scroll position)
   // instead of rebuilding them on every refresh.
@@ -392,10 +433,13 @@ function render(features) {
   for (const el of document.querySelectorAll("[data-notes][data-loaded], [data-chat][data-loaded]")) keep[el.closest("[data-slug]").dataset.slug + (el.dataset.chat !== undefined ? ":chat" : ":notes")] = el;
   const q = $("#search").value.trim().toLowerCase();
   const shown = features.filter((f) => inGroup(f, filter) && (!q || (f.title + " " + (f.prompt || "")).toLowerCase().includes(q)));
-  const order = { "needs-you": 0, interrupted: 1, "not-started": 1, failed: 1, working: 2, error: 3, idle: 4, closed: 5, merged: 7, planned: 8, dropped: 10 };
-  shown.sort((a, b) => (order[status(a)[0]] ?? 6) - (order[status(b)[0]] ?? 6) || String(b.merged || b.created || "").localeCompare(String(a.merged || a.created || "")));
+  // By status (waiting first, dropped last). Among waiting ones, needing you
+  // comes before being cut off, then finished. Then newest first.
+  const urgent = { "needs-you": 0, interrupted: 1, "not-started": 1, failed: 1, error: 2 };
+  const rank = (f) => KINDS.indexOf(kind(f)[0]) * 10 + (urgent[status(f)[0]] ?? 5);
+  shown.sort((a, b) => rank(a) - rank(b) || String(b.merged || b.dropped || b.started || b.created || "").localeCompare(String(a.merged || a.dropped || a.started || a.created || "")));
   $("#list").innerHTML = shown.length ? shown.map((f) => (f.worktree ? card(f) : simpleCard(f))).join("")
-    : `<div class="card empty">${q ? "Nothing matches that search." : filter === "active" ? "Nothing planned or in progress. Add a feature above." : "No features here."}</div>`;
+    : `<div class="card empty">${q ? "Nothing matches that search." : filter === "all" ? "No features yet. Add one with + New feature." : `Nothing is ${filter} right now.`}</div>`;
   for (const f of shown) {
     const s = u(f.slug);
     for (const [kind, open, load] of [["notes", s.notes, loadNotes], ["chat", s.fb, loadChat]]) {
@@ -503,7 +547,7 @@ async function onClick(e) {
     const r = await api(`${base}/merge`, {});
     if (r.ok) return say(r.msg, "good");
     let m = r.msg; if (r.files) m += "\nConflicting files:\n  " + r.files.join("\n  ") + "\n\nI've filled in a message asking the agent to fix it. Check it and press Send."; if (r.out) m += "\n\n" + r.out;
-    if (r.files) { s.draft = `Main has moved on and merging your branch conflicts in: ${r.files.join(", ")}. Merge main into your branch, resolve the conflicts keeping both sides' intent, run the app and pnpm check, log what you did, and commit.`; s.fb = true; }
+    if (r.files) { s.draft = r.draft; s.fb = true; }
     return say(m, "bad");
   }
   if (act === "remove") { if (!confirm(all.find((x) => x.slug === slug).status === "dropped" ? "Delete this dropped feature's folder? Its branch is kept in git." : "Remove this feature's folder and branch? The feature and its notes stay in the list.")) return; const r = await api(`${base}/remove`, {}); return say(r.msg, r.ok ? "good" : "bad"); }
@@ -519,32 +563,119 @@ async function onClick(e) {
   }
 }
 
-$("#everyToggle").onclick = async () => {
-  const box = $("#everyBox"); box.hidden = !box.hidden;
-  if (!box.hidden) { $("#every").value = (await api("/api/system-prompt")).text; $("#every").focus(); }
-};
-$("#everyCancel").onclick = () => { $("#everyBox").hidden = true; $("#everyMsg").textContent = ""; };
-$("#everySave").onclick = async () => {
-  const r = await api("/api/system-prompt", { text: $("#every").value });
-  $("#everyMsg").textContent = r.msg || "Saved and committed on main. Every agent gets it from its next run.";
-};
+// ---------- popups ----------
+// Open: the page dims and blurs, the panel rises and settles. Close (Close,
+// Escape, or a click outside the panel) plays it backwards, then closes.
+function openModal(d) { d.showModal(); requestAnimationFrame(() => requestAnimationFrame(() => d.classList.add("in"))); }
+function closeModal(d) {
+  if (!d.open || !d.classList.contains("in")) return;
+  d.classList.remove("in");
+  setTimeout(() => d.close(), 200);
+}
+for (const d of document.querySelectorAll("dialog.modal")) {
+  d.addEventListener("cancel", (e) => { e.preventDefault(); closeModal(d); });
+  d.addEventListener("mousedown", (e) => { if (e.target === d) closeModal(d); }); // the backdrop
+  d.querySelector("[data-close]").onclick = () => closeModal(d);
+}
+let MODELS = {}, DEF = null;
+function modelOptions(sel, withDefault) {
+  const opts = Object.entries(MODELS).filter(([id]) => id || !withDefault);
+  return (withDefault ? `<option value="">Agent default (${esc(MODELS[DEF.model])})</option>` : "")
+    + opts.map(([id, name]) => `<option value="${id}" ${id === sel ? "selected" : ""}>${esc(name)}</option>`).join("");
+}
+async function loadDefaults() { const r = await api("/api/defaults"); MODELS = r.models; DEF = r.values; return r; }
 
-$("#addToggle").onclick = () => { $("#addBox").hidden = !$("#addBox").hidden; if (!$("#addBox").hidden) $("#title").focus(); };
-$("#addCancel").onclick = () => { $("#addBox").hidden = true; $("#addMsg").textContent = ""; };
-
+// New feature: what you've typed is kept for this browser tab, so closing the
+// popup to look at another feature doesn't lose it. Cleared once it's created.
+const NEW_KEY = "newFeature";
+const saveNew = () => { try { sessionStorage.setItem(NEW_KEY, JSON.stringify({ title: $("#title").value, prompt: $("#prompt").value, model: $("#newModel").value })); } catch {} };
+let newDraft = {}; try { newDraft = JSON.parse(sessionStorage.getItem(NEW_KEY)) || {}; } catch {}
+$("#title").value = newDraft.title || ""; $("#prompt").value = newDraft.prompt || "";
+for (const id of ["#title", "#prompt", "#newModel"]) $(id).addEventListener("input", saveNew);
+$("#newOpen").onclick = async () => {
+  const keep = $("#newModel").value || newDraft.model || "";
+  await loadDefaults();
+  $("#newModel").innerHTML = modelOptions(keep, true);
+  $("#addMsg").textContent = "";
+  openModal($("#newDlg")); $("#title").focus();
+};
 async function addFeature(plan) {
   const title = $("#title").value.trim(), prompt = $("#prompt").value.trim();
-  if (!title || (!plan && !prompt)) { $("#addMsg").textContent = plan ? "Needs a name." : "Needs a name and a starting prompt. Or save it as planned."; return; }
+  if (!title || (!plan && !prompt)) { $("#addMsg").textContent = plan ? "Needs a name." : "Needs a name and what you want. Or save it as planned."; return; }
   $("#addMsg").textContent = "Creating…";
-  const r = await api("/api/features", { title, prompt, plan });
+  const r = await api("/api/features", { title, prompt, plan, model: $("#newModel").value });
   if (r.msg) { $("#addMsg").textContent = r.msg; return; }
-  $("#title").value = ""; $("#prompt").value = "";
-  $("#addMsg").textContent = plan ? "Saved as planned and committed on main. Start it from its card when you're ready." : `Started ${r.branch}. The agent starts in the background once packages are installed. Chat shows the conversation.`;
-  setTimeout(() => { $("#addBox").hidden = true; $("#addMsg").textContent = ""; }, 2500);
+  $("#title").value = ""; $("#prompt").value = ""; $("#newModel").value = ""; newDraft = {};
+  try { sessionStorage.removeItem(NEW_KEY); } catch {}
+  $("#addMsg").textContent = plan ? "Saved as planned." : `Started ${r.branch}.`;
+  setTimeout(() => closeModal($("#newDlg")), 700);
   refresh();
 }
 $("#add").onclick = () => addFeature(false);
 $("#addPlan").onclick = () => addFeature(true);
+
+// Agent defaults. Everything the dashboard sends an agent is listed: what you
+// can change, then (at the bottom) what's fixed because the dashboard relies on it.
+let defaultsDirty = false, builtIn = {};
+const TEXTS = [
+  ["resumeText", "Carry on message", "Sent when you press Carry on after an agent was cut off mid-turn."],
+  ["freshText", "New session message", "Sent when a feature's saved conversation is gone and a new session starts. {title} and {slug} are filled in."],
+  ["conflictText", "Merge conflict message", "Filled into the chat box when Check and merge hits a conflict, for you to check and send. {files} is filled in."],
+];
+const FIELD_EL = { systemPrompt: "#dSystem", env: "#dEnv", allowedTools: "#dAllow", disallowedTools: "#dDeny" };
+function defaultsForm(r) {
+  const v = r.values, b = r.builtIn;
+  const reset = (k) => (JSON.stringify(v[k]) !== JSON.stringify(b[k]) ? ` <button class="reset" data-reset="${k}">reset to built-in</button>` : "");
+  const env = Object.entries(v.env).map(([k, x]) => `${k}=${x}`).join("\n");
+  const plugins = r.plugins.length ? r.plugins.map((p) => `<code>${esc(p)}</code>`).join(", ") : "none";
+  const pony = r.plugins.includes("ponytail") ? ` Ponytail switches itself on at the start of every session, at its own default level, which is <b>${esc(r.ponytailLevel)}</b> on this machine. That's why it isn't in the system prompt. ${v.env.PONYTAIL_DEFAULT_MODE ? `Agents run it at <b>${esc(v.env.PONYTAIL_DEFAULT_MODE)}</b>, from <code>PONYTAIL_DEFAULT_MODE</code> below.` : `To pick a level for agents only, add <code>PONYTAIL_DEFAULT_MODE=full</code> (or <code>off</code>, <code>lite</code>, <code>ultra</code>) under Environment variables.`}` : "";
+  return `
+    <div class="field"><label for="dModel">Model</label><select id="dModel">${modelOptions(v.model, false)}</select>
+      <div class="hint">Used by every feature that doesn't pick its own in New feature.</div></div>
+    <div class="field"><label for="dSystem">System prompt${reset("systemPrompt")}</label>
+      <textarea id="dSystem" class="tall" placeholder="Empty: agents get Claude Code's own system prompt, plus CLAUDE.md.">${esc(v.systemPrompt)}</textarea>
+      <div class="hint">Added to every agent's system prompt on every run. Slash commands don't run from here, so ask for a skill in words.</div></div>
+    <div class="field"><label>Already in every session</label>
+      <div class="hint">The repo's <code>CLAUDE.md</code> (its "Feature sessions" part is written for these agents), and your Claude Code plugins: ${plugins}.${pony}</div></div>
+    <div class="field"><label for="dEnv">Environment variables${reset("env")}</label>
+      <textarea id="dEnv" placeholder="NAME=value, one per line">${esc(env)}</textarea></div>
+    ${TEXTS.map(([k, name, hint]) => `<div class="field"><label for="d_${k}">${name}${reset(k)}</label><textarea id="d_${k}">${esc(v[k])}</textarea><div class="hint">${hint}</div></div>`).join("")}
+    <div class="field"><label for="dAllow">Background turns can, without asking${reset("allowedTools")}</label>
+      <textarea id="dAllow" class="tall">${esc(v.allowedTools.join("\n"))}</textarea>
+      <div class="hint">One Claude Code permission rule per line. Anything else a background turn tries is refused and listed in red on its card, and you can approve it with Open session.</div></div>
+    <div class="field"><label for="dDeny">Background turns can never${reset("disallowedTools")}</label>
+      <textarea id="dDeny">${esc(v.disallowedTools.join("\n"))}</textarea></div>
+    <details class="fixed"><summary>Also sent, and fixed because the dashboard relies on it</summary><ul>
+      <li>The first message: your words, then a marked block naming the feature and where to find the notes of continued and @tagged features.</li>
+      <li>Environment: <code>FEATURE_SLUG</code>, <code>PORT</code>, <code>DATA_DIR</code>, <code>APP_URL</code> and the git author. These win over yours if the names clash.</li>
+      <li>Hooks that report what the agent is doing and write <code>prompts.md</code>.</li>
+      <li>Background turns run with edits allowed (<code>--permission-mode acceptEdits</code>), resume the feature's own session, and are named after the feature.</li>
+      <li>The credentials file from <code>config.json</code> (<code>--settings</code>), so the dashboard never reads the key.</li>
+    </ul></details>`;
+}
+function fillDefaults(r) { $("#defaultsBody").innerHTML = defaultsForm(r); builtIn = r.builtIn; defaultsDirty = false; }
+$("#defaultsOpen").onclick = async () => {
+  if (!defaultsDirty) { fillDefaults(await loadDefaults()); $("#defaultsMsg").textContent = ""; }
+  openModal($("#defaultsDlg"));
+};
+const notSaved = () => { defaultsDirty = true; $("#defaultsMsg").textContent = "Not saved yet."; };
+$("#defaultsBody").addEventListener("input", notSaved);
+$("#defaultsBody").addEventListener("click", (e) => {
+  const k = e.target.dataset?.reset; if (!k) return;
+  const b = builtIn[k];
+  $(FIELD_EL[k] || "#d_" + k).value = Array.isArray(b) ? b.join("\n") : typeof b === "object" ? "" : b;
+  e.target.remove(); notSaved();
+});
+$("#defaultsSave").onclick = async () => {
+  const list = (id) => $(id).value.split("\n").map((x) => x.trim()).filter(Boolean);
+  const env = Object.fromEntries(list("#dEnv").filter((l) => l.includes("=")).map((l) => [l.slice(0, l.indexOf("=")).trim(), l.slice(l.indexOf("=") + 1).trim()]));
+  const body = { model: $("#dModel").value, systemPrompt: $("#dSystem").value.trim(), env, allowedTools: list("#dAllow"), disallowedTools: list("#dDeny") };
+  for (const [k] of TEXTS) body[k] = $("#d_" + k).value.trim();
+  const r = await api("/api/defaults", body);
+  if (r.msg) { $("#defaultsMsg").textContent = r.msg; return; }
+  MODELS = r.models; DEF = r.values; fillDefaults(r);
+  $("#defaultsMsg").textContent = "Saved and committed on main.";
+};
 
 // ---------- @ mentions ----------
 // Typing @ in a description or message lists the features whose name or slug
@@ -561,7 +692,11 @@ function mentionCheck(t) {
   mTarget = t; mStart = t.selectionStart - m[2].length - 1; mOn = Math.min(mOn, mItems.length - 1);
   menu.innerHTML = mItems.map((x, i) => `<div data-i="${i}" class="${i === mOn ? "on" : ""}">${esc(x.title)}<small>@${esc(x.slug)} · ${esc(x.status)}</small></div>`).join("");
   const r = t.getBoundingClientRect();
-  menu.style.left = r.left + scrollX + "px"; menu.style.top = r.bottom + scrollY + 4 + "px"; menu.hidden = false;
+  // A popup sits above the page, so the list has to live inside it to show.
+  const host = t.closest("dialog") || document.body;
+  if (menu.parentElement !== host) host.appendChild(menu);
+  const o = host === document.body ? { left: -scrollX, top: -scrollY } : host.getBoundingClientRect();
+  menu.style.left = r.left - o.left + "px"; menu.style.top = r.bottom - o.top + 4 + "px"; menu.hidden = false;
 }
 function closeMention() { menu.hidden = true; mTarget = null; mOn = 0; }
 function pickMention(i) {
@@ -582,7 +717,7 @@ document.addEventListener("keydown", (e) => {
 document.addEventListener("focusout", (e) => { if (e.target === mTarget) setTimeout(() => { if (document.activeElement !== mTarget) closeMention(); }, 0); });
 menu.addEventListener("mousedown", (e) => { e.preventDefault(); const d = e.target.closest("[data-i]"); if (d) pickMention(Number(d.dataset.i)); });
 
-refresh(); setInterval(refresh, 2000);
+loadDefaults().catch(() => {}); refresh(); setInterval(refresh, 2000);
 </script>
 </body>
 </html>

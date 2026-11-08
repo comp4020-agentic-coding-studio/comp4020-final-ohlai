@@ -364,3 +364,48 @@ Follows the 2026-11-07 entry above. Built in `COMP4020/meta/`.
   worktree then commits anything left over to the branch and keeps the branch,
   since it isn't merged, so nothing is lost. Merged features can't be dropped
   (that would need a revert).
+
+## 2026-11-08: The dashboard gets a name, agent defaults and popups
+
+- **Name and logo.** Gave the dashboard a logo (an M-shaped mark) and the
+  heading "Cannu - Parallel agent management", with the logo as the tab icon
+  too. The logo file had a white background, so the dashboard's copy
+  (`tools/feature-agents/logo.png`) is cropped, shrunk to 256px and made
+  transparent, and it's inverted in dark mode.
+- **One filter per status.** The last round mixed filters that covered several
+  statuses (Active) with ones named after a status, which I found confusing.
+  Now there's All, then one filter per status, from most urgent to least:
+  Waiting, Working, Planned, Merged, Dropped. All is sorted the same way, so
+  what needs me is at the top. Waiting and working replace "building" on the
+  page, and every card's pill says one of the five, with the detail after it
+  (needs you, interrupted...).
+- **Agent defaults instead of System prompt.** Asked for the System prompt
+  button to become Agent defaults, with the system prompt plus a default
+  model, and a model choice in New feature. Also asked whether ponytail full
+  was on for every agent, why it wasn't visible in the system prompt, what
+  happens for someone who doesn't want it, and what else we send agents that
+  isn't exposed, saying most of it should be customisable unless that would
+  break how the agents work in this system.
+  - What we found: ponytail is a Claude Code plugin installed for my user. It
+    switches itself on in every session at its own default level, and that's
+    set to off on this machine (`%APPDATA%\ponytail\config.json`, since
+    2026-10-31). So it was never on for any agent. The system prompt was empty.
+  - Options for ponytail: ask for the skill in the system prompt, or set
+    ponytail's own `PONYTAIL_DEFAULT_MODE` in the agents' environment. Picked
+    the environment variable: it's ponytail's own switch, applies from the
+    first message, and leaves my other sessions alone. Agent defaults now sets
+    `PONYTAIL_DEFAULT_MODE=full`, since I'd asked for every agent to run
+    ponytail full on 2026-11-07. Someone who doesn't want it removes that line.
+  - Made editable: default model, system prompt, extra environment variables,
+    the carry on, new session and merge conflict messages, and what background
+    turns may and may never do. Kept fixed and listed in the popup: the
+    feature block on the first message, the variables the dashboard relies on
+    (`FEATURE_SLUG`, `PORT`, `DATA_DIR`, `APP_URL`, git author), the hooks,
+    accept-edits mode for background turns, and the credentials file.
+  - Saved in `tools/feature-agents/agent-defaults.json`, committed on main,
+    storing only what differs from the built-in values.
+- **Popups.** Asked for New feature and Agent defaults to be popups over the
+  page with a smart, modern popup animation (the page dims and blurs, the
+  panel rises and settles), and for New feature to keep what I've typed if I
+  click off it to check another feature. Kept for the browser tab only, not
+  across sessions, as I said.

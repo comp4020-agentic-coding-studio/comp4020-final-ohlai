@@ -9,7 +9,7 @@ import crypto from "node:crypto";
 import os from "node:os";
 import { spawn, execFileSync } from "node:child_process";
 import { DatabaseSync } from "node:sqlite";
-import { META, APP, WORKTREES, STATE, FEATURES_DIR, SYSTEM_PROMPT, MD_KEYS, config, loadFeatures, saveRuntime, featureMd, readState, writeState, stamp, systemPrompt, claudeBaseArgs, liveStatus, AUTO, RESUME_TEXT, FEEDBACK } from "./lib.js";
+import { META, APP, WORKTREES, STATE, FEATURES_DIR, DEFAULTS_FILE, BUILT_IN, MODELS, defaults, fill, MD_KEYS, config, loadFeatures, saveRuntime, featureMd, readState, writeState, stamp, claudeBaseArgs, liveStatus, AUTO, resumeText, FEEDBACK } from "./lib.js";
 
 // If the dashboard was started from inside a Claude Code session, it carries
 // variables that would make every agent it launches a child of that session
@@ -128,13 +128,13 @@ function contextBlock({ title, continues, refs }, since) {
 // A new feature is a feature.md committed on main. Planned ones stop there.
 // Started ones get a branch made from main after that commit, so the branch
 // has its feature.md, and only main ever changes it.
-function createFeature(title, prompt, { continues = null, refs = [], plan = false } = {}) {
+function createFeature(title, prompt, { continues = null, refs = [], plan = false, model = "" } = {}) {
   const list = loadFeatures();
   if (list.some((f) => f.title.toLowerCase() === title.toLowerCase())) throw new Error("A feature already has that name. Pick another.");
   const base = slugify(title);
   let slug = base;
   for (let n = 2; list.some((f) => f.slug === slug) || fs.existsSync(path.join(FEATURES_DIR, slug)) || fs.existsSync(path.join(WORKTREES, slug)) || branchExists(`feat/${slug}`); n++) slug = `${base}-${n}`;
-  const f = { slug, title, prompt, status: "planned", created: stamp(), continues, refs };
+  const f = { slug, title, prompt, status: "planned", created: stamp(), continues, refs, model: model in MODELS ? model : "" };
   if (plan) { writeFeature(f, `Plan feature: ${title}`); return f; }
   return startFeature(f, `Start feature: ${title}`);
 }
@@ -172,6 +172,7 @@ function writeSettings(f) {
   const events = ["SessionStart", "UserPromptSubmit", "PreToolUse", "Notification", "Stop", "SessionEnd"];
   fs.writeFileSync(path.join(f.dir, ".claude", "settings.local.json"), JSON.stringify({
     env: {
+      ...defaults().env, // Oli's extra variables; the ones below win, the dashboard relies on them
       FEATURE_SLUG: f.slug, PORT: String(f.port), DATA_DIR: path.join(f.dir, "data"), APP_URL: `http://localhost:${f.port}`,
       // This machine has no git identity, so agents commit as the repo's author.
       GIT_AUTHOR_NAME: author.name, GIT_AUTHOR_EMAIL: author.email, GIT_COMMITTER_NAME: author.name, GIT_COMMITTER_EMAIL: author.email,
@@ -245,10 +246,11 @@ function headless(f, text, label, first = false) {
   const st = readState(f.slug);
   writeState(f.slug, { state: "working", activity: label, denied: [] });
   const session = first ? ["--session-id", f.sessionId] : ["--resume", st.session_id || f.sessionId];
-  const args = ["-p", ...session, "-n", f.slug, ...claudeBaseArgs(),
+  const d = defaults();
+  const args = ["-p", ...session, "-n", f.slug, ...claudeBaseArgs(f),
     "--permission-mode", "acceptEdits",
-    "--allowedTools", ...config.headlessAllowedTools,
-    "--disallowedTools", ...config.headlessDisallowedTools,
+    ...(d.allowedTools.length ? ["--allowedTools", ...d.allowedTools] : []),
+    ...(d.disallowedTools.length ? ["--disallowedTools", ...d.disallowedTools] : []),
     "--output-format", "json"];
   run("claude", args, {
     cwd: f.dir, input: text, env: { ...process.env, META_HEADLESS: "1", META_VIA: "dashboard" },
@@ -330,7 +332,7 @@ function resume(f, where) {
     headless(f, f.launchPrompt || f.prompt, "starting on your prompt", true);
     return { ok: true, msg: "Starting it in the background." };
   }
-  headless(f, RESUME_TEXT, "carrying on after an interruption");
+  headless(f, resumeText(), "carrying on after an interruption");
   return { ok: true, msg: "Carrying on in the background." };
 }
 
@@ -449,7 +451,8 @@ async function merge(f) {
   if (!m.ok) {
     const files = tryGit(APP, "diff", "--name-only", "--diff-filter=U").out;
     tryGit(APP, "merge", "--abort");
-    return { ok: false, step: "conflict", msg: "Merging conflicts with main. Nothing was changed on main.", files: files.split("\n").filter(Boolean) };
+    const list = files.split("\n").filter(Boolean);
+    return { ok: false, step: "conflict", msg: "Merging conflicts with main. Nothing was changed on main.", files: list, draft: fill(defaults().conflictText, { files: list.join(", ") }) };
   }
   update(f.slug, { status: "merged", merged: stamp() }, `Merged: ${f.title}`);
   return { ok: true, msg: `Merged into main. Not pushed.` };
@@ -529,6 +532,18 @@ function notes(f) {
   return { from: fromBranch ? `branch ${f.branch}` : root === APP ? "main" : f.branch, prompts: r("prompts.md"), log: r("log.md"), decisions: r("decisions.md") };
 }
 
+// Plugins Claude Code loads in every session on this machine (agents too).
+// Only the enabledPlugins list is read from the user settings.
+function userPlugins() {
+  try { return Object.entries(JSON.parse(fs.readFileSync(path.join(os.homedir(), ".claude", "settings.json"), "utf8")).enabledPlugins || {}).filter(([, on]) => on).map(([k]) => k.split("@")[0]); } catch { return []; }
+}
+
+// Ponytail's own default level on this machine (its config file, else full).
+function ponytailLevel() {
+  const dir = process.env.APPDATA || path.join(os.homedir(), ".config");
+  try { return JSON.parse(fs.readFileSync(path.join(dir, "ponytail", "config.json"), "utf8").replace(/^\uFEFF/, "")).defaultMode || "full"; } catch { return "full"; }
+}
+
 // ---------- http ----------
 
 const body = (req) => new Promise((res) => { let b = ""; req.on("data", (c) => (b += c)); req.on("end", () => { try { res(JSON.parse(b || "{}")); } catch { res({}); } }); });
@@ -541,20 +556,29 @@ http.createServer(async (req, res) => {
       res.writeHead(200, { "content-type": "text/html; charset=utf-8" });
       return res.end(fs.readFileSync(path.join(META, "index.html")));
     }
+    if (req.method === "GET" && url.pathname === "/logo.png") {
+      res.writeHead(200, { "content-type": "image/png", "cache-control": "max-age=3600" });
+      return res.end(fs.readFileSync(path.join(META, "logo.png")));
+    }
     if (req.method === "GET" && url.pathname === "/api/features") return send(res, 200, await overview());
-    if (url.pathname === "/api/system-prompt") {
+    if (url.pathname === "/api/defaults") {
       if (req.method === "POST") {
-        const text = String((await body(req)).text ?? "").trim();
-        fs.writeFileSync(SYSTEM_PROMPT, text ? text + "\n" : "");
-        commitMain("Feature agents: update the system prompt", path.relative(APP, SYSTEM_PROMPT));
+        const b = await body(req);
+        // Store only what differs from the built-in value, so improvements to
+        // the built-in text reach anything Oli hasn't changed.
+        const keep = {};
+        for (const k of Object.keys(BUILT_IN)) if (k in b && JSON.stringify(b[k]) !== JSON.stringify(BUILT_IN[k])) keep[k] = b[k];
+        fs.writeFileSync(DEFAULTS_FILE, JSON.stringify(keep, null, 2) + "\n");
+        commitMain("Feature agents: update the agent defaults", path.relative(APP, DEFAULTS_FILE));
+        for (const f of loadFeatures().filter(hasWorktree)) if (fs.existsSync(f.dir)) writeSettings(f); // new env
       }
-      return send(res, 200, { text: systemPrompt() });
+      return send(res, 200, { values: defaults(), builtIn: BUILT_IN, models: MODELS, plugins: userPlugins(), ponytailLevel: ponytailLevel() });
     }
     if (req.method === "POST" && url.pathname === "/api/features") {
-      const { title, prompt, refs, plan } = await body(req);
+      const { title, prompt, plan, model } = await body(req);
       if (!title?.trim()) return send(res, 400, { msg: "Needs a name." });
       if (!plan && !prompt?.trim()) return send(res, 400, { msg: "Needs a starting prompt to start an agent. Or save it as planned." });
-      return send(res, 200, createFeature(title.trim(), String(prompt || "").trim(), { refs: mentions(prompt), plan: !!plan }));
+      return send(res, 200, createFeature(title.trim(), String(prompt || "").trim(), { refs: mentions(prompt), plan: !!plan, model }));
     }
     const m = url.pathname.match(/^\/api\/features\/([a-z0-9-]+)\/(\w+)$/);
     const f = m && loadFeatures().find((x) => x.slug === m[1]);

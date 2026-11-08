@@ -7,7 +7,7 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import crypto from "node:crypto";
-import { loadFeatures, saveRuntime, readState, writeState, claudeBaseArgs, RESUME_TEXT, AUTO } from "./lib.js";
+import { loadFeatures, saveRuntime, readState, writeState, claudeBaseArgs, resumeText, defaults, fill, AUTO } from "./lib.js";
 
 const [slug, mode] = process.argv.slice(2);
 const f = loadFeatures().find((x) => x.slug === slug);
@@ -24,19 +24,19 @@ const transcript = (id) => path.join(os.homedir(), ".claude", "projects", f.dir.
 
 const st = readState(slug);
 const id = st.session_id || f.sessionId;
-const args = [...claudeBaseArgs(), "-n", f.slug];
+const args = [...claudeBaseArgs(f), "-n", f.slug];
 if (mode === "new" || !st.started) {
   args.push("--session-id", f.sessionId, f.launchPrompt || f.prompt);
 } else if (fs.existsSync(transcript(id))) {
   args.push("--resume", id);
-  if (mode === "continue") args.push(RESUME_TEXT);
+  if (mode === "continue") args.push(resumeText());
 } else {
   // The old conversation can't be opened, so start a fresh session in the
   // same worktree that picks up from the notes.
   const fresh = crypto.randomUUID();
   saveRuntime(slug, { lostSessions: [...(f.lostSessions || []), id], sessionId: fresh });
   console.log(`The previous session (${id}) has no saved conversation, so this is a new session that picks up from the notes.\n`);
-  args.push("--session-id", fresh, `${AUTO} Feature: ${f.title}. The previous Claude session for this feature can't be reopened, so this is a new one. Read notes/features/${f.slug}/prompts.md, log.md and decisions.md, and git log on this branch, then tell me in a few lines where the feature is up to and what's left, and wait for me.`);
+  args.push("--session-id", fresh, `${AUTO} ${fill(defaults().freshText, { title: f.title, slug: f.slug })}`);
 }
 
 const child = spawn("claude", args, { cwd: f.dir, stdio: "inherit", env });

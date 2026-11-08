@@ -1,6 +1,6 @@
-# Feature agents dashboard
+# Cannu: parallel agent management
 
-Not part of the app. This is the tool I used to build the app: one git
+The feature agents dashboard, called Cannu (logo in `logo.png`). Not part of the app. This is the tool I used to build the app: one git
 branch, folder and Claude Code session per feature, with one page that shows
 what every agent is doing and lets me plan features, talk to the agents, and
 merge their work. Node built-ins only, nothing to install.
@@ -38,16 +38,22 @@ Each feature is a folder on main, `notes/features/<slug>/`:
   `[Added by the dashboard, not my words]`.
 - `log.md` and `decisions.md`: what the agent did and why, and every decision.
 
-Statuses: **planned** (no branch yet), **building** (branch, folder and agent),
-**merged** (in main, and that's finished), **dropped** (kept on record, not
-doing it). There was a separate **done** until 2026-11-08; merged features
-are now done by definition. The features on the old board in `notes/features.md`
+In `feature.md` a feature is **planned** (no branch yet), **building**
+(branch, folder and agent), **merged** (in main, and that's finished) or
+**dropped** (kept on record, not doing it). There was a separate **done** until
+2026-11-08; merged features are now done by definition. On the page, building
+splits into **waiting** (its agent has stopped and it's my turn) and
+**working**, so every card shows one of: waiting, working, planned, merged,
+dropped. The features on the old board in `notes/features.md`
 were imported on 2026-11-08, with their notes copied word for word into each
 `log.md`.
 
 ## What each button does
 
-- **+ Add feature**: **Start agent now** commits its `feature.md` on main,
+- **+ New feature** (a popup): name, what I want, and a model (the agent
+  default unless I pick one, recorded in `feature.md`). What I've typed is
+  kept for the browser tab if I close the popup to look at something else.
+  **Start agent** commits its `feature.md` on main,
   makes `../worktrees/<slug>` on branch `feat/<slug>`, copies my local
   database into it, runs `pnpm install`, starts the feature's app, and starts
   the agent on my prompt in the background. **Save as planned** only commits
@@ -85,32 +91,46 @@ were imported on 2026-11-08, with their notes copied word for word into each
   telling the agent it was cut off.
 - **Retry setup**: re-runs setup. Each step skips what's already done.
   Unfinished setups also re-run when the dashboard starts.
-- **Reopen** (merged, done or dropped features): a new feature that continues
+- **Reopen** (merged or dropped features): a new feature that continues
   it, with a new branch from current main and a new session pointed at the old
   notes.
 - **@ tagging**: typing @ in a description or a chat message lists matching
   features. Picking one writes `@slug`, which points the agent at that
   feature's notes (recorded as Related in `feature.md`).
-- **System prompt**: text added to every feature agent's system prompt on
-  every run (`system-prompt.md`, committed on main). Slash commands don't run
-  from a system prompt, so ask for a skill in words.
+- **Agent defaults** (a popup): everything the dashboard sends an agent. The
+  default model, the system prompt, extra environment variables, the carry
+  on, new session and merge conflict messages, and what background turns may
+  and may never do. Saved in `agent-defaults.json` (only what differs from
+  the built-in values) and committed on main. It also lists what's fixed
+  because the dashboard relies on it, and what every session gets anyway
+  (`CLAUDE.md` and my Claude Code plugins).
+- **Ponytail**: a Claude Code plugin I have installed. It switches itself on at
+  the start of every session at its own default level, which is off on my
+  machine, so it was never on for agents. `agent-defaults.json` sets
+  `PONYTAIL_DEFAULT_MODE=full` in the agents' environment, so every agent runs
+  it at full and nothing else changes.
 - **Bells**: notifications when an agent needs me, finishes, fails or is
   interrupted. Silent, only features with their bell on, or all. Only while
   the page is open.
-- Filters (All, Active = planned or building, Waiting = an agent has stopped
-  and it's my turn, Planned, Merged, Dropped) and search are above the list.
-  Click a card's title to collapse it.
+- Filters: All, then one per status from most to least urgent (Waiting,
+  Working, Planned, Merged, Dropped). All is sorted the same way, and within
+  waiting, needing me comes before being cut off, then finished. Search is
+  next to them. Click a card's title to collapse it.
 - Every card ends with one row of buttons: everyday ones on the left, and on
   the right in black the one that moves the feature on (Start agent, Check
   and merge, Remove worktree).
 
-## Statuses on a building feature
+## Waiting and working
 
-- **working / needs you / idle, open**: from the hooks, and the process is alive.
-- **idle**: no session running. Messages go straight to the agent.
+A building feature is **working** while its agent is mid-turn or being set
+up, and **waiting** otherwise. The pill adds why when it matters:
+
+- **needs you**: it's asking for permission in its terminal.
+- **terminal open**: finished its turn, and its terminal session is open.
 - **interrupted**: it was mid-turn when its process died. Use Carry on.
 - **error**: the last background run failed. Its output is on the card.
 - **never started**: the agent never got going.
+- No detail: finished its turn, no session running. Messages go straight to it.
 
 Liveness comes from the claude process IDs that `launch.js` and background
 runs record, checked against `tasklist`.
@@ -128,5 +148,7 @@ saves under `~/.claude/projects/`, priced at API rates.
 
 `config.json`. `claudeSettings` is the path to a settings file with the
 course API key, passed to Claude with `--settings` so this dashboard never
-reads the key. On a subscription, set it to `""`. `headlessAllowedTools` is
-what a background turn can do without asking (no push, checkout or reset).
+reads the key. On a subscription, set it to `""`. `headlessAllowedTools` and
+`headlessDisallowedTools` are the built-in permissions for background turns,
+which Agent defaults can override. `defaultsFile` moves `agent-defaults.json`
+(used to test on a throwaway clone).

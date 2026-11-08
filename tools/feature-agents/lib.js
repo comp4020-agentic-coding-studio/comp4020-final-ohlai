@@ -23,14 +23,16 @@ export const STATE = path.join(HOME, "state");
 export const FEEDBACK = path.join(HOME, "feedback");
 const RUNTIME = path.join(HOME, "features.json");
 export const FEATURES_DIR = path.join(APP, "notes", "features");
-// Oli's system prompt for every feature agent. In git, next to this file.
-export const SYSTEM_PROMPT = path.join(META, "system-prompt.md");
+// What every feature agent is given (model, system prompt, messages,
+// permissions, extra environment). In git, next to this file. Only what Oli
+// changed is stored; everything else comes from BUILT_IN below.
+export const DEFAULTS_FILE = abs(config.defaultsFile || "agent-defaults.json");
 fs.mkdirSync(STATE, { recursive: true });
 
 // ---------- feature.md ----------
 
 // Fields kept in feature.md, in the order they're written.
-const FIELDS = ["Status", "Created", "Started", "Branch", "Merged", "Dropped", "Continues", "Related", "Imported"];
+const FIELDS = ["Status", "Created", "Started", "Branch", "Model", "Merged", "Dropped", "Continues", "Related", "Imported"];
 export const MD_KEYS = new Set([...FIELDS.map((k) => k.toLowerCase()), "title", "prompt", "refs"]);
 
 export function parseFeatureMd(slug, text) {
@@ -88,12 +90,36 @@ export const stamp = (d = new Date()) => {
   const p = (n) => String(n).padStart(2, "0");
   return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}`;
 };
-export const systemPrompt = () => { try { return fs.readFileSync(SYSTEM_PROMPT, "utf8").trim(); } catch { return ""; } };
 
 // Anything the dashboard adds to a prompt starts with this, so prompts.md
 // shows what was Oli's words and what was added.
 export const AUTO = "[Added by the dashboard, not my words]";
-export const RESUME_TEXT = `${AUTO} You were interrupted mid-turn (the dashboard or the PC restarted, or the session was closed). Check git status and your log.md, work out where you got to, then carry on with what you were doing.`;
+
+// ---------- agent defaults ----------
+
+export const MODELS = { "": "Claude Code's default", "claude-opus-5-5": "Opus 5.5", "claude-sonnet-5-5": "Sonnet 5.5", "claude-haiku-5-5": "Haiku 5.5", "claude-fable-5-1": "Fable 5.1" };
+export const BUILT_IN = {
+  model: "",
+  systemPrompt: "",
+  // Sent when Oli presses Carry on after an agent was cut off mid-turn.
+  resumeText: "You were interrupted mid-turn (the dashboard or the PC restarted, or the session was closed). Check git status and your log.md, work out where you got to, then carry on with what you were doing.",
+  // Sent when a session's saved conversation is gone and a new one starts. {title} and {slug} are filled in.
+  freshText: "Feature: {title}. The previous Claude session for this feature can't be reopened, so this is a new one. Read notes/features/{slug}/prompts.md, log.md and decisions.md, and git log on this branch, then tell me in a few lines where the feature is up to and what's left, and wait for me.",
+  // Filled into the chat box when Check and merge hits a conflict. {files} is filled in.
+  conflictText: "Main has moved on and merging your branch conflicts in: {files}. Merge main into your branch, resolve the conflicts keeping both sides' intent, run the app and pnpm check, log what you did, and commit.",
+  // What a background turn may do without asking. Anything else is refused and listed on the card.
+  allowedTools: config.headlessAllowedTools || [],
+  disallowedTools: config.headlessDisallowedTools || [],
+  // Extra environment variables for every agent, e.g. PONYTAIL_DEFAULT_MODE=off.
+  env: {},
+};
+export function defaults() {
+  let saved = {};
+  try { saved = JSON.parse(fs.readFileSync(DEFAULTS_FILE, "utf8")); } catch {}
+  return { ...BUILT_IN, ...saved };
+}
+export const fill = (t, vars) => t.replace(/{(w+)}/g, (m, k) => (k in vars ? vars[k] : m));
+export const resumeText = () => `${AUTO} ${defaults().resumeText}`;
 
 // Which claude.exe processes are running right now, by PID. Hooks only say
 // what an agent last reported; this says whether it's still alive.
@@ -127,8 +153,10 @@ export function liveStatus(st) {
 
 // Args for every claude run the dashboard starts. The credentials file is
 // passed by path, so Claude Code reads it and the dashboard never does. The
-// system prompt is Oli's text for every feature agent.
-export function claudeBaseArgs() {
-  const sp = systemPrompt();
-  return [...(CLAUDE_SETTINGS ? ["--settings", CLAUDE_SETTINGS] : []), ...(sp ? ["--append-system-prompt", sp] : [])];
+// model is the feature's own, else the default.
+export function claudeBaseArgs(f) {
+  const d = defaults();
+  const model = f?.model || d.model;
+  const sp = d.systemPrompt.trim();
+  return [...(CLAUDE_SETTINGS ? ["--settings", CLAUDE_SETTINGS] : []), ...(model ? ["--model", model] : []), ...(sp ? ["--append-system-prompt", sp] : [])];
 }
