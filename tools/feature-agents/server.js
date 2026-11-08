@@ -235,7 +235,11 @@ function withMentions(f, text) {
 
 // One turn in the background (`claude -p`). `first` starts the session
 // instead of resuming it.
+// Background runs this dashboard has going, by slug. Checked before the
+// process list, which is cached and can miss a run that only just started.
+const running = new Set();
 function headless(f, text, label, first = false) {
+  running.add(f.slug);
   const st = readState(f.slug);
   writeState(f.slug, { state: "working", activity: label, denied: [] });
   const session = first ? ["--session-id", f.sessionId] : ["--resume", st.session_id || f.sessionId];
@@ -251,6 +255,8 @@ function headless(f, text, label, first = false) {
     let reply = tail(out), denied = [];
     try { const j = JSON.parse(out.slice(out.indexOf("{"))); reply = j.result ?? reply; denied = (j.permission_denials || []).map((d) => `${d.tool_name} ${JSON.stringify(d.tool_input).slice(0, 120)}`); } catch {}
     writeState(f.slug, { state: code === 0 ? "idle" : "error", activity: "", headlessPid: null, lastReply: reply, denied });
+    running.delete(f.slug);
+    pump(f.slug); // send the next waiting message straight away
   });
 }
 
@@ -271,6 +277,7 @@ function pump(slug) {
   const f = loadFeatures().find((x) => x.slug === slug);
   if (!f || !hasWorktree(f) || settingUp.has(slug) || !st.started) return "not-started";
   const live = liveStatus(st);
+  if (running.has(slug)) return "busy";
   if (live.background || live.state === "working" || live.state === "needs-you" || st.state === "starting") return live.open ? "busy-terminal" : "busy";
   if (live.open && st.pid) {
     try { execFileSync("taskkill", ["/PID", String(st.pid), "/T", "/F"], { windowsHide: true, stdio: "ignore" }); } catch {}
@@ -314,7 +321,7 @@ function chat(f) {
 
 function resume(f, where) {
   const live = liveStatus(readState(f.slug));
-  if (live.open || live.background) return { ok: false, msg: "The agent is still running." };
+  if (live.open || live.background || running.has(f.slug)) return { ok: false, msg: "The agent is still running." };
   if (where === "terminal") { openTab(f, "continue"); return { ok: true, msg: "Opened a terminal tab that carries on." }; }
   if (!readState(f.slug).started) {
     if (where === "terminal") { openTab(f, "new"); return { ok: true, msg: "It never started, so I opened a terminal tab to start it." }; }
@@ -553,7 +560,7 @@ http.createServer(async (req, res) => {
       const live = liveStatus(readState(f.slug));
       // Two copies of one session would both write to it, so never open a second.
       if (live.open) return send(res, 200, { ok: false, msg: `It's already open in a terminal tab called "${f.slug}".` });
-      if (live.background) return send(res, 200, { ok: false, msg: "It's working in the background. Open it once this turn finishes (the card will say idle), so there aren't two copies of the session." });
+      if (live.background || running.has(f.slug)) return send(res, 200, { ok: false, msg: "It's working in the background. Open it once this turn finishes (the card will say idle), so there aren't two copies of the session." });
       openTab(f, "resume");
       return send(res, 200, { ok: true, msg: "Opened a new terminal tab." });
     }

@@ -284,3 +284,49 @@ Follows the 2026-11-07 entry above. Built in `COMP4020/meta/`.
   black-and-white style with a sliding selection, then for square corners
   instead of a pill, filled bell icons, and black for the selected one on a
   white background. A feature's bell turns black and rings when it's on.
+
+## 2026-11-08: The dashboard moves into the repo, and features get a folder each
+
+- **Where the dashboard lives.** On 2026-11-07 I said it mustn't be in the
+  final project folder. I changed my mind because I may include it in the
+  submission as an interesting part of how I built the app. Options: a
+  `tools/` folder in the app repo, its own separate repo, or keep it outside
+  and out of git. Picked `tools/feature-agents/` in the app repo. To keep it
+  apart from the PT gym app: its own folder and README, not in the Docker
+  image, not covered by `pnpm check`, feature agents never edit it, and its
+  machine-local data (`local/`) is gitignored. It runs from main's folder only.
+- **Where features are recorded.** The board in `notes/features.md` is
+  retired. Options: one `feature.md` per feature in `notes/features/<slug>/`
+  on main, or only the dashboard's own list. Picked a file per feature, so the
+  record is in git, readable without the dashboard, and next to each
+  feature's prompts, log and decisions. The dashboard commits every change
+  to it on main.
+- **Importing the old board.** Every feature on it got a folder, with its
+  notes copied word for word into `log.md`. Before the move I checked the
+  features under Doing and moved Real-time, Landing page and PT dashboard,
+  Weekly check-ins and Programs to Done myself. Logout conformation stays in
+  progress (it's had an issue I'll describe separately). My edit also took
+  three features off the board. Asked about each: Client app for the phone
+  is planned (Macros nav and the habit tracker are still to do), Chat between
+  PT and client is done, Pick a niche is dropped (kept on record with the
+  crit feedback).
+- **Planned features.** Asked to be able to add a feature and plan it without
+  an agent starting straight away. A planned feature is just its `feature.md`
+  on main, with no branch, folder or agent. Start agent turns it into a
+  normal feature. The imported "Next" features are planned.
+- **Filters.** Asked for filters. Active (planned, building, merged), Planned,
+  Building, Merged, Done, Dropped and All, plus a search box.
+- **Talking to agents from the dashboard.** I closed the logout agent's
+  terminal tab, which ended that run, and asked whether agents can keep
+  running in the background, or whether it's better to talk to them only
+  from the dashboard, with my messages going straight into the conversation
+  instead of me copying and pasting. Closing a terminal tab always ends that
+  run (the conversation itself is saved). Went with the dashboard: messages
+  are sent as background turns, wait if the agent is mid-turn, and close an
+  idle terminal session first, since one session can't run in two places.
+  Each card has a chat view of the conversation. Open session is still there
+  for watching live or approving something.
+- **Reply size.** Asked for agent replies to show in full without scrolling,
+  at least as long as the toggles and logout replies, and to scroll only when
+  longer. The reply box now goes up to about 520px (both of those are about
+  350px).
