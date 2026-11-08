@@ -2,10 +2,11 @@
 
 Kept by the feature agents dashboard (`tools/cannu/`). Its notes are next to this file: `prompts.md` (everything I said, word for word), `log.md` and `decisions.md`.
 
-- Status: building
+- Status: merged
 - Created: 2026-11-08 19:02
 - Started: 2026-11-08 19:08
 - Branch: feat/export-as-csv
+- Merged: 2026-11-08 21:18
 
 ## What I asked for
 
