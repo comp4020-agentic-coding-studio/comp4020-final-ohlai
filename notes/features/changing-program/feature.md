@@ -2,8 +2,9 @@
 
 Kept by the feature agents dashboard (`tools/cannu/`). Its notes are next to this file: `prompts.md` (everything I said, word for word), `log.md` and `decisions.md`.
 
-- Status: planned
+- Status: dropped
 - Created: 2026-11-08 20:43
+- Dropped: 2026-11-08 20:49
 
 ## What I asked for
 
