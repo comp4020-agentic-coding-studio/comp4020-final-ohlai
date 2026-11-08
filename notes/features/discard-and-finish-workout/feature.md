@@ -1,4 +1,4 @@
-# discard and finish workout
+# Client workout flow
 
 Kept by the feature agents dashboard (`tools/cannu/`). Its notes are next to this file: `prompts.md` (everything I said, word for word), `log.md` and `decisions.md`.
 
