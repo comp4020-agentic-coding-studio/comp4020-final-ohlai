@@ -125,7 +125,9 @@ and my messages often come through it as background turns. If
   `server.js`, restart it with
   `curl -s -X POST http://localhost:4000/api/features/$FEATURE_SLUG/apprestart`
   (it answers once the app is back up), then run `pnpm check`. Use that port
-  for every URL you give me.
+  for every URL you give me. Your `DATA_DIR` starts empty, so my accounts
+  from main aren't there: when you give me a URL, give me a login that works
+  on it too.
 - Everything about the feature goes in `notes/features/<slug>/`:
   - `prompts.md` is every message I send, word for word, with the time. A
     hook writes it. Never edit it, but commit it with your work. Read it at
