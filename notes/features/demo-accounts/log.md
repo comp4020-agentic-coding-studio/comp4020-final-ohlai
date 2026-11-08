@@ -50,3 +50,12 @@ I said: "just change the email for Sam to be same@example.com shuold we suggest 
 - Email: before it was `marker@example.com`, now it's `sam@example.com`. I read "same@" as a typo for "sam@" since the PT is called Sam (flagged to me to correct if not). Changed in `scripts/seed-demo.js` and `README.md`. Updated the one row in this feature's local database instead of reseeding, since the seed skips once the account exists.
 - README: before, it gave Sam's login and then a table of every client with no pick. Now it suggests one pair up top: Sam, plus Priya (`priya.demo@example.com`) in a second browser. It says why Priya (two programs' worth of workouts, a program change, check-ins, a chat with Sam), then keeps the full table and says any client can log in.
 - Checked: both logins return 200 on port 8097. `pnpm check` passes.
+
+## 2026-11-09: client logins are plain name@example.com
+
+I said: "why is it priya.demo can we just make all the logins name@example.com please"
+
+- Why it was `.demo`: the agent added it to mark them as demo accounts. There was no real reason, since `example.com` already can't be a real address.
+- Before: `priya.demo@`, `tom.demo@`, `mia.demo@`, `ben.demo@`, `chloe.demo@example.com`. Now: `priya@`, `tom@`, `mia@`, `ben@`, `chloe@example.com`. Changed in `scripts/seed-demo.js` and `README.md`.
+- Updated this feature's local database in place (users, programs.client_email, client_notes, invites) instead of reseeding.
+- Checked: sam, priya, tom, mia and ben all log in (200) on port 8097. `pnpm check` passes.

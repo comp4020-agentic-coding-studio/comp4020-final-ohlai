@@ -31,3 +31,9 @@ What came up: I asked if we should suggest one client account so the marker can 
 Options: list the clients with no suggestion, or point to one.
 
 Picked (by me, the agent chose which one): suggest one. I said a suggestion makes it easy for them to see the features. The agent picked Priya because her account shows the most of the client side. The full table stays so they can try the others.
+
+## 2026-11-09: demo logins are name@example.com
+
+What came up: the agent had made the client logins `priya.demo@example.com` and so on.
+
+Picked (by me): plain `name@example.com` for every login (`sam@`, `priya@`, `tom@`, `mia@`, `ben@`, and `chloe@` for the invite). Reason: they're simpler to read and type, and the `.demo` added nothing.

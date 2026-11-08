@@ -16,8 +16,8 @@
 //
 // Logins, public on purpose (this repo is public), all password demo1234:
 //   PT:      sam@example.com
-//   Clients: priya.demo@example.com, tom.demo@example.com,
-//            mia.demo@example.com, ben.demo@example.com
+//   Clients: priya@example.com, tom@example.com,
+//            mia@example.com, ben@example.com
 import { DatabaseSync } from "node:sqlite";
 import { randomBytes, scryptSync } from "node:crypto";
 
@@ -161,10 +161,10 @@ const note = (pt, email, body) =>
 db.exec("BEGIN");
 try {
   const sam = user(PT_EMAIL, "Sam", "pt");
-  const priya = user("priya.demo@example.com", "Priya Shah", "client");
-  const tom = user("tom.demo@example.com", "Tom Nguyen", "client");
-  const mia = user("mia.demo@example.com", "Mia Roberts", "client");
-  const ben = user("ben.demo@example.com", "Ben Carter", "client");
+  const priya = user("priya@example.com", "Priya Shah", "client");
+  const tom = user("tom@example.com", "Tom Nguyen", "client");
+  const mia = user("mia@example.com", "Mia Roberts", "client");
+  const ben = user("ben@example.com", "Ben Carter", "client");
 
   // Sam's library.
   const tpl = db.prepare("INSERT INTO templates (pt_user_id, name, exercises, created_at) VALUES (?,?,?,?)");
@@ -172,16 +172,16 @@ try {
     tpl.run(sam, name, JSON.stringify(plan.map(([day, ex, sets, [lo, hi], rest]) => ({ day, name: ex, sets, reps: lo === hi ? `${lo}` : `${lo}-${hi}`, notes: "", rest }))), sql(ago(80)));
 
   // Priya: five weeks on the beginner program, then moved to upper/lower.
-  const pb = program(sam, priya, { title: "Beginner full body", name: "Priya Shah", email: "priya.demo@example.com", plan: BEGINNER, created: ago(56) });
+  const pb = program(sam, priya, { title: "Beginner full body", name: "Priya Shah", email: "priya@example.com", plan: BEGINNER, created: ago(56) });
   history(pb, { from: ago(56), to: ago(22), days: [[0, "Full body"], [3, "Full body"]] });
   const pu = program(sam, priya, {
-    title: "Upper / lower", name: "Priya Shah", email: "priya.demo@example.com", plan: UPPER_LOWER, created: ago(21),
+    title: "Upper / lower", name: "Priya Shah", email: "priya@example.com", plan: UPPER_LOWER, created: ago(21),
     notes: { "Back Squat": "Box at parallel. Stop at RPE 8 while the knee settles.", "Hip Thrust": "Pause 1s at the top." },
   });
   db.prepare("UPDATE programs SET ended_at = ?, replaced_by = ? WHERE id = ?").run(sql(ago(21)), pu.id, pb.id);
   db.prepare("UPDATE programs SET change_note = ? WHERE id = ?").run("You've outgrown the beginner plan. Four days now, upper and lower. Squats stay light while the knee settles.", pu.id);
   history(pu, { from: ago(21), to: ago(1), days: [[0, "Upper"], [1, "Lower"], [3, "Upper"], [4, "Lower"]], skip: 0.05 });
-  note(sam, "priya.demo@example.com", "Left knee niggle from netball (Sept). Squat to a box, cap at RPE 8. Goal: first chin up by Christmas. Trains before work, replies fast.");
+  note(sam, "priya@example.com", "Left knee niggle from netball (Sept). Squat to a box, cap at RPE 8. Goal: first chin up by Christmas. Trains before work, replies fast.");
   const pm = chat(sam, priya, [
     [sam, ago(21, -10), "New program's up. Have a look before Monday and shout if anything doesn't make sense."],
     [priya, ago(20), "Looks good! 4 days is a lot but I'll make it work"],
@@ -198,9 +198,9 @@ try {
   checkin(sam, priya, ago(1), [5, 4, 3, ""]);
 
   // Tom: ten weeks of 5x5, bench and squat stuck for the last month.
-  const pt = program(sam, tom, { title: "Strength 5x5 A/B", name: "Tom Nguyen", email: "tom.demo@example.com", plan: FULL_BODY, created: ago(72) });
+  const pt = program(sam, tom, { title: "Strength 5x5 A/B", name: "Tom Nguyen", email: "tom@example.com", plan: FULL_BODY, created: ago(72) });
   history(pt, { from: ago(72), to: ago(3), days: [[0, "A"], [2, "B"], [4, "A"]], skip: 0.12, stall: ["Bench Press (Barbell)", "Back Squat"] });
-  note(sam, "tom.demo@example.com", "Wants a 100kg bench by end of year. Works nights, sleep is the limiter. Bench and squat have stalled: deload next week?");
+  note(sam, "tom@example.com", "Wants a 100kg bench by end of year. Works nights, sleep is the limiter. Bench and squat have stalled: deload next week?");
   const tm = chat(sam, tom, [
     [tom, ago(10), "Bench stalled again. Same weight 3 weeks now"],
     [sam, ago(10, -45), "Seen it. How's sleep been on the night shifts?"],
@@ -212,14 +212,14 @@ try {
   checkin(sam, tom, ago(4), [2, 2, 4, "Night shifts again this week. Felt flat on squats."]);
 
   // Mia: six weeks of push/pull/legs, then nothing for 10 days.
-  const pmia = program(sam, mia, { title: "Push / pull / legs", name: "Mia Roberts", email: "mia.demo@example.com", plan: PPL, created: ago(52) });
+  const pmia = program(sam, mia, { title: "Push / pull / legs", name: "Mia Roberts", email: "mia@example.com", plan: PPL, created: ago(52) });
   history(pmia, { from: ago(52), to: ago(10), days: [[0, "Push"], [2, "Pull"], [4, "Legs"]], skip: 0.15 });
   const mm = chat(sam, mia, [[mia, ago(12), "Away for a bit next week, will try to get to a gym"], [sam, ago(12, -60), "No worries, enjoy it!"]]);
   read(sam, mia, mm.at(-1));
   read(mia, sam, mm.at(-1));
 
   // Ben: four weeks of upper/lower, and in the gym right now.
-  const pbn = program(sam, ben, { title: "Upper / lower", name: "Ben Carter", email: "ben.demo@example.com", plan: UPPER_LOWER.map((e) => e.with(5, Math.round((e[5] * 1.4) / e[6]) * e[6])), created: ago(30) });
+  const pbn = program(sam, ben, { title: "Upper / lower", name: "Ben Carter", email: "ben@example.com", plan: UPPER_LOWER.map((e) => e.with(5, Math.round((e[5] * 1.4) / e[6]) * e[6])), created: ago(30) });
   history(pbn, { from: ago(30), to: ago(2), days: [[0, "Upper"], [1, "Lower"], [3, "Upper"], [4, "Lower"]] });
   session(pbn, "Upper", ago(0, 25), (ex) => {}, { done: false, only: 2 });
   const bm = chat(sam, ben, [[ben, ago(3), "Can I swap lunges for split squats? Gym's packed at 6"], [sam, ago(3, -20), "Yep, same sets and reps."]]);
@@ -227,12 +227,12 @@ try {
   read(ben, sam, bm.at(-1));
 
   // Chloe: invited yesterday, no account yet.
-  program(sam, null, { title: "Beginner full body", name: "Chloe Martin", email: "chloe.demo@example.com", plan: BEGINNER, created: ago(1) });
-  db.prepare("INSERT INTO invites (token, pt_user_id, name, email, created_at) VALUES (?,?,?,?,?)").run(tok(), sam, "Chloe Martin", "chloe.demo@example.com", sql(ago(1)));
+  program(sam, null, { title: "Beginner full body", name: "Chloe Martin", email: "chloe@example.com", plan: BEGINNER, created: ago(1) });
+  db.prepare("INSERT INTO invites (token, pt_user_id, name, email, created_at) VALUES (?,?,?,?,?)").run(tok(), sam, "Chloe Martin", "chloe@example.com", sql(ago(1)));
 
   db.exec("COMMIT");
 } catch (err) {
   db.exec("ROLLBACK");
   throw err;
 }
-console.log(`Seeded Sam's demo clients. Log in as ${PT_EMAIL} (PT) or priya.demo@example.com (client), password ${PASSWORD}.`);
+console.log(`Seeded Sam's demo clients. Log in as ${PT_EMAIL} (PT) or priya@example.com (client), password ${PASSWORD}.`);

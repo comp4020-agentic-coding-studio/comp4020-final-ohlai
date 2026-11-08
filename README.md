@@ -5,7 +5,7 @@ every set on their phone at the gym, and the PT sees what was actually lifted,
 as it's lifted.
 
 To try it, log in as the demo PT, `sam@example.com`, and in a second browser
-as the client `priya.demo@example.com`. Both use the password `demo1234`.
+as the client `priya@example.com`. Both use the password `demo1234`.
 Priya shows the most of the client side: two programs' worth of workouts, a
 program change, check-ins and a chat with Sam.
 
@@ -14,10 +14,10 @@ can log in:
 
 | Client | Login | What it shows |
 | --- | --- | --- |
-| Priya Shah | `priya.demo@example.com` | Moving well, changed program 3 weeks ago, check-ins, a private note, an unread message |
-| Tom Nguyen | `tom.demo@example.com` | Bench and squat stalled for a month |
-| Mia Roberts | `mia.demo@example.com` | No workout in 10 days, so she's on the nudge list |
-| Ben Carter | `ben.demo@example.com` | Mid-workout, so "Training now" is on Sam's dashboard |
+| Priya Shah | `priya@example.com` | Moving well, changed program 3 weeks ago, check-ins, a private note, an unread message |
+| Tom Nguyen | `tom@example.com` | Bench and squat stalled for a month |
+| Mia Roberts | `mia@example.com` | No workout in 10 days, so she's on the nudge list |
+| Ben Carter | `ben@example.com` | Mid-workout, so "Training now" is on Sam's dashboard |
 | Chloe Martin | none | Invited, hasn't signed up yet |
 
 Every login uses the password `demo1234`, public on purpose. There's also a smaller pair, `oli@example.com` (PT)
