@@ -490,3 +490,8 @@ Follows the 2026-11-07 entry above. Built in `COMP4020/meta/`.
   wraps, the box widens into Send's place and Send drops below it, animated
   rather than jumping. Whether it wraps is measured at the one-line width, so
   it can't flick back and forth when the wider box would fit the text again.
+
+## 2026-11-08: Agent defaults before the bells
+
+- Asked to swap the notification toggle and Agent defaults in the top bar.
+  The order is now Agent defaults, the three bells, + New feature.
