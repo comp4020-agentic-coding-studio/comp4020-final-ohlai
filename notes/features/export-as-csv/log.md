@@ -63,3 +63,11 @@ I said: "yeah whats up with the null at the bottom of the lifts section of the c
 **Checked:** `pnpm check` passes. Headless Edge on port 8082, opened a client's card: Lifts shows "Click a lift to see its progress chart.", then "TOO EARLY" and Squat, with no "null" text.
 
 **Also seen, not fixed:** the "All check-ins" link in the same card goes to `/checkins#cnull` when the client hasn't set a password yet (no user id). The page still opens, it just doesn't jump to anyone. Flagged to me rather than fixed.
+
+## 2026-11-08 21:18: the "All check-ins" link
+
+I said: "sure fix that too" (about the `/checkins#cnull` link from the entry above).
+
+Before: "All check-ins" in the client card always linked to `/checkins#c<client user id>`, which became `#cnull` for a client who hasn't set a password. Now: in `public/dash.html` it links to `/checkins#c<id>` when the client has an account and to plain `/checkins` when they don't. A client with no account can't have check-ins, so there's nobody to jump to.
+
+**Checked:** `pnpm check` passes. In headless Edge on port 8082, the card for a client with no password now links to `/checkins`.

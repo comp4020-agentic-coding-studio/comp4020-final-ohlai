@@ -30,3 +30,7 @@ For context, read the notes of these related features:
 ## 2026-11-08 21:12 (dashboard)
 
 yeah whats up with the null at the bottom of the lifts section of the client page
+
+## 2026-11-08 21:16 (dashboard)
+
+sure fix that too
