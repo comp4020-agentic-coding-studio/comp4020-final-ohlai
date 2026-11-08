@@ -15,7 +15,7 @@
       <h1 id="hi">Dashboard</h1>
     </div>
     <input type="search" id="q" placeholder="Search clients" aria-label="Search clients" />
-    <button type="button" popovertarget="pv-export">Export <span class="pv-tag">Preview</span></button>
+    <button type="button" popovertarget="pv-export">Export</button>
     <a href="/programs" class="btn primary">Assign a program</a>
   </header>
 
@@ -66,10 +66,19 @@
 
 <aside class="detail" id="detail" hidden aria-labelledby="d-name"></aside>
 
-<div popover id="pv-export" class="pv">
-  <h3>Export</h3>
-  <p>Download your clients and their logged sets as a spreadsheet (CSV), for your own records or a client
-    review.</p>
+<div popover id="pv-export" class="pv built">
+  <h3>Export sets</h3>
+  <p>Every logged set as a spreadsheet (CSV), one row per set. Leave the dates empty for everything.</p>
+  <form method="get" action="/api/export.csv" id="exportForm">
+    <label for="x-client">Client</label>
+    <select name="client" id="x-client"><option value="">All clients</option></select>
+    <div class="row">
+      <div><label for="x-from">From</label><input type="date" name="from" id="x-from" /></div>
+      <div><label for="x-to">To</label><input type="date" name="to" id="x-to" /></div>
+    </div>
+    <input type="hidden" name="tz" id="x-tz" />
+    <div class="actions"><button type="submit" class="primary">Download CSV</button></div>
+  </form>
 </div>
 <div popover id="pv-nudge" class="pv">
   <h3>Nudge quiet clients</h3>
@@ -90,12 +99,21 @@
   const stalled = (x) => x.lifts.filter((l) => l.status === "stalled").length;
   const needs = (x) => quiet(x) || stalled(x) > 0 || x.unread > 0;
   let clients = [], selected = null, filter = "all";
+  // The server dates each set by the PT's own day, not UTC.
+  const tz = -new Date().getTimezoneOffset();
+  $("x-tz").value = tz;
+  const exportUrl = (email) => `/api/export.csv?client=${encodeURIComponent(email)}&tz=${tz}`;
 
   async function load(refresh) {
     const [data, ok] = await api(refresh === true ? "/api/dash?refresh" : "/api/dash");
     if (!ok) return toLogin();
     clients = data.clients;
     $("hi").textContent = `Hi ${data.me.name}`;
+    const pick = $("x-client"), was = pick.value;
+    const people = new Map(clients.map((x) => [x.client_email.toLowerCase(), x.client_name]));
+    pick.replaceChildren(el("option", { value: "", textContent: "All clients" }),
+      ...[...people].sort((a, b) => a[1].localeCompare(b[1])).map(([v, n]) => el("option", { value: v, textContent: n })));
+    pick.value = was;
     render();
   }
 
@@ -190,6 +208,7 @@
         el("button", { type: "button", id: "d-close", ariaLabel: "Close", textContent: "✕", onclick: close })),
       el("div", { className: "actions" },
         el("a", { href: `/p/${x.pt_token}`, className: "btn primary", textContent: "Open program" }),
+        el("a", { href: exportUrl(x.client_email), className: "btn", textContent: "Export sets" }),
         x.client_user_id
           ? el("a", { href: `/chat/${x.client_user_id}`, className: "btn", textContent: `Message${x.unread ? ` (${x.unread} new)` : ""}` })
           : el("span", { className: "muted", textContent: `Chat opens once ${x.client_name} sets a password from their link.` })),

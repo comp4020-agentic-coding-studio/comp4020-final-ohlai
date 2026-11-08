@@ -169,3 +169,29 @@ it("serves every script the pages load", async () => {
   for (const s of scripts) expect((await fetch(new URL(s, baseUrl))).status, s).toBe(200);
   expect((await fetch(new URL("/server.js", baseUrl))).status).toBe(404); // only public/
 });
+
+it("exports a PT's own clients' sets as CSV, never another PT's or a token", async () => {
+  const pt = await signupPT();
+  const { ptToken, clientToken, exercise_id } = await program(pt, `csv-${unique()}@example.com`);
+  const other = await program(pt);
+  await api(`/api/p/${clientToken}/start`, { day: "Day 1" });
+  await api(`/api/p/${clientToken}/log`, { exercise_id, set_no: 1, reps: 5, weight: 100 });
+  await api(`/api/p/${other.clientToken}/start`, { day: "Day 1" });
+  await api(`/api/p/${other.clientToken}/log`, { exercise_id: other.exercise_id, set_no: 1, reps: 3, weight: 60 });
+  const email = (await (await api(`/api/p/${ptToken}`)).json()).program.client_email;
+  const rows = async (path: string, as = pt) => (await (await api(path, undefined, as)).text()).trim().split("\r\n");
+
+  const all = await api("/api/export.csv", undefined, pt);
+  expect(all.headers.get("content-type")).toMatch(/text\/csv/);
+  const lines = (await all.text()).trim().split("\r\n");
+  expect(lines[0]).toContain('"client","email","program","day","exercise","target_sets","rep_range","date","time","set","reps","weight_kg"');
+  expect(lines).toHaveLength(3);
+  const one = await rows(`/api/export.csv?client=${encodeURIComponent(email)}`);
+  expect(one).toHaveLength(2);
+  expect(one[1]).toMatch(/"Squat","3","5",.*"1","5","100"$/);
+  expect(await rows("/api/export.csv?from=2000-01-01&to=2000-01-02")).toHaveLength(1); // header only
+
+  for (const t of [ptToken, clientToken, other.ptToken, other.clientToken]) expect(lines.join("\n")).not.toContain(t);
+  expect(await rows("/api/export.csv", await signupPT("Stranger"))).toHaveLength(1);
+  expect((await api("/api/export.csv")).status).toBe(401);
+});

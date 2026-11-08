@@ -183,6 +183,8 @@
     const links = [];
     if (role === "pt" && claimed) {
       links.push(el("a", { href: "/dash", className: "btn", textContent: "Dashboard" }));
+      links.push(el("a", { className: "btn", textContent: "Export sets",
+        href: `/api/export.csv?client=${encodeURIComponent(program.client_email)}&tz=${-new Date().getTimezoneOffset()}` }));
     }
     if (role === "client" && claimed) {
       links.push(el("a", { href: "/me", className: "btn", textContent: "Dashboard" }));
