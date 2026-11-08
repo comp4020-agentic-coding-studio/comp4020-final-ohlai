@@ -33,3 +33,7 @@ yes pt side should get the same popup, and use a custom popup with a smooth in a
 1. there is no scenario where you need to log out really quickly even on desktop so it feels better to ask first before you make someone log back in. 
 2. yeah the built in popup drages the user out of the experinece of the app and has worse design than our custom one. 
 3. in my expereince it feels weird when you can interact with something that is not in focus unless multitasking on purpose - forces user to pay attention and focus on the pop up which is also why we blur the bg
+
+## 2026-11-08 15:46 (dashboard)
+
+everything looks good, commit and ill merge
