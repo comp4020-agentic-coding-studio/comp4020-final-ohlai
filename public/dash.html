@@ -159,6 +159,7 @@
         el("span", { className: "avatar", ariaHidden: "true", textContent: x.client_name[0] }),
         el("span", {}, el("strong", { textContent: x.client_name }), el("span", { className: "muted", textContent: x.title })))),
       el("td", {}, x.in_progress ? el("span", { className: "live", textContent: `Training now (${x.in_progress})` })
+        : x.training_hidden ? el("span", { className: "muted", textContent: "Training status hidden by client" })
         : el("span", { className: quiet(x) ? "flag" : "", textContent: ago(x.last_workout) })),
       el("td", {}, el("span", { className: "num", textContent: `${x.week.length}/${x.days.length}` }),
         el("span", { className: "dots", ariaHidden: "true" }, ...x.days.map((d) => el("i", { className: doneDays.has(d) ? "on" : "", title: d })))),

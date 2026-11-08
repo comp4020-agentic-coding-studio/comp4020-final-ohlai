@@ -130,6 +130,7 @@ db.exec(`
   );
 `);
 if (!hasColumn("users", "checkin_questions")) db.exec("ALTER TABLE users ADD COLUMN checkin_questions TEXT");
+if (!hasColumn("users", "show_training")) db.exec("ALTER TABLE users ADD COLUMN show_training INTEGER NOT NULL DEFAULT 1");
 const DEFAULT_QUESTIONS = [
   { text: "How's your energy been this week?", kind: "scale" },
   { text: "How are you sleeping?", kind: "scale" },
@@ -226,7 +227,7 @@ function pwOk(pw, stored) {
 function currentUser(req) {
   const sid = /(?:^|;\s*)sid=([\w-]+)/.exec(req.headers.cookie ?? "")?.[1];
   if (!sid) return null;
-  return db.prepare("SELECT u.id, u.email, u.name, u.role FROM logins l JOIN users u ON u.id = l.user_id WHERE l.token = ?").get(sid) ?? null;
+  return db.prepare("SELECT u.id, u.email, u.name, u.role, u.show_training FROM logins l JOIN users u ON u.id = l.user_id WHERE l.token = ?").get(sid) ?? null;
 }
 function startLogin(res, user) {
   const t = token();
@@ -315,6 +316,7 @@ function dashRow(p) {
   const done = f.sessions.filter((s) => s.finished_at);
   const last = done.at(-1)?.started_at ?? f.logs.at(-1)?.logged_at ?? null;
   const weekAgo = Date.now() - 7 * 864e5;
+  const hidden = !!p.client_user_id && !db.prepare("SELECT show_training FROM users WHERE id = ?").get(p.client_user_id).show_training;
   const bySession = (exId) => {
     const m = new Map();
     for (const l of f.logs.filter((l) => l.exercise_id === exId)) {
@@ -330,7 +332,9 @@ function dashRow(p) {
     client_name: f.program.client_name,
     client_user_id: p.client_user_id,
     last_workout: last,
-    in_progress: f.open_session?.day ?? null,
+    // The client can hide "Training now"; the PT is told it's hidden, not just shown nothing.
+    training_hidden: hidden,
+    in_progress: hidden ? null : f.open_session?.day ?? null,
     days: [...new Set(f.exercises.map((e) => e.day))],
     week: done.filter((s) => utc(s.started_at) >= weekAgo).map((s) => ({ day: s.day, at: s.started_at })),
     recent: done.slice(-5).reverse().map((s) => ({ day: s.day, at: s.started_at, sets: f.logs.filter((l) => l.session_id === s.id).length })),
@@ -439,6 +443,15 @@ const server = createServer(async (req, res) => {
       }
       workouts.sort((a, b) => b.started_at.localeCompare(a.started_at));
       return send(res, 200, { me, programs, pts, workouts });
+    }
+    if (req.method === "POST" && path === "/api/me/training") {
+      if (me?.role !== "client") return send(res, 401, { error: "Log in as a client to change this." });
+      const show = (await readJson(req)).show === false ? 0 : 1;
+      db.prepare("UPDATE users SET show_training = ? WHERE id = ?").run(show, me.id);
+      audit(asUser(me), "training", 200, show ? "now shows PT when training" : "now hides training from PT");
+      const pts = db.prepare("SELECT DISTINCT pt_user_id FROM programs WHERE client_user_id = ? AND pt_user_id IS NOT NULL").all(me.id);
+      for (const { pt_user_id } of pts) push("training", { users: [pt_user_id, me.id] });
+      return send(res, 200, { show_training: show });
     }
     if (req.method === "GET" && path === "/api/events") {
       if (!me) return send(res, 401, { error: "Not logged in." });

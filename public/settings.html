@@ -21,10 +21,9 @@
 
   <h2>Privacy</h2>
   <div class="card notice">
-    <label><input type="checkbox" checked disabled /> Show my PT when I'm training
-      <span class="pv-tag">Preview</span></label>
+    <label><input type="checkbox" id="showTraining" checked /> Show my PT when I'm training</label>
     <p class="muted">Your PT sees "Training now" while a workout is open, so they know you might message with a
-      question. This would let you turn it off. Not built yet.</p>
+      question. Turn this off and they see that you've hidden it, instead of "Training now".</p>
   </div>
 
   <h2>Account</h2>
@@ -55,7 +54,15 @@
 
   const [data, ok] = await api("/api/me");
   if (!ok) toLogin();
-  else $("who").textContent = `Logged in as ${data.me.name} (${data.me.email}).`;
+  else {
+    $("who").textContent = `Logged in as ${data.me.name} (${data.me.email}).`;
+    $("showTraining").checked = !!data.me.show_training;
+    $("showTraining").onchange = async (e) => {
+      const box = e.target;
+      const [, saved] = await api("/api/me/training", { show: box.checked });
+      if (!saved) box.checked = !box.checked;
+    };
+  }
 </script>
 </body>
 </html>
