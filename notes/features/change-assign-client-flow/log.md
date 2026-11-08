@@ -43,3 +43,9 @@ Checks:
 Got wrong on the way: my first server change saved the edited name and email onto the program before checking the password, so a failed sign-up would still have changed the program's email. I moved it into the final UPDATE.
 
 Not done: sending the email from the backend (we picked mailto). No ADR, because nothing new was added to the stack.
+
+## 2026-11-08 19:10 "Wrong email or password" on the feature app
+
+I asked: "its saying wrong email or password. did you not liink or change the db?"
+
+Nothing about login or the users table changed. The feature app runs with its own `DATA_DIR` (`worktrees/change-assign-client-flow/data`), so it has a fresh database. My accounts from main aren't in it. The only accounts there are the ones the spec and my browser check made (all `@example.com`). I should have said that when I gave the URL, along with a login to use. Gave the test PT login from the browser check: `pt-1794124721078@example.com` / `password123`.

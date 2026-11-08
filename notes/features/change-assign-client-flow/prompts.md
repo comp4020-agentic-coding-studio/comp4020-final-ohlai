@@ -17,3 +17,7 @@ Feature: Change assign client flow
 3. keep as name email password for now. 
 4. no the program page should just be to update the program itself and the clients or dash tabs should be for linking people to programs. 
 5. no you need to have the program ready to give someone before you invite them.
+
+## 2026-11-08 19:14 (dashboard)
+
+its saying wrong email or password. did you not liink or change the db?
