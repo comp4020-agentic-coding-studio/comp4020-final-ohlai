@@ -145,7 +145,7 @@ body[data-view="desktop"] .exercises { display: grid; grid-template-columns: 1fr
 .week li { width: 16px; height: 16px; border-radius: 5px; background: var(--soft); }
 .week li.on { background: var(--trend, var(--accent)); }
 /* Today, not logged yet: an empty outline, so it reads as "still to do" rather than missed. */
-.week li.today:not(.on) { background: transparent; box-shadow: inset 0 0 0 1.5px var(--muted); }
+.week li.today:not(.on) { background: transparent; box-shadow: inset 0 0 0 3px var(--line); }
 .prog-head { align-items: flex-start; margin-bottom: 8px; }
 .prog-num { font-size: 1.15rem; font-weight: 500; font-variant-numeric: tabular-nums; white-space: nowrap; }
 .prog-num small { color: var(--muted); font-size: 0.85rem; }
@@ -551,10 +551,20 @@ body.client main { padding-bottom: 120px; }
 .pillnav.none .thumb { opacity: 0; }
 .pillnav.jump .thumb { transition: none; }
 .pillnav svg { width: 22px; height: 22px; }
-.daypicks { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 10px; }
-.daypicks button { text-align: left; display: grid; gap: 2px; padding: 14px; border-radius: 16px; background: var(--card); box-shadow: var(--shadow); font-weight: 400; }
-.daypicks button strong { font-size: 1.05rem; }
-.daypicks button small { color: var(--muted); font-size: 0.8rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* One full-width card per program day; the black chevron button on the right starts it. */
+.daypicks { display: grid; gap: 10px; }
+.daypicks button { width: 100%; text-align: left; display: flex; align-items: center; gap: 14px; padding: 14px 14px 14px 16px; border-radius: 20px; background: var(--card); box-shadow: var(--shadow); font-weight: 400; }
+.dp-text { flex: 1; min-width: 0; display: grid; gap: 4px; }
+.dp-head { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; }
+.daypicks button strong { font-size: 1.05rem; font-weight: 600; }
+.daypicks button small { color: var(--muted); font-size: 0.85rem; white-space: nowrap; }
+.daypicks .dp-ex { overflow: hidden; text-overflow: ellipsis; }
+.daypicks .open .dp-head small { color: var(--trend, var(--accent)); font-weight: 500; }
+.go { flex: none; display: grid; place-items: center; width: 40px; height: 40px; border-radius: 50%; background: var(--accent); color: var(--accent-ink); }
+.go svg { width: 18px; height: 18px; }
+.go.flat { width: auto; height: auto; background: none; color: var(--muted); }
+#all { display: flex; align-items: center; justify-content: space-between; }
+#all[hidden] { display: none; }
 .prog-from { color: var(--muted); font-size: 0.8rem; margin: -4px 0 10px; }
 [data-style="mono"] .card.wo { padding: 0; }
 .wo summary { list-style: none; display: flex; justify-content: space-between; align-items: center; gap: 8px; padding: 16px; cursor: pointer; }

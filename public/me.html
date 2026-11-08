@@ -30,7 +30,15 @@
   import { chart } from "/lift-chart.js";
   mountNav();
 
-  const dayKey = (d) => d.toLocaleDateString("en-CA");
+  const chevron = () => {
+    const s = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+    s.setAttribute("viewBox", "0 0 24 24");
+    s.innerHTML = `<path d="m9 6 6 6-6 6" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/>`;
+    return s;
+  };
+  $("all").append(el("span", { className: "go flat", ariaHidden: "true" }, chevron()));
+
+  const dayKey =(d) => d.toLocaleDateString("en-CA");
   const wd = (d) => d.toLocaleDateString("en-AU", { weekday: "long" });
 
   // The last seven days, oldest first, filled where a workout was logged. Today is outlined.
@@ -81,16 +89,24 @@
 
     $("programs").replaceChildren(...data.programs.map((p) => {
       const open = p.days.find((d) => d.day === p.open);
+      // workouts are newest first, so the first match is the last time this day was done.
+      const lastDone = (d) => data.workouts.find((w) => w.client_token === p.client_token && w.day === d.day);
       return el("section", {},
         el("h2", { textContent: p.title }),
-        el("p", { className: "prog-from" }, `Program from ${p.pt_name}, ${p.days.length} day${p.days.length === 1 ? "" : "s"}. `,
-          el("a", { href: `/p/${p.client_token}`, textContent: "See it all" })),
+        el("p", { className: "prog-from", textContent: `Program from ${p.pt_name}, ${p.days.length} day${p.days.length === 1 ? "" : "s"}.` }),
         p.change_note ? el("div", { className: "card notice" },
           el("small", { className: "muted", textContent: `New program from ${p.pt_name}` }), el("p", { textContent: p.change_note })) : null,
-        el("div", { className: "daypicks" }, ...p.days.map((d) =>
-          el("button", { type: "button", onclick: () => { start(p, d.day); } },
-            el("strong", { textContent: d.day }),
-            el("small", { textContent: d === open ? "In progress, tap to carry on" : d.exercises.join(", ") })))));
+        el("div", { className: "daypicks" }, ...p.days.map((d) => {
+          const last = lastDone(d);
+          return el("button", { type: "button", className: d === open ? "open" : "", onclick: () => { start(p, d.day); } },
+            el("span", { className: "dp-text" },
+              el("span", { className: "dp-head" },
+                el("strong", { textContent: d.day }),
+                el("small", { textContent: d === open ? "In progress" : last ? `Last done ${ago(last.started_at).toLowerCase()}` : "Not done yet" })),
+              el("small", { className: "dp-ex", textContent: d.exercises.join(", ") })),
+            el("span", { className: "go", ariaHidden: "true" }, chevron()),
+            el("span", { className: "sr", textContent: d === open ? `, carry on` : `, start` }));
+        })));
     }));
 
     $("recent").replaceChildren(...(data.workouts.length ? data.workouts.slice(0, 3).map(workoutCard)

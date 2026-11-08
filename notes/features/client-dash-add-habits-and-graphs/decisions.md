@@ -22,6 +22,26 @@ What came up: I said "+37.6 kg in range is wayyyy too big" and the habit tracker
 
 Picked: the progress number is the same size as the stats numbers and moves into the card's header, the strip squares shrink to 16px, and secondary text on client pages is one size (0.85rem). The before and after is in log.md (2026-11-08 23:47). The agent also chose these: drop "in range", show one dot on the progress line instead of one per workout, and make client buttons a step smaller. I asked for the general pass, so I didn't pick those one by one.
 
+## 2026-11-08 Today's square is a thick light outline
+
+What came up: the outlined "today, not logged yet" square.
+
+Picked: a lighter grey outline, thicker, with the background showing in the middle, and the same outside size as the other squares. My call, from looking at it.
+
+## 2026-11-08 Dashboard program days become full-width cards with a start button, "See it all" goes
+
+What came up: the dashboard had small two-column day tiles and a "See it all" link to the program page, which has big black "Start Push" buttons.
+
+Options: keep the tiles and the link, or merge the two. I suggested a full-width card per day with a black chevron button on the right meaning start, and asked what the agent thought. It agreed.
+
+Picked: full-width cards with a round black chevron button, "Last done ..." on each card, and the "See it all" link removed completely.
+
+## 2026-11-08 All workouts gets a chevron
+
+What came up: the All workouts button at the bottom of the history didn't look like it went anywhere.
+
+Picked: a chevron on the right, so it's clear it opens a new page.
+
 ## 2026-11-08 Open: what else the habit card shows (waiting on me)
 
 The example has three habits. The app only knows about workouts, so there's one "Workouts" row. Weekly check-in could be a second row since that data exists. Rows for meals, protein or weigh-ins would need new data. I haven't answered yet.

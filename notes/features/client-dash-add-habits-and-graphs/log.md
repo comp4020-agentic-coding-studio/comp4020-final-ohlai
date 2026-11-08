@@ -36,3 +36,17 @@ What changed, before and after, all checked by screenshot at 390px in light and 
 - The PT card buttons were desktop size (16px text, 12px by 16px padding) and looked heavy on a phone. On client pages they're 0.95rem with 10px by 14px padding. Workout card rows are a bit tighter (14px top and bottom).
 
 Files: public/me.html, public/style.css. `pnpm check` passes (19 tests).
+
+## 2026-11-08 23:58 Today's square, day cards with a start button, chevron on All workouts
+
+What I asked: "for the habit tracker. Make the outlined box a ligher grey outline and also thicker inside - so it is the same size square from the outside as the others but there is a core of bg behind it. Also lets completely remove the see it all button in programs and instead lets somehow combine the ui from the see it all page (with the big black button to start the program day) and the current layout. I think it would look good if each day is a full width card but has a black button with a chevron on the right which means start? Idk what do you think? Also add a chevron to the view all workouts at the bottom of the history so you can tell your supposed to click into it which takes you to a new page."
+
+- Today's square (not logged yet): before, a 1.5px `--muted` outline. Now a 3px inset outline in `--line` (the lighter grey) with the page background showing through the middle. It's an inset shadow, so it's still 16px on the outside like the other squares.
+- Program days: before, a two-column grid of small tiles under a "Program from Oli, 3 days. See it all" line. Now "See it all" is gone and each day is a full-width card: the day name in bold, "Last done 33 days ago" (or "Not done yet", or "In progress" in green) on the right of the title line, the exercises on one line under it, cut off with an ellipsis, and a round 40px black button with a white chevron on the right (white with a black chevron in dark mode, since it's the `--accent` token). The whole card is still one button, so tapping anywhere starts the day or carries on an open one, same as before. For screen readers the button ends with ", start" or ", carry on". The "Last done" line comes from what the program page's start cards show, and the black button stands in for its big "Start Push" button, which is how I read "combine the ui from the see it all page".
+- All workouts: there's a grey chevron on the right of the button now.
+
+I said I thought full-width cards with a black chevron button would look good and asked what the agent thought. It agreed and built it that way.
+
+Checked at 390px in light and dark, no sideways scroll. `pnpm check` passes (19 tests). Files: public/me.html, public/style.css.
+
+The program page itself (`/p/<token>`) is still there and still reached when a day is started, and after finishing a workout. Only the dashboard link to it went.
