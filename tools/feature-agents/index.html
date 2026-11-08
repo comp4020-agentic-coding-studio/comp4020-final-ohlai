@@ -479,7 +479,13 @@ function render(features) {
   // Filter chips, with how many features each would show.
   const inGroup = (f, g) => g === "all" || kind(f)[0] === g;
   $("#chips").innerHTML = ["all", ...KINDS].map((g) => `<button data-filter="${g}" title="${KIND_TIPS[g]}" class="${g === filter ? "on" : ""}">${cap(g)}<span class="n">${features.filter((f) => inGroup(f, g)).length}</span></button>`).join("");
-  if (typing) return; // don't wipe what you're typing
+  if (typing) { // don't wipe what you're typing, but keep open chats up to date
+    for (const f of features) {
+      const el = u(f.slug).fb && $(`[data-slug="${f.slug}"] [data-chat][data-loaded]`);
+      if (el && el.dataset.at !== String(f.st?.at) + (f.st?.queue?.length || 0)) loadChat(f.slug);
+    }
+    return;
+  }
   // Keep open chats as they are (scroll position) instead of rebuilding them on every refresh.
   const keep = {};
   // Taking it out of the page resets its scroll, so note where it was.
@@ -587,9 +593,14 @@ async function onClick(e) {
   if (act === "send") {
     const text = s.draft.trim(); if (!text) return;
     s.draft = "";
+    // Ctrl+Enter sends with the cursor still in the box, which stops the card
+    // redrawing. Step out, let it redraw, then put the cursor back.
+    const inBox = document.activeElement?.closest?.(".compose");
+    if (inBox) document.activeElement.blur();
+    const after = (msg, cls) => { say(msg, cls); if (inBox) $(`[data-slug="${slug}"] .compose textarea`)?.focus(); };
     const r = await api(`${base}/feedback`, { text });
-    if (r.msg) { s.draft = text; return say(r.msg, "bad"); }
-    return say(r.sent ? "" : { "busy-terminal": "Waiting: the agent is mid-turn in its terminal. Your message goes as soon as it finishes.", busy: "Waiting: the agent is mid-turn. Your message goes as soon as it finishes.", "not-started": "Waiting: the agent hasn't started yet. Your message goes once it has." }[r.why] || "");
+    if (r.msg) { s.draft = text; return after(r.msg, "bad"); }
+    return after(r.sent ? "" : { "busy-terminal": "Waiting: the agent is mid-turn in its terminal. Your message goes as soon as it finishes.", busy: "Waiting: the agent is mid-turn. Your message goes as soon as it finishes.", "not-started": "Waiting: the agent hasn't started yet. Your message goes once it has." }[r.why] || "");
   }
   if (act === "start") { say("Starting: making its branch and folder…"); const r = await api(`${base}/start`, {}); return say(r.msg || "Started. The agent begins in the background once setup finishes.", r.msg ? "bad" : "good"); }
   if (act === "edit") { s.edit = !s.edit; s.etitle = null; s.eprompt = null; return render(all); }

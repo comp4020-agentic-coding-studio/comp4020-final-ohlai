@@ -524,3 +524,21 @@ Follows the 2026-11-07 entry above. Built in `COMP4020/meta/`.
   for the subtitle to wrap before it gets under "just now" / "2h ago". The
   details are back under the title, in the column left of the time and
   status, and the row is aligned to the top so folding still moves nothing.
+
+## 2026-11-08: No browser for agents yet; Ctrl+Enter fixed
+
+- **Browser for agents.** A background run listed a blocked tool, and I asked
+  what to add to Agent defaults to allow browser use. The blocked tool was a
+  python script editing notes, not a browser: agents have no browser tool at
+  all (no MCP servers, only the ponytail plugin). Options were Playwright MCP
+  (Claude's recommendation: a `.mcp.json` plus allowing `mcp__playwright`),
+  agents driving headless Edge with a node script (already allowed), or Claude
+  in Chrome (only in sessions I have open, so no good for background turns).
+  I chose to leave browser use off for now. Python stays off the allowed list
+  too, since the Edit tool does what that script did.
+- **Ctrl+Enter.** Said Ctrl+Enter sent the message but it didn't show in the
+  chat until I opened and closed the session, while the Send button worked.
+  Cause: the page skips redrawing while you're typing in a box, and after
+  Ctrl+Enter the cursor is still in the box. Now sending steps out of the box,
+  redraws, and puts the cursor back, and open chats keep updating while you
+  type.
