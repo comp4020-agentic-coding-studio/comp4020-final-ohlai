@@ -64,7 +64,12 @@
   <p id="err" class="error" role="alert"></p>
 </main>
 
-<aside class="detail" id="detail" hidden aria-labelledby="d-name"></aside>
+<!-- A client's detail, over the dash. Clicking a lift opens its chart in a
+     second card beside it. -->
+<dialog class="detail" id="detail" aria-labelledby="d-name">
+  <section class="dcard" id="d-client"></section>
+  <section class="dcard" id="d-lift" hidden aria-labelledby="l-name"></section>
+</dialog>
 
 <div popover id="pv-export" class="pv">
   <h3>Export</h3>
@@ -81,6 +86,7 @@
   import { $, el, api, ago, fmtDay, utc, toLogin, live } from "/ui.js";
   import { mountSide } from "/side.js";
   import { checkinCard } from "/checkin-card.js";
+  import { exHistory, liftSummary } from "/lift-chart.js";
   mountSide();
   $("today").textContent = new Date().toLocaleDateString("en-AU", { weekday: "long", day: "numeric", month: "long" });
 
@@ -169,21 +175,61 @@
     return tr;
   }
 
-  function open(id) { selected = id; render(); $("d-close")?.focus(); }
-  function close() { selected = null; render(); }
-  addEventListener("keydown", (e) => e.key === "Escape" && selected && !document.querySelector(":popover-open") && close());
+  function open(id) {
+    if (selected !== id) closeLift();
+    selected = id; render();
+    if (!$("detail").open) $("detail").showModal();
+    $("d-close").focus();
+  }
+  const close = () => $("detail").close();
+  $("detail").onclose = () => { selected = null; closeLift(); render(); };
+  // Esc closes the lift card first, then the client.
+  // On keydown, not the dialog's cancel event: Chrome ignores preventDefault
+  // on cancel unless there was a click since the last one.
+  $("detail").onkeydown = (e) => { if (e.key === "Escape" && lift) { e.preventDefault(); closeLift(); } };
+  // Clicking the dimmed dash around the cards closes it all.
+  $("detail").onclick = (e) => { if (e.target === $("detail")) close(); };
 
-  // Side panel: the detail behind each number in a client's row.
+  // The lift card: the same chart and records as the program page, from the
+  // PT link's data.
+  let lift = null; // the lift whose card is open
+  async function openLift(x, l) {
+    lift = l;
+    detail();
+    const card = $("d-lift");
+    card.hidden = false;
+    card.replaceChildren(liftHead(l), el("p", { className: "muted", textContent: "Loading…" }));
+    $("l-close").focus();
+    const [state, ok] = await api(`/api/p/${x.pt_token}`);
+    if (lift !== l) return; // closed or moved on while loading
+    const ex = ok && state.exercises.find((e) => e.id === l.id);
+    card.replaceChildren(liftHead(l), ex ? liftSummary(ex, exHistory(state, ex.id))
+      : el("p", { className: "error", textContent: state.error ?? "Couldn't load this lift." }));
+  }
+  function closeLift() {
+    if (!lift) return;
+    const was = lift.id;
+    lift = null;
+    $("d-lift").hidden = true;
+    $("d-lift").replaceChildren();
+    detail();
+    $(`lift-${was}`)?.focus();
+  }
+  const liftHead = (l) => el("div", { className: "detail-head" },
+    el("div", {}, el("h2", { id: "l-name", textContent: l.name }), el("span", { className: "muted", textContent: `${l.day} · ${STATUS[l.status]}` })),
+    el("button", { type: "button", id: "l-close", ariaLabel: `Close ${l.name}`, textContent: "✕", onclick: closeLift }));
+
+  // The client card: the detail behind each number in a client's row.
   function detail() {
     const x = clients.find((c) => c.program_id === selected);
-    $("detail").hidden = !x;
     if (!x) return;
     const lifts = (s) => x.lifts.filter((l) => l.status === s);
     const liftList = (s) => lifts(s).length ? el("div", {},
       el("h4", { textContent: STATUS[s] }),
       el("ul", { className: "plain" }, ...lifts(s).map((l) =>
-        el("li", {}, el("a", { href: `/p/${x.pt_token}#ex-${l.id}`, textContent: l.name }), el("span", { className: "muted", textContent: ` ${l.day}` }))))) : null;
-    $("detail").replaceChildren(
+        el("li", {}, el("button", { type: "button", className: "linkish", id: `lift-${l.id}`, textContent: l.name,
+          ariaPressed: String(lift?.id === l.id), onclick: () => { openLift(x, l); } }), el("span", { className: "muted", textContent: ` ${l.day}` }))))) : null;
+    $("d-client").replaceChildren(
       el("div", { className: "detail-head" },
         el("span", { className: "avatar big", ariaHidden: "true", textContent: x.client_name[0] }),
         el("div", {}, el("h2", { id: "d-name", textContent: x.client_name }), el("span", { className: "muted", textContent: x.title })),

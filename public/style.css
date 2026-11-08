@@ -254,10 +254,10 @@ a.card.link { display: flex; justify-content: space-between; align-items: center
 .actions.top { gap: 8px; }
 
 /* ---------- PT dashboard: a desktop app, not a stretched phone ----------
-   Sidebar, then the main column; a client's detail opens as a panel on the
-   right so the table stays in view. */
+   Sidebar, then the main column; a client's detail opens as a popup over the
+   dash, so the dash never reflows. */
 /* PT pages have no mobile/desktop toggle: the layout follows the screen. */
-body.app { display: grid; grid-template-columns: 232px minmax(0, 1fr) auto; min-height: 100vh; }
+body.app { display: grid; grid-template-columns: 232px minmax(0, 1fr); min-height: 100vh; }
 body.app main { max-width: none; width: 100%; padding: 20px 28px 48px; }
 .side { position: sticky; top: 0; height: 100vh; display: flex; flex-direction: column; gap: 4px; padding: 20px 14px; background: var(--card); border-right: 1px solid var(--line); }
 .side .brand { padding: 4px 10px 16px; }
@@ -327,7 +327,16 @@ button.small, .chips button { white-space: nowrap; font-size: 0.82rem; padding: 
 .wchip { display: grid; padding: 4px 6px; border-radius: 8px; background: var(--card); font-size: 0.72rem; text-align: left; font-weight: 400; line-height: 1.25; }
 .wchip span { color: var(--muted); }
 
-.detail { position: sticky; top: 0; height: 100vh; overflow-y: auto; width: 380px; padding: 20px; background: var(--card); border-left: 1px solid var(--line); }
+.detail { max-width: calc(100vw - 48px); max-height: calc(100vh - 48px); padding: 0; border: 0; background: none; overflow: visible; color: var(--ink); }
+.detail[open] { display: flex; gap: 16px; align-items: flex-start; animation: confirm-in 0.2s ease-out; }
+.detail::backdrop { background: rgba(0, 0, 0, 0.25); backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px); }
+.dcard { width: 420px; max-height: calc(100vh - 48px); overflow-y: auto; padding: 20px; background: var(--card); border: 1px solid var(--line); border-radius: 18px; box-shadow: 0 30px 80px -30px rgba(0, 0, 0, 0.5); }
+#d-lift { width: 480px; animation: confirm-in 0.2s ease-out; }
+#d-lift .chart { max-width: none; }
+#d-lift .pills { flex-wrap: wrap; overflow: visible; }
+.detail h2:not(.detail-head h2) { font-size: 1rem; margin: 18px 0 6px; }
+.detail .linkish[aria-pressed="true"] { text-decoration-color: var(--ink); }
+@media (prefers-reduced-motion: reduce) { .detail[open], #d-lift { animation: none; } }
 .detail-head { display: flex; align-items: center; gap: 12px; }
 .detail-head > div { flex: 1; display: grid; }
 .detail-head h2 { margin: 0; }
@@ -344,8 +353,6 @@ button.small, .chips button { white-space: nowrap; font-size: 0.82rem; padding: 
 .pv p { margin: 0 0 10px; color: var(--muted); }
 .mock { opacity: 0.7; }
 
-/* With a client open there's no room for two columns beside the panel. */
-body.app:has(#detail:not([hidden])) .dashgrid { grid-template-columns: 1fr; }
 .detail .plain li { font-size: 0.93rem; }
 
 /* Not designed for a phone (see CLAUDE.md), just kept usable on a small screen. */
@@ -361,7 +368,8 @@ body.app:has(#detail:not([hidden])) .dashgrid { grid-template-columns: 1fr; }
   .side-foot { margin: 0 0 0 auto; border: 0; padding: 0; display: flex; align-items: center; }
   .apphead { flex-wrap: wrap; }
   .ctable th:nth-child(n+3), .ctable td:nth-child(n+3) { display: none; }
-  .detail { position: fixed; inset: 0 0 0 auto; width: min(380px, 100%); z-index: 10; }
+  .detail[open] { flex-direction: column; overflow-y: auto; }
+  .dcard, #d-lift { width: 100%; max-height: none; }
   .inbox { grid-template-columns: 1fr !important; }
 }
 .empty { text-align: center; padding: 32px 16px; }
