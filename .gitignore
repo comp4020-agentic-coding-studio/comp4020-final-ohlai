@@ -21,3 +21,6 @@ mise.local.toml
 # harness is CLAUDE.md (and any AGENTS.md), not this directory.
 .claude/
 data/
+
+# The feature agents dashboard's machine-local data (ports, sessions, state).
+tools/feature-agents/local/

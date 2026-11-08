@@ -1,5 +1,7 @@
 # Feature board
 
+**Retired on 2026-11-08.** Features now live in one folder each, `features/<slug>/`, and `feature.md` in each says its status. The feature agents dashboard (`tools/feature-agents/`) shows and changes them. Every feature below was imported into its own folder, with its notes copied word for word into that folder's `log.md`. Three that were taken off this board just before the move (Client app for the phone, Chat between PT and client, Pick a niche) were imported from the version before. This file is kept as it was on that day and isn't updated any more.
+
 Claude reads this at the start of every session. Each feature gets dated notes
 underneath it as work happens. Only I move a feature to Done.
 

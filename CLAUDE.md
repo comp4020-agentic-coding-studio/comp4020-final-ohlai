@@ -75,8 +75,15 @@ effort making PT pages fit a phone.
 I want the final docs written from what actually happened, so every session
 leaves a trail in `notes/`.
 
-- At the start of a session, read `notes/features.md` and say which feature
-  we're picking up. Never move a feature to Done yourself, I do that.
+- Each feature is a folder, `notes/features/<slug>/`, and its `feature.md`
+  says its status (planned, building, merged, done or dropped). At the start
+  of a session on main, look at the planned and building ones and say which
+  feature we're picking up. Never change a `feature.md` or mark a feature
+  done yourself: the feature agents dashboard does that when I tell it to.
+  (`notes/features.md` was the board until 2026-11-08 and is kept as it was.)
+- `tools/feature-agents/` is the dashboard I use to run feature agents. It's
+  not part of the app: don't import from it, ship it or test it as part of
+  the app. Change it only when I ask, and only on main.
 - The notes are the raw material for my final docs, so more detail is always
   better than less. Notes are append-only: never delete, shorten, merge or
   reword an earlier entry, even one that turned out wrong. If something
@@ -103,9 +110,10 @@ leaves a trail in `notes/`.
 ## Feature sessions
 
 Each feature has its own branch (`feat/<slug>`), its own folder
-(`../worktrees/<slug>`), its own app port and its own data folder. The meta
-dashboard in `COMP4020/meta/` starts these sessions. If `FEATURE_SLUG` is set
-in your environment, you're in one.
+(`../worktrees/<slug>`), its own app port and its own data folder. The
+feature agents dashboard in `tools/feature-agents/` starts these sessions,
+and my messages often come through it as background turns. If
+`FEATURE_SLUG` is set in your environment, you're in one.
 
 - Work and commit only on your feature branch, in your folder. Never check
   out, commit to or merge into main, and never touch another feature's
@@ -129,5 +137,7 @@ in your environment, you're in one.
   - `decisions.md` is every decision on this feature, in the same format as
     `notes/decisions.md`.
   - Update both before each commit, not just at the end.
-- Don't edit `notes/features.md`, `notes/decisions.md` or `notes/sessions/`
-  in a feature session. Every feature would conflict at merge time.
+- Don't edit your feature's `feature.md` (only the dashboard writes it, on
+  main), `notes/decisions.md`, `notes/sessions/` or anything in
+  `tools/feature-agents/` in a feature session. Every feature would conflict
+  at merge time, and the dashboard runs from main's copy anyway.
