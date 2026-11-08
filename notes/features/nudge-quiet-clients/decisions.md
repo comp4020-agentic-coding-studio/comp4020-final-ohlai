@@ -25,3 +25,10 @@
 - What came up: the old preview said "one click sends".
 - Picked: the button opens the popover with who it goes to and the message, then Send. Two clicks, so a PT can see who's getting it before it goes out to several chats at once.
 - Not confirmed by me yet. If I want true one click, the popover can go.
+
+## 2026-11-08, Send closes the popup
+
+- What came up: what happens after Send. Before, the popup stayed open and said who it went to (see "Send asks first" above).
+- Options: keep it open with "Sent to ..."; close it.
+- Picked by me: close it. ("once you click send it should close the pop up.")
+- Why: I didn't say. If the send fails the popup stays open with the error; that part was the agent's call.

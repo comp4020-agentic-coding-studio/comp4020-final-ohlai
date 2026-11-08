@@ -466,7 +466,7 @@
     $("n-send").disabled = true;
     const [data, ok] = await api("/api/nudge", {});
     if (!ok) { $("n-err").textContent = data.error; $("n-send").disabled = false; return; }
-    $("n-who").textContent = `Sent to ${data.sent.map((c) => c.name).join(", ")}.`;
+    $("pv-nudge").hidePopover();
   };
 
   $("q").oninput = render;

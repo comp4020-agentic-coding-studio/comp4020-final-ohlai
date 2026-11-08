@@ -35,4 +35,18 @@ What went wrong: my first screenshot script used DevTools port 9333. On the firs
 
 Login for this feature's app (http://localhost:8088): PT `oli@example.com` / `demo1234`. Quiet clients to nudge: `jack@example.com` and `sam@example.com`, both `demo1234`.
 
+## 2026-11-08 23:52, Send closes the popup
+
+I asked: "once you click send it should close the pop up."
+
+Before (see the 23:35 entry): after Send the popup stayed open and its top line changed to "Sent to Jack, Sam Lee." Now Send closes the popup straight away. If the send fails, the popup stays open and shows the error, so it never closes on something that didn't go through.
+
+Changed `public/dash.html`: the Send handler calls `hidePopover()` instead of writing "Sent to ...". I didn't add a toast to say it sent. The app has no toast yet, and the messages show up in the Inbox.
+
+Checked: clicked Send in headless Chrome at 1440px in dark mode. The popup was closed afterwards (`:popover-open` false) and the dashboard was clear behind it. `pnpm check` passes, 19 tests.
+
+Got wrong: my first check run was cut off by a 50 second timeout before it printed anything, and the screenshot I opened was the old one from before the change, still showing "Sent to". I reran it with more time.
+
+Also: `prompts.md` has a 23:40 entry that is a background task notice from my screenshot script, not something I wrote. The hook picked it up.
+
 Open questions for me are in `decisions.md`.

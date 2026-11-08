@@ -19,3 +19,7 @@ Feature: nudge quiet clients.
 <status>completed</status>
 <summary>Background command "Retry clicking Send and read Sam's chat" completed (exit code 0)</summary>
 </task-notification>
+
+## 2026-11-08 23:52 (dashboard)
+
+once you click send it should close the pop up.
