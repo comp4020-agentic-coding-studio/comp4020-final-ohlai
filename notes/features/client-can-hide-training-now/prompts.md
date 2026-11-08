@@ -13,3 +13,7 @@ Feature: Client can hide "Training now"
 ## 2026-11-08 17:09 (dashboard)
 
 change the checkbox to match the theme of the app not use the defualt
+
+## 2026-11-08 17:10 (dashboard)
+
+yea looks good please commit

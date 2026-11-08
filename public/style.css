@@ -548,7 +548,17 @@ html.theming, html.theming *, html.theming *::before, html.theming *::after {
   .pillnav .thumb, .pillnav a, .seg::before, .seg button,
   html.theming, html.theming *, html.theming *::before, html.theming *::after { transition: none !important; }
 }
-.notice input[type="checkbox"] { width: auto; margin-right: 6px; }
+.notice input[type="checkbox"] {
+  appearance: none; flex: none; position: relative; width: 44px; height: 26px; margin: 0 10px 0 0; border-radius: 999px;
+  background: var(--soft); border: 1px solid var(--line); cursor: pointer; vertical-align: middle; transition: background 0.25s ease;
+}
+.notice input[type="checkbox"]::before {
+  content: ""; position: absolute; top: 2px; left: 2px; width: 20px; height: 20px; border-radius: 50%;
+  background: var(--muted); transition: transform 0.25s cubic-bezier(0.3, 0.7, 0.4, 1), background 0.25s ease;
+}
+.notice input[type="checkbox"]:checked { background: var(--accent); border-color: var(--accent); }
+.notice input[type="checkbox"]:checked::before { transform: translateX(18px); background: var(--accent-ink); }
+@media (prefers-reduced-motion: reduce) { .notice input[type="checkbox"], .notice input[type="checkbox"]::before { transition: none; } }
 
 /* "Log out?" popup (ui.js logout) */
 html.locked { overflow: hidden; }
