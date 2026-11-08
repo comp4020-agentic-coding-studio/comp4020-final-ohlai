@@ -104,8 +104,11 @@
   .compose.multi textarea { width:100%; transition-delay:.08s, 0s; }
   .chat .hint { padding:6px 10px 10px; }
   @media (prefers-reduced-motion: reduce) { .compose, .compose textarea { transition:none; } }
-  /* The title row looks the same folded or not; details go underneath, lined up with the arrow. */
-  .details { padding-left:34px; margin-top:2px; }
+  /* The title row looks the same folded or not: everything sits at the top, and the
+     details wrap under the title, left of the time and status. */
+  .row.top { align-items:flex-start; }
+  .row.top .title { line-height:26px; }
+  .row.top .right { display:flex; gap:12px; align-items:center; height:26px; }
   #askDlg { max-width:min(440px, calc(100vw - 32px)); }
   #askDlg .body { font-size:14px; }
   /* Preview and its stop button share one outline, so nothing shifts when the app starts or stops. */
@@ -363,14 +366,14 @@ function card(f) {
     ${st.lastReply && !s.fb ? `<div class="reply md ${s.full ? "full" : ""}" data-act="expand" title="Click to show all of it">${md(st.lastReply)}</div>` : ""}
     ${st.denied?.length ? `<div class="msg bad">Blocked in the background run (open the session to allow):\n${esc(st.denied.join("\n"))}</div>` : ""}`;
   return `<div class="card" data-slug="${f.slug}">
-    <div class="row">
+    <div class="row top">
       ${bellBtn(f)}
-      <div class="grow head" data-act="collapse" title="${c ? "Show details" : "Fold to title, status and buttons"}">
+      <div class="grow"><div class="head" data-act="collapse" title="${c ? "Show details" : "Fold to title, status and buttons"}">
         <div class="title"><svg class="chev ${c ? "" : "open"} ${turned === f.slug ? "turn" : ""}" viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></svg>${esc(f.title)}${f.merged && cls !== "merged" ? " <span class='meta'>· merged</span>" : ""}</div>
-      </div>
-      ${head(f, cls, label, ago(st.at))}
+      </div>${c ? "" : details}</div>
+      <div class="right">${head(f, cls, label, ago(st.at))}</div>
     </div>
-    ${c ? "" : `<div class="details">${details}</div>${body}`}
+    ${c ? "" : body}
     ${s.fb && !c ? chatBox(f, s, cls) : ""}
     ${s.msg ? `<div class="msg ${s.cls}">${esc(s.msg)}</div>` : ""}
     ${actions(`<span class="split"><button data-act="${f.appUp ? "app" : "appstart"}" title="${f.appUp ? "Open this feature's app" : "Start this feature's app and open it"}">Preview ↗</button><button data-act="appstop" title="Stop this feature's app" ${f.appUp ? "" : "disabled"}>✕</button></span>

@@ -516,3 +516,11 @@ Follows the 2026-11-07 entry above. Built in `COMP4020/meta/`.
   seconds and moves the open chat into the new card, meaning to keep it as it
   was, but taking an element out of the page resets its scroll to the top.
   Now its scroll position is saved before each redraw and put back after.
+
+## 2026-11-08: Subtitle wraps before the time
+
+- Changes "Fixed title row" above. The details had gone on their own line
+  under the whole title row, so they ran underneath the time and status. Asked
+  for the subtitle to wrap before it gets under "just now" / "2h ago". The
+  details are back under the title, in the column left of the time and
+  status, and the row is aligned to the top so folding still moves nothing.
