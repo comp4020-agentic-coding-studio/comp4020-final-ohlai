@@ -380,6 +380,7 @@ const server = createServer(async (req, res) => {
       return send(res, 200, page("readme.html").toString().replace("@README@", md), "text/html");
     }
     if (req.method === "GET" && /^\/p\/[\w-]+$/.test(path)) return send(res, 200, page("program.html"), "text/html");
+    if (req.method === "GET" && /^\/join\/[\w-]+$/.test(path)) return send(res, 200, page("join.html"), "text/html");
     if (req.method === "GET" && /^\/chat\/\d+$/.test(path)) return send(res, 200, page("chat.html"), "text/html");
     if (req.method === "GET" && /^\/checkin\/\d+$/.test(path)) return send(res, 200, page("checkin.html"), "text/html");
     if (req.method === "GET" && /^\/fonts\/[\w-]+\.woff2$/.test(path)) {
@@ -671,15 +672,18 @@ const server = createServer(async (req, res) => {
             return done(`added it to ${JSON.stringify(me.name)}'s dashboard`);
           }
           if (p.client_user_id) return deny(409, "This program already has an account. Log in instead.");
-          let u = db.prepare("SELECT * FROM users WHERE email = ?").get(p.client_email);
+          // The invite page (/join) lets the client fix the name and email the PT typed.
+          const name = str(b.name, 80) ?? p.client_name, email = str(b.email) ?? p.client_email;
+          if (!EMAIL.test(email)) return deny(400, "Need a valid email.");
+          let u = db.prepare("SELECT * FROM users WHERE email = ?").get(email);
           if (u) {
             if (u.role !== "client" || (me?.id !== u.id && !pwOk(b.password ?? "", u.pass)))
-              return deny(403, `Wrong password for ${p.client_email}.`);
+              return deny(403, `Wrong password for ${email}.`);
           } else {
             if (String(b.password ?? "").length < 8) return deny(400, "Pick a password of at least 8 characters.");
-            u = addUser(p.client_name, p.client_email, "client", b.password);
+            u = addUser(name, email, "client", b.password);
           }
-          db.prepare("UPDATE programs SET client_user_id = ? WHERE id = ?").run(u.id, p.id);
+          db.prepare("UPDATE programs SET client_user_id = ?, client_name = ?, client_email = ? WHERE id = ?").run(u.id, name, email, p.id);
           startLogin(res, u);
           return done("set up their account");
         }

@@ -1,0 +1,53 @@
+<!doctype html>
+<html lang="en-AU" data-style="mono">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Join</title>
+  <link rel="stylesheet" href="/style.css" />
+  <script src="/theme.js"></script>
+</head>
+<!-- Where the invite link from "Onboard client" lands. The link is the program's
+     client link, so signing up here is the same claim as the banner on /p/. -->
+<body class="landing">
+<header class="site"><a href="/" class="brand">Program</a></header>
+<main class="narrow">
+  <form id="join" class="card" hidden>
+    <h1 id="hi">Hi</h1>
+    <p class="muted" id="sub"></p>
+    <label for="jName">Your name</label>
+    <input id="jName" autocomplete="name" maxlength="80" required />
+    <label for="jEmail">Email</label>
+    <input id="jEmail" type="email" autocomplete="email" required />
+    <label for="jPass">Password</label>
+    <input id="jPass" type="password" autocomplete="new-password" minlength="8" required />
+    <button class="primary wide" type="submit">Sign up</button>
+    <p class="muted">Already have an account? Use the same email and your password.</p>
+  </form>
+  <p id="err" class="error" role="alert"></p>
+</main>
+
+<script type="module">
+  import { $, api } from "/ui.js";
+  const tok = location.pathname.split("/").pop();
+  const [data, ok] = await api(`/api/p/${tok}`);
+  if (!ok || data.role !== "client") $("err").textContent = "This invite link doesn't work. Ask your PT to send it again.";
+  else if (data.claimed) location.replace("/login?next=/me");
+  else {
+    const p = data.program;
+    $("hi").textContent = `Hi ${p.client_name}`;
+    $("sub").textContent = `${p.pt_name} just invited you to join their gym app. Your program "${p.title}" is ready.`;
+    $("jName").value = p.client_name;
+    $("jEmail").value = p.client_email;
+    $("join").hidden = false;
+  }
+
+  $("join").onsubmit = async (e) => {
+    e.preventDefault();
+    const [res, ok] = await api(`/api/p/${tok}/claim`, { name: $("jName").value, email: $("jEmail").value, password: $("jPass").value });
+    if (!ok) { $("err").textContent = res.error; return; }
+    location.href = "/me";
+  };
+</script>
+</body>
+</html>

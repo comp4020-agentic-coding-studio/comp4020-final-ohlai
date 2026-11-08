@@ -16,7 +16,7 @@
     </div>
     <input type="search" id="q" placeholder="Search clients" aria-label="Search clients" />
     <button type="button" popovertarget="pv-export">Export <span class="pv-tag">Preview</span></button>
-    <a href="/programs" class="btn primary">Assign a program</a>
+    <button type="button" class="primary" id="onboard">Onboard client</button>
   </header>
 
   <section class="tiles" id="stats" aria-label="This week"></section>
@@ -65,6 +65,35 @@
 </main>
 
 <aside class="detail" id="detail" hidden aria-labelledby="d-name"></aside>
+
+<!-- Onboard a client: name, email and a saved program, then an invite link the PT emails from their own mail app. -->
+<dialog id="ob" class="confirm onboard" aria-labelledby="ob-title">
+  <form id="ob-form">
+    <h3 id="ob-title">Onboard client</h3>
+    <p>They get their own copy of the program and an invite to sign up.</p>
+    <label for="ob-name">Client name</label>
+    <input id="ob-name" maxlength="80" autocomplete="off" required />
+    <label for="ob-email">Client email</label>
+    <input id="ob-email" type="email" autocomplete="off" required />
+    <label for="ob-prog">Program</label>
+    <select id="ob-prog" required></select>
+    <p id="ob-none" hidden>Write a program first, then invite them to it. <a href="/programs/new">New program</a></p>
+    <p id="ob-err" class="error" role="alert"></p>
+    <div class="actions">
+      <button type="button" class="ob-cancel">Cancel</button>
+      <button type="submit" class="primary" id="ob-go">Create invite</button>
+    </div>
+  </form>
+  <section id="ob-done" hidden>
+    <h3>Invite ready</h3>
+    <p id="ob-done-text"></p>
+    <p class="share"><a id="ob-link" target="_blank"></a></p>
+    <div class="actions">
+      <button type="button" class="ob-cancel">Done</button>
+      <a id="ob-mail" class="btn primary">Email invite</a>
+    </div>
+  </section>
+</dialog>
 
 <div popover id="pv-export" class="pv">
   <h3>Export</h3>
@@ -118,8 +147,8 @@
     $("rows").replaceChildren(...(shown.length ? shown.map(row) : [el("tr", {}, el("td", { colSpan: 5, className: "empty" },
       c.length ? el("span", { className: "muted", textContent: "No clients match." }) : el("span", {},
         el("strong", { textContent: "No clients yet. " }),
-        el("span", { className: "muted", textContent: "Assign a program to a client and send them the link. They show up here. " }),
-        el("a", { href: "/programs", textContent: "Go to your programs" }))))]));
+        el("span", { className: "muted", textContent: "Onboard a client and send them the invite. They show up here. " }),
+        el("button", { type: "button", className: "linkish", textContent: "Onboard client", onclick: () => { onboard(); } }))))]));
 
     // Needs attention: the same flags as the table, written out.
     const items = c.flatMap((x) => [
@@ -171,7 +200,7 @@
 
   function open(id) { selected = id; render(); $("d-close")?.focus(); }
   function close() { selected = null; render(); }
-  addEventListener("keydown", (e) => e.key === "Escape" && selected && !document.querySelector(":popover-open") && close());
+  addEventListener("keydown", (e) => e.key === "Escape" && selected && !document.querySelector(":popover-open") && !$("ob").open && close());
 
   // Side panel: the detail behind each number in a client's row.
   function detail() {
@@ -212,6 +241,46 @@
       el("textarea", { rows: 3, placeholder: `Only you see this. Injuries, goals, what ${x.client_name} said last session…`, ariaLabel: "Private notes (preview, not saved)" }),
       el("p", { className: "muted", textContent: "Not saved yet. This is a preview of the idea." }));
   }
+
+  // Onboard: copies a saved program for the new client (same endpoint the
+  // Programs page used to assign from) and gives the PT an invite to email.
+  let me;
+  const ob = $("ob");
+  async function onboard() {
+    const [data] = await api("/api/templates");
+    const progs = data.templates ?? [];
+    $("ob-prog").replaceChildren(...progs.map((t) => el("option", { value: t.id, textContent: t.name })));
+    $("ob-none").hidden = !!progs.length;
+    $("ob-go").disabled = !progs.length;
+    $("ob-name").value = $("ob-email").value = $("ob-err").textContent = "";
+    $("ob-form").hidden = false;
+    $("ob-done").hidden = true;
+    document.documentElement.classList.add("locked");
+    ob.showModal();
+  }
+  $("onboard").onclick = () => { onboard(); };
+  for (const b of ob.querySelectorAll(".ob-cancel")) b.onclick = () => { ob.close(); };
+  ob.onclick = (e) => { if (e.target === ob) ob.close(); }; // click outside the box
+  ob.onclose = () => { document.documentElement.classList.remove("locked"); };
+
+  $("ob-form").onsubmit = async (e) => {
+    e.preventDefault();
+    const name = $("ob-name").value.trim(), email = $("ob-email").value.trim();
+    const prog = $("ob-prog").selectedOptions[0];
+    $("ob-go").disabled = true;
+    const [data, ok] = await api(`/api/templates/${prog.value}/assign`, { client_name: name, client_email: email });
+    $("ob-go").disabled = false;
+    if (!ok) { $("ob-err").textContent = data.error; return; }
+    me ??= (await api("/api/me"))[0].me;
+    const url = `${location.origin}/join/${data.clientToken}`;
+    $("ob-link").href = $("ob-link").textContent = url;
+    $("ob-done-text").textContent = `${name} is on your dashboard with ${prog.textContent}. Email them this invite from your own email:`;
+    // Written as the PT, since it goes from the PT's own email.
+    const msg = `Hi ${name},\n\nI've just invited you to join my gym app. Your program "${prog.textContent}" is ready for you. Sign up here and you can log your sets on your phone as you train:\n\n${url}\n\n${me.name}`;
+    $("ob-mail").href = `mailto:${encodeURIComponent(email)}?subject=${encodeURIComponent(`${me.name} invited you to their gym app`)}&body=${encodeURIComponent(msg)}`;
+    $("ob-form").hidden = true;
+    $("ob-done").hidden = false;
+  };
 
   $("q").oninput = render;
   for (const b of document.querySelectorAll("[data-filter]")) b.onclick = () => {

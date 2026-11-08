@@ -63,6 +63,23 @@ it("rejects a program with no exercises, or from someone not logged in as a PT",
   expect((await api("/api/programs", body)).status).toBe(401);
 });
 
+it("an invite link opens the sign-up page, and the client can fix the name and email the PT typed", async () => {
+  const { pt, clientToken } = await program();
+  const page = await api(`/join/${clientToken}`);
+  expect(page.status).toBe(200);
+  expect(await page.text()).toContain("Sign up");
+  const email = `fixed-${unique()}@example.com`;
+  expect((await api(`/api/p/${clientToken}/claim`, { name: "Ana", email: "not-an-email", password: "password123" })).status).toBe(400);
+  const joined = await api(`/api/p/${clientToken}/claim`, { name: "Ana", email, password: "password123" });
+  expect(joined.status).toBe(200);
+  expect((await joined.json()).program).toMatchObject({ client_name: "Ana", client_email: email });
+  expect((await api("/api/login", { email, password: "password123" })).status).toBe(200);
+  const dash = await (await api("/api/dash", undefined, pt)).json();
+  expect(dash.clients.map((c: { client_name: string }) => c.client_name)).toContain("Ana");
+  // The invite only works once.
+  expect((await api(`/api/p/${clientToken}/claim`, { password: "password123" })).status).toBe(409);
+});
+
 it("a PT's dashboard shows their own clients and nobody else's", async () => {
   const a = await program();
   const b = await signupPT("Other PT");

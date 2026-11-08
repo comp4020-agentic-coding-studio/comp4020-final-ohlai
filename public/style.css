@@ -572,3 +572,8 @@ html.locked { overflow: hidden; }
 @keyframes confirm-in { from { opacity: 0; transform: translateY(12px) scale(0.96); } }
 @keyframes confirm-fade { from { opacity: 0; } }
 @media (prefers-reduced-motion: reduce) { .confirm[open], .confirm::backdrop { animation: none; } }
+/* "Onboard client" popup on the dashboard: the same popup, a bit wider for a form */
+.confirm.onboard { width: min(440px, calc(100% - 32px)); }
+.confirm.onboard .actions > * { flex: 1; text-align: center; }
+.confirm.onboard .error:not(:empty), .confirm.onboard .share { margin-top: 10px; }
+.confirm.onboard #ob-none { margin-top: 10px; }
