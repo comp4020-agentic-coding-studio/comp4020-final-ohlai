@@ -276,6 +276,9 @@ a.back { display: inline-grid; place-items: center; text-decoration: none; }
 .narrowbtn { flex: 0 0 auto !important; }
 a.card.link { display: flex; justify-content: space-between; align-items: center; gap: 12px; color: var(--ink); text-decoration: none; }
 .actions.top { gap: 8px; }
+.day-actions { display: flex; gap: 6px; flex: 0 0 auto; }
+.day-actions:empty { display: none; }
+.day-actions button { min-height: 36px; }
 
 /* ---------- PT dashboard: a desktop app, not a stretched phone ----------
    Sidebar, then the main column; a client's detail opens as a popup over the

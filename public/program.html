@@ -12,6 +12,7 @@
   <section id="workout">
     <div class="topbar">
       <h1 id="title">Loading…</h1>
+      <div class="day-actions" id="dayActions"></div>
     </div>
     <p class="sub" id="sub"></p>
     <div class="actions top" id="actions"></div>
@@ -178,6 +179,7 @@
     document.title = program.title;
     $("tabs").hidden = true;
     $("actions").replaceChildren();
+    $("dayActions").replaceChildren();
     clearInterval(durationTick);
     renderBanner();
 
@@ -187,9 +189,10 @@
     if (role === "client") {
       $("title").textContent = open.day;
       $("sub").textContent = `${program.title}, from ${program.pt_name}. Tick each set as you finish it.`;
-      $("actions").append(
-        el("button", { type: "button", textContent: "Discard", onclick: async () => { if (await ask("Discard this workout?", "Its sets go too.", "Discard")) act("discard"); } }),
-        el("button", { type: "button", className: "primary", textContent: "Finish", onclick: finish }));
+      // Small, on the day's name line, so they don't take a row of their own.
+      $("dayActions").append(
+        el("button", { type: "button", className: "small", textContent: "Discard", onclick: async () => { if (await ask("Discard this workout?", "Its sets go too.", "Discard")) act("discard"); } }),
+        el("button", { type: "button", className: "small primary", textContent: "Finish", onclick: finish }));
       const cur = all.find((w) => w.id === open.id)?.logs ?? [];
       const drawStats = () => $("stats").replaceChildren(...[
         ["Duration", `${Math.max(0, Math.floor((Date.now() - utc(open.started_at)) / 60000))} min`],
