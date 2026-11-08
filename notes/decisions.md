@@ -556,3 +556,11 @@ Follows the 2026-11-07 entry above. Built in `COMP4020/meta/`.
 - The model lists now say "Claude Code's default (Opus 5.5)", and New
   feature's first option says "Agent default (Opus 5.5, Claude Code's
   default)" rather than putting brackets inside brackets.
+
+## 2026-11-08: New feature's model option is just "Agent default"
+
+- Changes the entry above. New feature's first option said "Agent default
+  (Opus 5.5, Claude Code's default)". I said two defaults stacked in one
+  setting looks weird and asked for just "Agent default". It no longer names
+  a model at all, even when the agent default is set to one. The Agent
+  defaults popup still says "Claude Code's default (Opus 5.5)".

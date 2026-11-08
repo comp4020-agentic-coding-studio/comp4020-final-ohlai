@@ -674,17 +674,16 @@ document.addEventListener("wheel", (e) => {
   e.preventDefault();
   body.scrollTop += e.deltaMode === 1 ? e.deltaY * 16 : e.deltaY;
 }, { passive: false });
-let MODELS = {}, DEF = null, CC = ""; // CC: the model Claude Code defaults to, when known
+let MODELS = {}, DEF = null;
 function modelOptions(sel, withDefault) {
   const opts = Object.entries(MODELS).filter(([id]) => id || !withDefault);
-  return (withDefault ? `<option value="">Agent default (${DEF.model ? esc(MODELS[DEF.model]) : CC ? esc(CC) + ", Claude Code's default" : "Claude Code's default"})</option>` : "")
+  return (withDefault ? `<option value="">Agent default</option>` : "")
     + opts.map(([id, name]) => `<option value="${id}" ${id === sel ? "selected" : ""}>${esc(name)}</option>`).join("");
 }
 // "Claude Code's default" also says which model that is, when it's known.
 function setModels(r) {
   MODELS = { ...r.models };
   const id = r.claudeDefault, name = id && (Object.entries(r.models).find(([k]) => k && id.startsWith(k))?.[1] || id);
-  CC = name || "";
   if (name) MODELS[""] += ` (${name})`;
   DEF = r.values;
 }
