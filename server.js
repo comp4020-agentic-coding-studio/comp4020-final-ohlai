@@ -129,6 +129,18 @@ db.exec(`
     created_at TEXT NOT NULL DEFAULT (datetime('now'))
   );
 `);
+// A PT's private notes on a client: one free-text note per PT and client email,
+// so every program that client has with the PT shows the same note. Only ever
+// sent to that PT (on /api/dash), never to a link or a client login.
+db.exec(`
+  CREATE TABLE IF NOT EXISTS client_notes (
+    pt_user_id INTEGER NOT NULL REFERENCES users(id),
+    client_email TEXT NOT NULL COLLATE NOCASE,
+    body TEXT NOT NULL,
+    updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+    PRIMARY KEY (pt_user_id, client_email)
+  );
+`);
 if (!hasColumn("users", "checkin_questions")) db.exec("ALTER TABLE users ADD COLUMN checkin_questions TEXT");
 if (!hasColumn("users", "show_training")) db.exec("ALTER TABLE users ADD COLUMN show_training INTEGER NOT NULL DEFAULT 1");
 const DEFAULT_QUESTIONS = [
@@ -332,6 +344,8 @@ function dashRow(p) {
     client_name: f.program.client_name,
     client_email: f.program.client_email,
     client_user_id: p.client_user_id,
+    // dashRow is only for the PT's own dashboard, so the private note can go here.
+    note: db.prepare("SELECT body FROM client_notes WHERE pt_user_id = ? AND client_email = ?").get(p.pt_user_id, p.client_email)?.body ?? "",
     last_workout: last,
     // The client can hide "Training now"; the PT is told it's hidden, not just shown nothing.
     training_hidden: hidden,
@@ -467,6 +481,26 @@ const server = createServer(async (req, res) => {
       // Whoever has gone longest without training comes first.
       rows.sort((a, b) => (a.last_workout ?? "").localeCompare(b.last_workout ?? ""));
       return send(res, 200, { me, clients: rows });
+    }
+
+    // ---------- private notes: the PT's own note on one of their clients ----------
+    if (req.method === "POST" && path === "/api/notes") {
+      if (me?.role !== "pt") {
+        audit(asUser(me), "notes", 401, "not logged in as a PT");
+        return send(res, 401, { error: "Log in as a PT to keep notes." });
+      }
+      const b = await readJson(req);
+      const email = str(b.email), body = typeof b.body === "string" ? b.body.slice(0, 10_000) : null;
+      const p = email && db.prepare("SELECT client_name FROM programs WHERE pt_user_id = ? AND client_email = ? COLLATE NOCASE").get(me.id, email);
+      if (!p || body === null) {
+        audit(asUser(me), "notes", 404, "no such client");
+        return send(res, 404, { error: "That's not one of your clients." });
+      }
+      db.prepare(`INSERT INTO client_notes (pt_user_id, client_email, body) VALUES (?,?,?)
+        ON CONFLICT (pt_user_id, client_email) DO UPDATE SET body = excluded.body, updated_at = datetime('now')`).run(me.id, email, body);
+      // The note's text stays out of the log; it's private.
+      audit(asUser(me), "notes", 200, `edited private notes on ${JSON.stringify(p.client_name)} (${body.length} chars)`);
+      return send(res, 200, { note: body });
     }
 
     // ---------- CSV export: one row per logged set, the PT's own clients only ----------
