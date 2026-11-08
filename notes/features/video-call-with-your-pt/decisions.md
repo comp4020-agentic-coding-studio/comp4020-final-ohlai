@@ -20,3 +20,19 @@ Newest at the bottom. Same format as `notes/decisions.md`.
 - Put it in the chat compose bar, next to the photo button, so it shows up
   everywhere a chat does. Calls ring on every client app page and PT page.
   Not asked about; easy to move if I want it somewhere else.
+
+## 2026-11-09: Call layout, buttons, where Call goes on a phone
+
+- **Call popup layout.** Before: one video filling the box, your camera in
+  the corner and the text and buttons laid over it. Picked a bento layout:
+  separate tiles for their video, your camera, and the status + End. Why: to
+  see the whole image the client sends, not covered by your own face or text.
+- **End button.** A rounded square outside the video, not on top of it.
+- **Compose bar.** Icon buttons and their backgrounds all the same size.
+- **Call button on mobile.** Moved from beside the text box to the top of
+  the screen (top right of the chat page and of the program page's chat
+  drawer). The PT's desktop chats keep it in the compose bar, since this was
+  asked for mobile only.
+- **Deploy.** First asked for commit and deploy, then changed to: Claude
+  commits, I merge and deploy myself from the dashboard so I can try it.
+  That also matches the rule that feature sessions never touch main.

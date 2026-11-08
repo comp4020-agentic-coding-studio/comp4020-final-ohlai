@@ -22,6 +22,7 @@
   import { mountChat } from "/chat.js";
 
   const chat = mountChat($("chat"), location.pathname.split("/").pop(), {
+    top: document.querySelector(".topbar"),
     onLoad(data, error) {
       if (!data) return error === "No conversation with that person." ? ($("title").textContent = error) : toLogin();
       if (data.me.role === "pt") window.setDefaultView?.("desktop");

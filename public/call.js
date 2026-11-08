@@ -9,12 +9,18 @@ import { el } from "/ui.js";
 const ICE = [{ urls: "stun:stun.l.google.com:19302" }];
 let pc = null, stream = null, peer = null, offer = null, queued = [];
 
-const remote = el("video", { autoplay: true, playsInline: true });
+// Bento layout: the other person's video in its own tile, shown whole
+// (nothing on top of it), your camera and the controls in tiles beside it.
+const remote = el("video", { autoplay: true, playsInline: true, className: "them" });
 const local = el("video", { autoplay: true, playsInline: true, muted: true, className: "self" });
 const status = el("p", { className: "call-status", role: "status" });
 const answer = el("button", { type: "button", className: "primary", textContent: "Answer" });
-const end = el("button", { type: "button", textContent: "End" });
-const box = el("dialog", { className: "call", ariaLabel: "Video call" }, remote, local, status, el("div", { className: "actions" }, answer, end));
+const end = el("button", { type: "button", className: "end", textContent: "End" });
+const box = el("dialog", { className: "call", ariaLabel: "Video call" },
+  el("div", { className: "tile them-tile" }, remote),
+  el("div", { className: "call-side" },
+    el("div", { className: "tile self-tile" }, local),
+    el("div", { className: "tile call-panel" }, status, el("div", { className: "actions" }, answer, end))));
 document.body.append(box);
 
 const send = (signal, to = peer) => !to ? Promise.resolve({}) :
@@ -27,7 +33,7 @@ async function start() {
   pc = new RTCPeerConnection({ iceServers: ICE });
   for (const t of stream.getTracks()) pc.addTrack(t, stream);
   pc.onicecandidate = (e) => { if (e.candidate) send({ kind: "ice", candidate: e.candidate }); };
-  pc.ontrack = (e) => { remote.srcObject = e.streams[0]; status.textContent = ""; };
+  pc.ontrack = (e) => { remote.srcObject = e.streams[0]; status.textContent = `On a call with ${peer?.name ?? ""}`; };
   pc.onconnectionstatechange = () => {
     if (pc?.connectionState === "failed") status.textContent = "Couldn't connect. One of your networks may block video calls.";
   };

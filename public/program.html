@@ -111,6 +111,7 @@
     if (!other || chat) return;
     $("chatTitle").textContent = program.pt_name;
     chat = mountChat($("chatBody"), other, {
+      top: $("chatTitle").parentElement,
       onLoad: (data) => data || $("chatBody").replaceChildren(el("p", { className: "muted pad" }, "Log in to send messages. ",
         el("button", { type: "button", textContent: "Log in", onclick: toLogin }))),
     });

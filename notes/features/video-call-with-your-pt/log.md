@@ -62,3 +62,54 @@ Imported word for word from the board in `notes/features.md` on 2026-11-08, when
   - `pnpm check`: 20 tests pass. Claude did not look at the call popup in a
     browser (no browser tool in this session) and can't test real video
     without two devices with cameras, so I need to try it on two devices.
+
+- 2026-11-09 01:05: I tried it locally and it worked. I said: "just move the
+  end button from overlay on the video (on the pt side) to outside the
+  overlay (it shuold also be an a rounded square button) also move the
+  reflection of your camera to outside the incoming video, (kinda like a
+  bento box) This is to see the whole image of what your client is sending
+  you and not covering anything up with your own face or text. Also please
+  make the icons and button bgs the same size when in messenger. And on
+  mobile actually move the start video call button up the top of the screen
+  instead of in line with the text input. then commit and deploy"
+  - Before: the call popup was one video filling the box, with your camera
+    small in its top-right corner and the status text and Answer/End buttons
+    laid over the video. Now it's a bento grid of tiles: the other person's
+    video in a big tile on its own, shown whole (`object-fit: contain`, so
+    nothing is cropped) with nothing on top; your camera (mirrored) in a
+    smaller tile; and a panel tile with the status line and the Answer/End
+    buttons as rounded squares (12px radius). On desktop the tiles sit to the
+    right of the video; on a phone they go below it, side by side. End uses
+    the `--warn` token. My reason: to see the whole image the client sends
+    without your own face or text covering any of it.
+  - Before: the call and photo buttons in the chat compose bar were
+    different sizes, and the photo button sat a few px low (it's a `<label>`,
+    which gets the global label top margin). Now both are 46px squares and
+    the text box and Send are 46px tall too.
+  - Before: the client's Call button was in the compose bar next to the text
+    box. Now on the client's screens it sits top right: in the top bar on
+    the chat page, and in the drawer header (before the close button) on the
+    program page. `mountChat` takes a `top` option for this. The PT's inbox
+    and dashboard chat keep it in the compose bar, since I only asked for
+    mobile.
+  - Merged main into this branch first (`Merge main into
+    feat/video-call-with-your-pt`), since main had moved on about 10 merges
+    and deploying this branch alone would have rolled those back.
+  - Checked with two headless Chromes with fake cameras, driven over Chrome's
+    DevTools protocol by a throwaway script outside the repo (not committed):
+    PT at 1366px, client at 390px, light and dark. Client calls, PT answers,
+    video plays both ways (640x480 each side), End doesn't overlap the
+    video, no sideways scroll on the phone, PT pressing End closes the call
+    on the client too.
+  - Got wrong / still open: one early test run failed with "Failed to parse
+    SessionDescription" on the PT side when answering. The next runs
+    connected fine with no errors and I couldn't get it to happen again, so
+    the cause isn't known. Possibly the script clicked Answer before the
+    page was ready. Worth watching for when I test on real devices.
+  - A batch of four repeat runs got cut off when the session ended, and the
+    headless Chrome windows from it may still be running (Claude couldn't
+    stop them without approval). Harmless, close them from Task Manager.
+  - Deploy: I said commit and deploy, then changed it to "yep commit then
+    ill merge it in and deploy and give it a go". So Claude committed on the
+    feature branch only; I merge and deploy from the dashboard.
+  - `pnpm check`: 20 tests pass.
