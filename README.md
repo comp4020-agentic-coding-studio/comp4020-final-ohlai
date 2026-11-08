@@ -4,9 +4,20 @@ A PT writes a training program and invites a client to it. The client logs
 every set on their phone at the gym, and the PT sees what was actually lifted,
 as it's lifted.
 
-To try it, log in as the demo PT, `oli@example.com`, or the demo client,
-`jack@example.com`. Both use the password `demo1234`, public on purpose. Use
-two browsers to see both sides at once.
+To try it, log in as the demo PT, `marker@example.com`. Sam has five clients,
+each showing a different part of the app:
+
+| Client | Login | What it shows |
+| --- | --- | --- |
+| Priya Shah | `priya.demo@example.com` | Moving well, changed program 3 weeks ago, check-ins, a private note, an unread message |
+| Tom Nguyen | `tom.demo@example.com` | Bench and squat stalled for a month |
+| Mia Roberts | `mia.demo@example.com` | No workout in 10 days, so she's on the nudge list |
+| Ben Carter | `ben.demo@example.com` | Mid-workout, so "Training now" is on Sam's dashboard |
+| Chloe Martin | none | Invited, hasn't signed up yet |
+
+Every login uses the password `demo1234`, public on purpose. Use two browsers
+to see both sides at once. There's also a smaller pair, `oli@example.com` (PT)
+and `jack@example.com` (client), same password.
 
 ## What good means here
 
