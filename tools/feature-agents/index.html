@@ -46,8 +46,6 @@
   button.primary { background:var(--fg); color:var(--bg); border-color:var(--fg); }
   textarea, input[type=text], input[type=search] { font:inherit; width:100%; padding:8px 10px; border-radius:7px; border:1px solid var(--line); background:var(--bg); color:var(--fg); }
   textarea { min-height: 70px; resize: vertical; }
-  .refs { display:flex; flex-wrap:wrap; gap:6px 14px; font-size:13px; }
-  .refs label { display:inline-flex; gap:5px; align-items:center; cursor:pointer; }
   .hint { color: var(--mute); font-size:12px; }
   .msg { margin-top:8px; font-size:13px; white-space:pre-wrap; }
   .msg.bad { color: var(--bad); } .msg.good { color: var(--idle); }
@@ -72,11 +70,11 @@
   .chev { display:inline-block; width:14px; color:var(--mute); font-size:11px; }
   .filters { display:flex; gap:10px; align-items:center; flex-wrap:wrap; margin-bottom:12px; }
   .chips { display:flex; gap:6px; flex-wrap:wrap; flex:1; }
-  .chips button { border-radius:99px; padding:4px 11px; font-size:12.5px; }
+  .chips button { border-radius:8px; padding:4px 11px; font-size:12.5px; }
   .chips button.on { background:var(--fg); color:var(--bg); border-color:var(--fg); }
   .chips .n { opacity:.6; margin-left:4px; }
   #search { width:200px; }
-  .planned .dot { background:var(--work); opacity:.5; } .dropped .dot { background:var(--mute); } .done .dot { background:var(--fg); }
+  .planned .dot { background:var(--work); opacity:.5; } .dropped .dot { background:var(--mute); }
   .dropped { opacity:.75; }
   .plan { margin-top:8px; padding:2px 12px; border-left:3px solid var(--line); font-size:13px; }
   .chat { margin-top:10px; border:1px solid var(--line); border-radius:8px; }
@@ -87,6 +85,18 @@
   .bubble.dashboard { align-self:flex-end; background:none; border:1px dashed var(--line); color:var(--mute); }
   .bubble .who { font-size:11px; opacity:.65; margin-top:4px; }
   .chat textarea { border:0; border-top:1px solid var(--line); border-radius:0 0 8px 8px; }
+  /* Preview and its stop button share one outline, so nothing shifts when the app starts or stops. */
+  .split { display:inline-flex; border:1px solid var(--line); border-radius:7px; }
+  .split:hover { border-color:var(--mute); }
+  .split button { border:0; border-radius:0; background:none; }
+  .split button + button { border-left:1px solid var(--line); padding:6px 9px; }
+  .split button:disabled { opacity:.3; cursor:default; }
+  .actions { margin-top:10px; }
+  /* @ mentions: the list of matching features under the box you are typing in. */
+  #mention { position:absolute; z-index:10; background:var(--card); border:1px solid var(--line); border-radius:8px; box-shadow:0 4px 16px rgba(0,0,0,.12); padding:4px; min-width:260px; max-width:420px; }
+  #mention div { padding:5px 9px; border-radius:6px; cursor:pointer; font-size:13px; }
+  #mention div.on { background:var(--fg); color:var(--bg); }
+  #mention small { opacity:.6; margin-left:6px; }
   button.sq { width:30px; height:30px; padding:0; display:inline-grid; place-items:center; }
 </style>
 </head>
@@ -119,8 +129,8 @@
   <div class="card" id="addBox" hidden>
     <div style="display:grid; gap:8px">
       <input type="text" id="title" placeholder="Feature name, e.g. Client can hide Training now">
-      <textarea id="prompt" placeholder="What you want and why. Saved word for word in the feature's notes. Optional if you're only planning it."></textarea>
-      <div id="addRefsWrap" hidden><div class="hint" style="margin-bottom:4px">Related features. The agent reads their notes first.</div><div class="refs" id="addRefs"></div></div>
+      <textarea id="prompt" data-mention placeholder="What you want and why. Saved word for word in the feature's notes. Optional if you're only planning it."></textarea>
+      <div class="hint">@ to tag a related feature. The agent reads their notes first.</div>
       <div class="row"><button class="primary" id="add">Start agent now</button><button id="addPlan" title="Records it on main without a branch or agent. Start it later from its card.">Save as planned</button><button id="addCancel">Cancel</button><span class="msg" id="addMsg"></span></div>
     </div>
   </div>
@@ -131,6 +141,7 @@
   </div>
   <div id="list"></div>
 </main>
+<div id="mention" hidden></div>
 <script>
 const $ = (s, el = document) => el.querySelector(s);
 const esc = (s) => String(s ?? "").replace(/[&<>"]/g, (c) => ({ "&":"&amp;", "<":"&lt;", ">":"&gt;", '"':"&quot;" }[c]));
@@ -198,30 +209,40 @@ const ago = (iso) => { if (!iso) return ""; const s = (Date.now() - new Date(iso
 const day = (iso) => (iso ? iso.slice(0, 10) : "");
 const api = async (url, body) => { const r = await fetch(url, body === undefined ? {} : { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body) }); return r.json(); };
 
-// UI state kept across re-renders: open boxes, drafts, messages, ticked refs.
+// UI state kept across re-renders: open boxes, drafts, messages.
 const ui = {};
-const u = (slug) => (ui[slug] ??= { fb: false, draft: "", msg: "", cls: "", full: false, notes: false, reopen: false, rtitle: "", rprompt: "", refs: new Set(), edit: false, etitle: null, eprompt: null });
-// Filters, remembered per browser.
+const u = (slug) => (ui[slug] ??= { fb: false, draft: "", msg: "", cls: "", full: false, notes: false, reopen: false, rtitle: "", rprompt: "", edit: false, etitle: null, eprompt: null });
+// Filters, remembered per browser. Waiting = an agent has stopped and it's my
+// turn (it finished, needs me, or was interrupted), as opposed to working.
 let filter = store.get("filter", "active");
-const GROUPS = { active: ["planned", "building", "merged"], planned: ["planned"], building: ["building"], merged: ["merged"], done: ["done"], dropped: ["dropped"], all: null };
-const GROUP_NAMES = { active: "Active", planned: "Planned", building: "Building", merged: "Merged", done: "Done", dropped: "Dropped", all: "All" };
-const addRefs = new Set();
+const WAITING = ["needs-you", "idle", "closed", "interrupted", "error", "not-started", "failed"];
+const GROUPS = { all: () => true, active: (f) => ["planned", "building"].includes(f.status), waiting: (f) => f.status === "building" && WAITING.includes(status(f)[0]), planned: (f) => f.status === "planned", merged: (f) => f.status === "merged", dropped: (f) => f.status === "dropped" };
+const GROUP_NAMES = { all: "All", active: "Active", waiting: "Waiting", planned: "Planned", merged: "Merged", dropped: "Dropped" };
+const GROUP_TIPS = { all: "Every feature", active: "Planned or being built", waiting: "An agent has stopped and it's your turn", planned: "No branch or agent yet", merged: "In main", dropped: "Kept on record, not doing it" };
+if (!GROUPS[filter]) filter = "active";
 let all = [];
 
 function status(f) {
-  if (!f.worktree) return [f.status, f.status === "merged" ? "merged" : f.status];
+  if (!f.worktree) return [f.status, f.status];
   if (f.setup && f.setup !== "ready") {
     if (f.setup.startsWith("failed")) return ["failed", "setup failed"];
     return f.settingUp ? ["working", "setting up: " + f.setup] : ["interrupted", "setup stopped at: " + f.setup];
   }
   const s = f.live?.state;
   // Once merged, that's the news, unless the agent is busy or needs you again.
-  if (f.merged && !["working", "needs-you", "interrupted", "error"].includes(s)) return f.done ? ["merged", "done"] : ["merged", "merged"];
+  if (f.merged && !["working", "needs-you", "interrupted", "error"].includes(s)) return ["merged", "merged"];
   return [s, { working: f.live.background ? "working (background)" : "working", "needs-you": "needs you", idle: "idle, open", closed: "idle", error: "error", interrupted: "interrupted", "not-started": "never started" }[s] || "no session"];
 }
 
-const refBoxes = (selected, exclude) => all.filter((x) => x.slug !== exclude).map((x) =>
-  `<label><input type="checkbox" data-ref="${x.slug}" ${selected.has(x.slug) ? "checked" : ""}> ${esc(x.title)}</label>`).join("");
+const MENTION_HINT = `<div class="hint">@ to tag a related feature. The agent reads their notes first.</div>`;
+const port = (slug) => all.find((x) => x.slug === slug).port;
+// Time, status, then the bell, in that order on every card.
+const head = (f, cls, label, when) => `<span class="meta">${when}</span>
+      <span class="pill ${cls}"><span class="dot"></span>${esc(label)}</span>
+      ${mode === "select" && f.worktree ? `<button class="sq ${bells.has(f.slug) ? "on" : ""}" data-act="bell" title="${bells.has(f.slug) ? "Notifying you about this feature. Click to stop." : "Notify me about this feature"}">${bells.has(f.slug) ? ICON.all : ICON.bell}</button>` : ""}`;
+// Every card ends with the same row: everyday buttons on the left, the one
+// that moves the feature on (in black) on the right.
+const actions = (left, right) => `<div class="row actions">${left}<span class="grow" style="min-width:0"></span>${right}</div>`;
 
 function card(f) {
   const st = f.st || {}; const [cls, label] = status(f); const s = u(f.slug);
@@ -233,9 +254,8 @@ function card(f) {
   else if (cls === "interrupted" || cls === "error") banner = `<div class="banner">${cls === "error" ? "The last background run failed or was stopped. Its output is below." : "This agent stopped mid-turn: the dashboard, the PC or its terminal closed before it finished."} Anything it changed is still there, but may not be committed.<div class="row" style="margin-top:8px"><button class="primary" data-act="resume-bg">Carry on in the background</button><button data-act="resume-term">Carry on in a terminal</button></div></div>`;
   else if (cls === "working" && !f.live?.background && st.at && Date.now() - Date.parse(st.at) > 5 * 60e3) banner = `<div class="banner">No activity from this agent for ${ago(st.at).replace(" ago", "")}. It's probably waiting for you to approve something in its terminal tab ("${esc(f.slug)}").</div>`;
   else if (cls === "not-started") banner = `<div class="banner">The terminal tab for this feature never started a session. <button data-act="resume-term">Start it now</button></div>`;
-  const others = all.filter((x) => x.slug !== f.slug).map((x) => "@" + x.slug);
   const c = collapsed.has(f.slug);
-  const details = `<div class="meta">${esc(f.branch)} · ${git}${f.lastCommit ? " · last: " + esc(f.lastCommit) : ""}</div>
+  const details = `<div class="meta">created ${day(f.created)} · ${esc(f.branch)} · ${git}${f.lastCommit ? " · last: " + esc(f.lastCommit) : ""}</div>
         ${spent(f.usage) ? `<div class="meta">${spent(f.usage)}</div>` : ""}
         ${prev ? `<div class="meta">Continues “${esc(prev.title)}”</div>` : ""}`;
   const body = `${st.activity && cls === "working" ? `<div class="activity" style="margin-top:6px">${esc(st.activity)}</div>` : ""}
@@ -248,27 +268,21 @@ function card(f) {
         <div class="title"><span class="chev">${c ? "▸" : "▾"}</span>${esc(f.title)}${f.merged && cls !== "merged" ? " <span class='meta'>· merged</span>" : ""}</div>
         ${c ? "" : details}
       </div>
-      <span class="pill ${cls}"><span class="dot"></span>${esc(label)}</span>
-      <span class="meta">${ago(st.at)}</span>
-      ${mode === "select" ? `<button class="sq ${bells.has(f.slug) ? "on" : ""}" data-act="bell" title="${bells.has(f.slug) ? "Notifying you about this feature. Click to stop." : "Notify me about this feature"}">${bells.has(f.slug) ? ICON.all : ICON.bell}</button>` : ""}
+      ${head(f, cls, label, ago(st.at))}
     </div>
     ${c ? "" : body}
-    <div class="row" style="margin-top:10px">
-      <button data-act="open">Open session</button>
-      ${f.appUp ? `<button data-act="app">Preview ↗</button><button data-act="appstop" title="Stop this feature's app">Stop app</button>` : `<button data-act="appstart">Start preview</button>`}
+    ${actions(`<button data-act="open">Open session</button>
+      <span class="split"><button data-act="${f.appUp ? "app" : "appstart"}" title="${f.appUp ? "Open this feature's app" : "Start this feature's app and open it"}">Preview ↗</button><button data-act="appstop" title="Stop this feature's app" ${f.appUp ? "" : "disabled"}>✕</button></span>
       <button data-act="fb">${s.fb ? "Hide chat" : "Chat"}${st.queue?.length ? ` (${st.queue.length} waiting)` : ""}</button>
       <button data-act="notes">${s.notes ? "Hide notes" : "Notes"}</button>
-      <span class="grow"></span>
-      ${!f.merged ? `<button data-act="merge">Check and merge</button>` : ""}
-      ${f.merged && !f.done ? `<button data-act="done">Move to Done</button>` : ""}
-      ${f.merged ? `<button data-act="remove">Remove worktree</button>` : ""}
-    </div>
+      ${!f.merged ? `<button data-act="drop" title="A bad idea: stop it and keep it on record as dropped">Drop</button>` : ""}`,
+      !f.merged ? `<button class="primary" data-act="merge">Check and merge</button>` : `<button class="primary" data-act="remove">Remove worktree</button>`)}
     ${s.fb && !c ? `<div class="chat">
       <div class="thread" data-chat></div>
-      <textarea data-field="draft" placeholder="Message the agent. Saved word for word in its prompts.md. Ctrl+Enter sends.">${esc(s.draft)}</textarea>
+      <textarea data-field="draft" data-mention placeholder="Message the agent. Saved word for word in its prompts.md. Ctrl+Enter sends.">${esc(s.draft)}</textarea>
       <div class="row" style="padding:6px 10px 10px">
         <button class="primary" data-act="send">Send</button>
-        <span class="hint grow">${f.live?.open ? "Its terminal is open. Sending closes that terminal session and carries on here (the conversation is kept)." : f.live?.background || cls === "working" ? "It's mid-turn. Your message waits and goes as soon as this turn ends." : ""}${others.length ? ` Write ${others.slice(0, 3).map((x) => `<code>${esc(x)}</code>`).join(", ")}${others.length > 3 ? "…" : ""} to point it at another feature's notes.` : ""}</span>
+        <span class="hint grow">${f.live?.open ? "Its terminal is open. Sending closes that terminal session and carries on here (the conversation is kept). " : f.live?.background || cls === "working" ? "It's mid-turn. Your message waits and goes as soon as this turn ends. " : ""}@ to tag a related feature. The agent reads their notes first.</span>
       </div>
     </div>` : ""}
     ${s.msg ? `<div class="msg ${s.cls}">${esc(s.msg)}</div>` : ""}
@@ -283,32 +297,36 @@ function simpleCard(f) {
   const [cls, label] = status(f);
   const later = all.filter((x) => x.continues === f.slug);
   const prev = f.continues && all.find((x) => x.slug === f.continues);
-  const when = [f.created && "created " + day(f.created), f.merged && "merged " + day(f.merged), f.done && "done " + day(f.done), f.dropped && "dropped " + day(f.dropped), f.imported && "imported from the old board"].filter(Boolean).join(" · ");
+  const when = ["created " + day(f.created), f.merged && "merged " + day(f.merged), f.dropped && "dropped " + day(f.dropped)].filter(Boolean).join(" · ");
   const planned = f.status === "planned";
+  // A feature dropped part way through still has its folder until removed.
+  const leftover = f.status === "dropped" && f.dir && !f.removed;
   return `<div class="card past ${cls}" data-slug="${f.slug}">
     <div class="row">
       <div class="grow">
         <div class="title">${esc(f.title)}</div>
         <div class="meta">${when}${spent(f.usage) ? " · " + spent(f.usage) : ""}${prev ? ` · continues “${esc(prev.title)}”` : ""}${later.length ? " · continued in " + later.map((x) => "“" + esc(x.title) + "”").join(", ") : ""}</div>
       </div>
-      <span class="pill ${cls}"><span class="dot"></span>${esc(label)}</span>
-      ${planned ? `<button class="primary" data-act="start" title="Make its branch and start an agent on what it says">Start agent</button><button data-act="edit">Edit</button>` : ""}
-      <button data-act="notes">${s.notes ? "Hide notes" : "Notes"}</button>
-      ${planned ? `<button data-act="drop" title="Keep it on record as dropped">Drop</button>` : `<button data-act="reopen">Reopen</button>`}
+      ${head(f, cls, label, "")}
     </div>
-    ${planned && !s.edit ? (f.prompt ? `<div class="plan md">${md(f.prompt)}</div>` : `<div class="hint" style="margin-top:6px">Nothing written yet about what you want. Edit to add it before starting an agent.</div>`) : ""}
+    ${planned && !s.edit && f.prompt ? `<div class="plan md">${md(f.prompt)}</div>` : ""}
+    ${actions(planned
+      ? `<button data-act="edit">${s.edit ? "Cancel edit" : "Edit"}</button><button data-act="notes">${s.notes ? "Hide notes" : "Notes"}</button><button data-act="drop" title="Keep it on record as dropped">Drop</button>`
+      : `<button data-act="notes">${s.notes ? "Hide notes" : "Notes"}</button><button data-act="reopen">${s.reopen ? "Cancel reopen" : "Reopen"}</button>`,
+      planned ? `<button class="primary" data-act="start" title="Make its branch and start an agent on what it says">Start agent</button>`
+      : leftover ? `<button class="primary" data-act="remove" title="Delete its folder. The unmerged branch is kept, so the work is still in git.">Remove worktree</button>` : "")}
     ${s.edit ? `<div style="margin-top:10px; display:grid; gap:8px">
       <input type="text" data-field="etitle" value="${esc(s.etitle ?? f.title)}">
-      <textarea data-field="eprompt" placeholder="What you want and why. This is what the agent starts on.">${esc(s.eprompt ?? f.prompt ?? "")}</textarea>
-      <div class="row"><button class="primary" data-act="edit-save">Save</button><button data-act="edit">Cancel</button></div>
+      <textarea data-field="eprompt" data-mention data-self="${f.slug}" placeholder="What you want and why. This is what the agent starts on.">${esc(s.eprompt ?? f.prompt ?? "")}</textarea>
+      ${MENTION_HINT}
+      <div class="row"><button class="primary" data-act="edit-save">Save</button></div>
     </div>` : ""}
     ${s.reopen ? `<div style="margin-top:10px; display:grid; gap:8px">
       <div class="hint">Starts a new branch from current main with a new session. The agent reads this feature's notes first.</div>
       <input type="text" data-field="rtitle" value="${esc(s.rtitle || f.title + " (continued)")}">
-      <textarea data-field="rprompt" placeholder="What you want changed this time, and why.">${esc(s.rprompt)}</textarea>
-      <div class="hint">Also read the notes of:</div>
-      <div class="refs">${refBoxes(s.refs, f.slug)}</div>
-      <div class="row"><button class="primary" data-act="reopen-go">Start</button></div>
+      <textarea data-field="rprompt" data-mention data-self="${f.slug}" placeholder="What you want changed this time, and why.">${esc(s.rprompt)}</textarea>
+      ${MENTION_HINT}
+      <div class="row"><button class="primary" data-act="reopen-go">Start agent</button></div>
     </div>` : ""}
     ${s.msg ? `<div class="msg ${s.cls}">${esc(s.msg)}</div>` : ""}
     ${s.notes ? `<div class="notes" data-notes></div>` : ""}
@@ -364,10 +382,9 @@ function render(features) {
   const ms = live.reduce((a, f) => a + f.usage.ms, 0), cost = live.reduce((a, f) => a + f.usage.cost, 0);
   $("#totals").textContent = `One branch, folder and Claude session per feature.${ms || cost ? ` All features: ${dur(ms)} agent time, ≈$${cost.toFixed(2)} at API prices.` : ""}`;
   const typing = document.activeElement?.closest?.("#list") && document.activeElement.matches("textarea, input[type=text]");
-  if (!document.activeElement?.closest?.("#addRefs")) { $("#addRefs").innerHTML = refBoxes(addRefs); $("#addRefsWrap").hidden = !features.length; }
   // Filter chips, with how many features each would show.
-  const inGroup = (f, g) => !GROUPS[g] || GROUPS[g].includes(f.status);
-  $("#chips").innerHTML = Object.keys(GROUPS).map((g) => `<button data-filter="${g}" class="${g === filter ? "on" : ""}">${GROUP_NAMES[g]}<span class="n">${features.filter((f) => inGroup(f, g)).length}</span></button>`).join("");
+  const inGroup = (f, g) => GROUPS[g](f);
+  $("#chips").innerHTML = Object.keys(GROUPS).map((g) => `<button data-filter="${g}" title="${GROUP_TIPS[g]}" class="${g === filter ? "on" : ""}">${GROUP_NAMES[g]}<span class="n">${features.filter((f) => inGroup(f, g)).length}</span></button>`).join("");
   if (typing) return; // don't wipe what you're typing
   // Keep open notes and chat panels as they are (folds, scroll position)
   // instead of rebuilding them on every refresh.
@@ -375,8 +392,8 @@ function render(features) {
   for (const el of document.querySelectorAll("[data-notes][data-loaded], [data-chat][data-loaded]")) keep[el.closest("[data-slug]").dataset.slug + (el.dataset.chat !== undefined ? ":chat" : ":notes")] = el;
   const q = $("#search").value.trim().toLowerCase();
   const shown = features.filter((f) => inGroup(f, filter) && (!q || (f.title + " " + (f.prompt || "")).toLowerCase().includes(q)));
-  const order = { "needs-you": 0, interrupted: 1, "not-started": 1, failed: 1, working: 2, error: 3, idle: 4, closed: 5, merged: 7, planned: 8, done: 9, dropped: 10 };
-  shown.sort((a, b) => (order[status(a)[0]] ?? 6) - (order[status(b)[0]] ?? 6) || String(b.done || b.merged || b.created || "").localeCompare(String(a.done || a.merged || a.created || "")));
+  const order = { "needs-you": 0, interrupted: 1, "not-started": 1, failed: 1, working: 2, error: 3, idle: 4, closed: 5, merged: 7, planned: 8, dropped: 10 };
+  shown.sort((a, b) => (order[status(a)[0]] ?? 6) - (order[status(b)[0]] ?? 6) || String(b.merged || b.created || "").localeCompare(String(a.merged || a.created || "")));
   $("#list").innerHTML = shown.length ? shown.map((f) => (f.worktree ? card(f) : simpleCard(f))).join("")
     : `<div class="card empty">${q ? "Nothing matches that search." : filter === "active" ? "Nothing planned or in progress. Add a feature above." : "No features here."}</div>`;
   for (const f of shown) {
@@ -421,7 +438,6 @@ async function refresh() { try { render(await api("/api/features")); } catch {} 
 $("#list").addEventListener("input", (e) => {
   const c = e.target.closest("[data-slug]"); if (!c) return; const s = u(c.dataset.slug);
   if (e.target.dataset.field) s[e.target.dataset.field] = e.target.value;
-  if (e.target.dataset.ref) e.target.checked ? s.refs.add(e.target.dataset.ref) : s.refs.delete(e.target.dataset.ref);
 });
 $("#list").addEventListener("click", onClick);
 // Ctrl+Enter (or Cmd+Enter) in a chat box sends.
@@ -430,7 +446,6 @@ $("#list").addEventListener("keydown", (e) => {
 });
 $("#chips").addEventListener("click", (e) => { const b = e.target.closest("[data-filter]"); if (!b) return; filter = b.dataset.filter; store.set("filter", filter); render(all); });
 $("#search").addEventListener("input", () => render(all));
-$("#addRefs").addEventListener("change", (e) => { const r = e.target.dataset.ref; if (r) e.target.checked ? addRefs.add(r) : addRefs.delete(r); });
 
 async function onClick(e) {
   const b = e.target.closest("[data-act]"); if (!b) return;
@@ -448,7 +463,7 @@ async function onClick(e) {
   if (act === "reopen") { s.reopen = !s.reopen; return render(all); }
   if (act === "notes") { s.notes = !s.notes; delete notesCache[slug]; return render(all); }
   if (act === "bell") { bells.has(slug) ? bells.delete(slug) : bells.add(slug); store.set("notifyBells", [...bells]); return render(all); }
-  if (act === "app") { window.open(`http://localhost:${all.find((x) => x.slug === slug).port}`, "_blank"); return; }
+  if (act === "app") { window.open(`http://localhost:${port(slug)}`, "_blank"); return; }
   if (act === "appstop") { const r = await api(`${base}/appstop`, {}); return say(r.msg, r.ok ? "" : "bad"); }
   if (act === "appstart") {
     // Open the tab now (a tab opened after waiting gets blocked as a popup), then point it at the app once it's up.
@@ -477,7 +492,11 @@ async function onClick(e) {
     if (r.msg) return say(r.msg, "bad");
     s.edit = false; return say("Saved and committed on main.", "good");
   }
-  if (act === "drop") { if (!confirm("Mark this feature as dropped? It stays on record under Dropped.")) return; const r = await api(`${base}/drop`, {}); return say(r.msg || "", r.msg ? "bad" : ""); }
+  if (act === "drop") {
+    const f = all.find((x) => x.slug === slug);
+    if (!confirm(f.worktree ? "Drop this feature? Its app stops and it stays on record under Dropped. Its folder and branch are kept until you remove the worktree, and the branch stays in git." : "Mark this feature as dropped? It stays on record under Dropped.")) return;
+    const r = await api(`${base}/drop`, {}); return say(r.ok ? "" : r.msg, r.ok ? "" : "bad");
+  }
   if (act === "merge") {
     if (!confirm("Run pnpm check on the branch and merge into main if it passes?")) return;
     say("Checking (starts the branch's server and runs pnpm check)…");
@@ -487,16 +506,15 @@ async function onClick(e) {
     if (r.files) { s.draft = `Main has moved on and merging your branch conflicts in: ${r.files.join(", ")}. Merge main into your branch, resolve the conflicts keeping both sides' intent, run the app and pnpm check, log what you did, and commit.`; s.fb = true; }
     return say(m, "bad");
   }
-  if (act === "done") { const r = await api(`${base}/done`, {}); return say(r.msg || "Moved to Done on the board and committed on main.", r.msg ? "bad" : "good"); }
-  if (act === "remove") { if (!confirm("Remove this feature's folder and branch? The feature and its notes stay in the list.")) return; const r = await api(`${base}/remove`, {}); return say(r.msg, r.ok ? "good" : "bad"); }
+  if (act === "remove") { if (!confirm(all.find((x) => x.slug === slug).status === "dropped" ? "Delete this dropped feature's folder? Its branch is kept in git." : "Remove this feature's folder and branch? The feature and its notes stay in the list.")) return; const r = await api(`${base}/remove`, {}); return say(r.msg, r.ok ? "good" : "bad"); }
   if (act === "reopen-go") {
     const f = all.find((x) => x.slug === slug);
     const title = (s.rtitle || f.title + " (continued)").trim(), prompt = s.rprompt.trim();
     if (!prompt) return say("Say what you want changed this time.", "bad");
     say("Creating…");
-    const r = await api(`${base}/reopen`, { title, prompt, refs: [...s.refs] });
+    const r = await api(`${base}/reopen`, { title, prompt });
     if (r.msg) return say(r.msg, "bad");
-    Object.assign(s, { reopen: false, rtitle: "", rprompt: "", refs: new Set() });
+    Object.assign(s, { reopen: false, rtitle: "", rprompt: "" });
     return say(`Started ${r.branch}.`, "good");
   }
 }
@@ -518,15 +536,51 @@ async function addFeature(plan) {
   const title = $("#title").value.trim(), prompt = $("#prompt").value.trim();
   if (!title || (!plan && !prompt)) { $("#addMsg").textContent = plan ? "Needs a name." : "Needs a name and a starting prompt. Or save it as planned."; return; }
   $("#addMsg").textContent = "Creating…";
-  const r = await api("/api/features", { title, prompt, refs: [...addRefs], plan });
+  const r = await api("/api/features", { title, prompt, plan });
   if (r.msg) { $("#addMsg").textContent = r.msg; return; }
-  $("#title").value = ""; $("#prompt").value = ""; addRefs.clear();
+  $("#title").value = ""; $("#prompt").value = "";
   $("#addMsg").textContent = plan ? "Saved as planned and committed on main. Start it from its card when you're ready." : `Started ${r.branch}. The agent starts in the background once packages are installed. Chat shows the conversation.`;
   setTimeout(() => { $("#addBox").hidden = true; $("#addMsg").textContent = ""; }, 2500);
   refresh();
 }
 $("#add").onclick = () => addFeature(false);
 $("#addPlan").onclick = () => addFeature(true);
+
+// ---------- @ mentions ----------
+// Typing @ in a description or message lists the features whose name or slug
+// matches what follows. Picking one writes @slug, which the server reads to
+// point the agent at that feature's notes.
+const menu = $("#mention"); let mTarget = null, mStart = 0, mItems = [], mOn = 0;
+function mentionCheck(t) {
+  const m = t.value.slice(0, t.selectionStart).match(/(^|\s)@([\w-]*)$/);
+  if (!m) return closeMention();
+  const q = m[2].toLowerCase();
+  mItems = all.filter((x) => x.slug !== t.dataset.self && (x.slug.includes(q) || x.title.toLowerCase().includes(q))).slice(0, 8);
+  if (!mItems.length) return closeMention();
+  if (mTarget !== t) mOn = 0;
+  mTarget = t; mStart = t.selectionStart - m[2].length - 1; mOn = Math.min(mOn, mItems.length - 1);
+  menu.innerHTML = mItems.map((x, i) => `<div data-i="${i}" class="${i === mOn ? "on" : ""}">${esc(x.title)}<small>@${esc(x.slug)} · ${esc(x.status)}</small></div>`).join("");
+  const r = t.getBoundingClientRect();
+  menu.style.left = r.left + scrollX + "px"; menu.style.top = r.bottom + scrollY + 4 + "px"; menu.hidden = false;
+}
+function closeMention() { menu.hidden = true; mTarget = null; mOn = 0; }
+function pickMention(i) {
+  const t = mTarget, x = mItems[i]; if (!t || !x) return;
+  const ins = "@" + x.slug + " ";
+  t.value = t.value.slice(0, mStart) + ins + t.value.slice(t.selectionStart);
+  t.selectionStart = t.selectionEnd = mStart + ins.length;
+  closeMention(); t.focus();
+  t.dispatchEvent(new Event("input", { bubbles: true })); // keeps the saved draft in step
+}
+document.addEventListener("input", (e) => { if (e.target.matches?.("[data-mention]")) mentionCheck(e.target); });
+document.addEventListener("keydown", (e) => {
+  if (menu.hidden || e.target !== mTarget) return;
+  if (e.key === "ArrowDown" || e.key === "ArrowUp") { e.preventDefault(); mOn = (mOn + (e.key === "ArrowDown" ? 1 : mItems.length - 1)) % mItems.length; mentionCheck(e.target); }
+  else if ((e.key === "Enter" && !e.ctrlKey && !e.metaKey) || e.key === "Tab") { e.preventDefault(); e.stopPropagation(); pickMention(mOn); }
+  else if (e.key === "Escape") closeMention();
+}, true);
+document.addEventListener("focusout", (e) => { if (e.target === mTarget) setTimeout(() => { if (document.activeElement !== mTarget) closeMention(); }, 0); });
+menu.addEventListener("mousedown", (e) => { e.preventDefault(); const d = e.target.closest("[data-i]"); if (d) pickMention(Number(d.dataset.i)); });
 
 refresh(); setInterval(refresh, 2000);
 </script>

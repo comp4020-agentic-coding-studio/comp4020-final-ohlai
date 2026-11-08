@@ -6,7 +6,7 @@ something real to come from. Claude writes to these during every session
 
 - `features/<slug>/` is one folder per feature, and is the board since
   2026-11-08. `feature.md` is its title, status (planned, building, merged,
-  done, dropped), dates and what I asked for. `prompts.md` is everything I
+  dropped), dates and what I asked for. `prompts.md` is everything I
   said, word for word, written by a hook. `log.md` and `decisions.md` are what
   Claude did and why. The feature agents dashboard in `tools/feature-agents/`
   plans, starts, merges and closes these.

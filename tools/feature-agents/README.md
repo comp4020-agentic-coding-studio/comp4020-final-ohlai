@@ -32,15 +32,16 @@ Each feature is a folder on main, `notes/features/<slug>/`:
 
 - `feature.md`: title, status, dates and what I asked for. Only the dashboard
   writes it, and every change is a commit on main ("Start feature: X",
-  "Merged: X", "Done: X").
+  "Merged: X", "Dropped: X").
 - `prompts.md`: every message I sent the agent, word for word, written by a
   hook. Anything the dashboard added is after a line saying
   `[Added by the dashboard, not my words]`.
 - `log.md` and `decisions.md`: what the agent did and why, and every decision.
 
 Statuses: **planned** (no branch yet), **building** (branch, folder and agent),
-**merged** (in main), **done** (I've signed it off), **dropped** (kept on
-record, not doing it). The features on the old board in `notes/features.md`
+**merged** (in main, and that's finished), **dropped** (kept on record, not
+doing it). There was a separate **done** until 2026-11-08; merged features
+are now done by definition. The features on the old board in `notes/features.md`
 were imported on 2026-11-08, with their notes copied word for word into each
 `log.md`.
 
@@ -53,6 +54,11 @@ were imported on 2026-11-08, with their notes copied word for word into each
   the `feature.md`.
 - **Start agent / Edit / Drop** (planned features): start it as above, change
   what it says, or mark it dropped.
+- **Drop** (building features): for a bad idea. Its app stops and it's
+  recorded as dropped. Its folder and branch stay until **Remove worktree**,
+  which commits anything uncommitted to the branch first and keeps the branch
+  (it isn't merged), so the work and notes are still in git. Notes are then
+  read from the branch.
 - **Chat**: the conversation so far, read from Claude Code's saved transcript,
   and a box to message the agent. A message goes as a background turn
   (`claude -p --resume`). If the agent is mid-turn, it waits and goes as soon
@@ -63,7 +69,8 @@ were imported on 2026-11-08, with their notes copied word for word into each
 - **Open session**: the same session in a Windows Terminal tab, for watching
   it live or approving something. Closing the tab ends that run of the
   session, not the session: its conversation is saved.
-- **Start preview / Preview / Stop app**: the dashboard runs each feature's
+- **Preview ↗ | ✕**: Preview starts the feature's app if it isn't running and
+  opens it. ✕ stops it. The dashboard runs each feature's
   app on its own port and data folder, so agents don't spend turns on it.
   After changing `server.js` an agent restarts it with
   `curl -s -X POST http://localhost:4000/api/features/$FEATURE_SLUG/apprestart`.
@@ -72,7 +79,6 @@ were imported on 2026-11-08, with their notes copied word for word into each
   port + 1000, runs `pnpm check` against it, then `git merge --no-ff` into
   main. On a conflict it aborts and fills in a message asking the agent to
   merge main in. It never pushes.
-- **Move to Done**: marks it done in `feature.md` and commits on main.
 - **Remove worktree**: deletes the folder and branch once merged. The feature
   stays in the list with its notes, read from main.
 - **Carry on** (on an interrupted card): resumes the session with a message
@@ -82,16 +88,21 @@ were imported on 2026-11-08, with their notes copied word for word into each
 - **Reopen** (merged, done or dropped features): a new feature that continues
   it, with a new branch from current main and a new session pointed at the old
   notes.
-- **Related features** (on Add and Reopen) and `@slug` in a message point the
-  agent at those features' notes.
+- **@ tagging**: typing @ in a description or a chat message lists matching
+  features. Picking one writes `@slug`, which points the agent at that
+  feature's notes (recorded as Related in `feature.md`).
 - **System prompt**: text added to every feature agent's system prompt on
   every run (`system-prompt.md`, committed on main). Slash commands don't run
   from a system prompt, so ask for a skill in words.
 - **Bells**: notifications when an agent needs me, finishes, fails or is
   interrupted. Silent, only features with their bell on, or all. Only while
   the page is open.
-- Filters (Active, Planned, Building, Merged, Done, Dropped, All) and search
-  are above the list. Click a card's title to collapse it.
+- Filters (All, Active = planned or building, Waiting = an agent has stopped
+  and it's my turn, Planned, Merged, Dropped) and search are above the list.
+  Click a card's title to collapse it.
+- Every card ends with one row of buttons: everyday ones on the left, and on
+  the right in black the one that moves the feature on (Start agent, Check
+  and merge, Remove worktree).
 
 ## Statuses on a building feature
 

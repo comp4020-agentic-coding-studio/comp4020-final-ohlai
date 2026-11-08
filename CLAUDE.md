@@ -76,10 +76,11 @@ I want the final docs written from what actually happened, so every session
 leaves a trail in `notes/`.
 
 - Each feature is a folder, `notes/features/<slug>/`, and its `feature.md`
-  says its status (planned, building, merged, done or dropped). At the start
+  says its status (planned, building, merged or dropped). At the start
   of a session on main, look at the planned and building ones and say which
   feature we're picking up. Never change a `feature.md` or mark a feature
-  done yourself: the feature agents dashboard does that when I tell it to.
+  merged or dropped yourself: the feature agents dashboard does that when I
+  tell it to.
   (`notes/features.md` was the board until 2026-11-08 and is kept as it was.)
 - `tools/feature-agents/` is the dashboard I use to run feature agents. It's
   not part of the app: don't import from it, ship it or test it as part of

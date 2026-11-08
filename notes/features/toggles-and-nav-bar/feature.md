@@ -2,12 +2,11 @@
 
 Kept by the feature agents dashboard (`tools/feature-agents/`). Its notes are next to this file: `prompts.md` (everything I said, word for word), `log.md` and `decisions.md`.
 
-- Status: done
+- Status: merged
 - Created: 2026-11-07 21:31
 - Started: 2026-11-07 21:31
 - Branch: feat/toggles-and-nav-bar
 - Merged: 2026-11-08 11:20
-- Done: 2026-11-08 11:21
 
 ## What I asked for
 

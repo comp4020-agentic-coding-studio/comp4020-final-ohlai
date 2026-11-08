@@ -330,3 +330,37 @@ Follows the 2026-11-07 entry above. Built in `COMP4020/meta/`.
   at least as long as the toggles and logout replies, and to scroll only when
   longer. The reply box now goes up to about 520px (both of those are about
   350px).
+
+## 2026-11-08: Feature agents dashboard, second round of changes
+
+- **Merged and done are one status.** Asked for merged and done to be the
+  same thing: "as soon as you merge it should be considered done". Picked the
+  word merged. Move to Done is gone. The 8 features marked done had their
+  `feature.md` rewritten to merged, keeping the merge date (or the date I moved
+  them to Done on the old board, for the imported ones).
+- **@ tagging instead of the related features checkboxes.** Asked to remove
+  the checkboxes and tag related features by typing @ in the description,
+  with matching features popping up as soon as @ is typed. The hint under the
+  box now starts "@ to tag a related feature". Works in the Add form, Edit,
+  Reopen and the chat box.
+- **Filters.** Asked what the difference between Building and Active was.
+  Active was planned, building and merged; Building was only the ones with an
+  agent. I suggested a one word filter for "waiting for you" in place of
+  Building. Now: All (moved to the start), Active (planned or building, since
+  merged now means finished), Waiting (an agent has stopped and it's my turn),
+  Planned, Merged, Dropped. The chips are rounded rectangles like the
+  notification toggle, not pills.
+- **Buttons.** Asked for every card's buttons to be bottom left, with the
+  suggested next action (the one that moves the state on) bottom right in
+  black, like Start agent already was. Asked to remove the "Nothing written
+  yet" line and "imported from the old board", and to show the created date on
+  every feature. Card header order is time, status, then bell.
+- **Preview.** Asked for Stop app to be fused with Preview, one outline with
+  `[Preview | x]`, because the extra button appearing shifted the others. The
+  x is always there and greyed out while the app isn't running.
+- **Dropping a feature part way through.** Asked to be able to drop features
+  that are already being built, if they turn out to be a bad idea. Drop stops
+  the app and records it as dropped, but keeps the folder and branch. Remove
+  worktree then commits anything left over to the branch and keeps the branch,
+  since it isn't merged, so nothing is lost. Merged features can't be dropped
+  (that would need a revert).

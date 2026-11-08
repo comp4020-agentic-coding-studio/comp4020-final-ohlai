@@ -226,11 +226,13 @@ async function setup(f) {
 
 // ---------- talking to the agent ----------
 
-// @slug in feedback points the agent at that feature's notes.
-function withMentions(f, text) {
+// @slug in what Oli writes tags a related feature: the agent reads its notes.
+function mentions(text, self) {
   const all = loadFeatures();
-  const refs = [...new Set([...text.matchAll(/@([a-z0-9][a-z0-9-]*)/g)].map((m) => m[1]))].filter((s) => s !== f.slug && all.some((x) => x.slug === s));
-  return text + contextBlock({ refs }, f.started || f.created);
+  return [...new Set([...String(text || "").matchAll(/@([a-z0-9][a-z0-9-]*)/g)].map((m) => m[1]))].filter((s) => s !== self && all.some((x) => x.slug === s));
+}
+function withMentions(f, text) {
+  return text + contextBlock({ refs: mentions(text, f.slug) }, f.started || f.created);
 }
 
 // One turn in the background (`claude -p`). `first` starts the session
@@ -453,17 +455,30 @@ async function merge(f) {
   return { ok: true, msg: `Merged into main. Not pushed.` };
 }
 
-function markDone(f) {
-  update(f.slug, { status: "done", done: stamp() }, `Done: ${f.title}`);
+// A bad idea, planned or part built. A built one's app stops, but its folder
+// and branch stay (Remove worktree deletes the folder; an unmerged branch is
+// kept), so the work isn't lost.
+function dropFeature(f) {
+  if (!["planned", "building"].includes(f.status)) return { ok: false, msg: "Only planned or building features can be dropped." };
+  if (f.dir && !f.removed) {
+    const live = liveStatus(readState(f.slug));
+    if (live.open || live.background || running.has(f.slug) || settingUp.has(f.slug)) return { ok: false, msg: "The agent is still running. Let it finish or close its session first." };
+    stopApp(f);
+  }
+  update(f.slug, { status: "dropped", dropped: stamp() }, `Dropped: ${f.title}`);
+  return { ok: true, msg: "Dropped. It stays on record under Dropped." };
 }
 
-// Deletes the folder and branch but keeps the feature in the list as a past
-// feature. Its notes are on main from then on.
+// Deletes the folder and branch but keeps the feature in the list. A merged
+// feature's notes are on main from then on.
 function removeFeature(f) {
-  if (!f.merged) return { ok: false, msg: "Not merged yet. Merge first, or remove it by hand if you're dropping it." };
+  if (!f.merged && f.status !== "dropped") return { ok: false, msg: "Not merged yet. Merge it first, or drop it." };
   const live = liveStatus(readState(f.slug));
   if (live.open || live.background) return { ok: false, msg: "The agent is still running. Close its session first." };
   if (registered(f.dir)) {
+    // A dropped feature's half-done work is committed to its branch, which is
+    // kept, so deleting the folder loses nothing.
+    if (f.status === "dropped" && tryGit(f.dir, "status", "--porcelain").out) { git(f.dir, "add", "-A"); git(f.dir, "commit", "-q", "-m", `${f.title}: dropped, work in progress kept`); }
     if (tryGit(f.dir, "status", "--porcelain").out) return { ok: false, msg: "The feature has uncommitted changes. Not removing." };
     stopApp(f); // a running app holds files in the folder
     // Windows chokes on pnpm's linked node_modules inside git's delete, so clear it first.
@@ -475,9 +490,10 @@ function removeFeature(f) {
   let leftover = "";
   try { fs.rmSync(f.dir, { recursive: true, force: true, maxRetries: 5, retryDelay: 200 }); }
   catch { leftover = ` The folder ${f.dir} is still open in something (a terminal or editor?), so delete it by hand.`; }
+  // -d refuses an unmerged branch, so a dropped feature's work stays in git.
   const b = tryGit(APP, "branch", "-d", f.branch);
   update(f.slug, { removed: stamp() });
-  return { ok: true, msg: (b.ok ? "Removed the worktree and branch. The feature and its notes stay in the list." : "Removed the worktree. Branch kept: " + b.out) + leftover };
+  return { ok: true, msg: (b.ok ? "Removed the worktree and branch. The feature and its notes stay in the list." : `Removed the worktree. The branch ${f.branch} is kept because it isn't merged, so its work and notes are still in git.`) + leftover };
 }
 
 // ---------- overview ----------
@@ -501,10 +517,16 @@ async function overview() {
 
 function notes(f) {
   // A removed feature's folder is gone, but its notes were merged into main.
-  const root = hasWorktree(f) && fs.existsSync(path.join(f.dir, "notes")) ? f.dir : APP;
+  // A dropped feature that was built still has its notes in its folder.
+  const root = f.dir && !f.removed && fs.existsSync(path.join(f.dir, "notes", "features", f.slug)) ? f.dir : APP;
   const d = path.join(root, "notes", "features", f.slug);
-  const r = (n) => { try { return fs.readFileSync(path.join(d, n), "utf8"); } catch { return ""; } };
-  return { from: root === APP ? "main" : f.branch, prompts: r("prompts.md"), log: r("log.md"), decisions: r("decisions.md") };
+  // A dropped feature that was never merged keeps its notes on its branch.
+  const fromBranch = root === APP && f.branch && !fs.existsSync(path.join(d, "prompts.md")) && branchExists(f.branch);
+  const r = (n) => {
+    if (fromBranch) return tryGit(APP, "show", `${f.branch}:notes/features/${f.slug}/${n}`).out || "";
+    try { return fs.readFileSync(path.join(d, n), "utf8"); } catch { return ""; }
+  };
+  return { from: fromBranch ? `branch ${f.branch}` : root === APP ? "main" : f.branch, prompts: r("prompts.md"), log: r("log.md"), decisions: r("decisions.md") };
 }
 
 // ---------- http ----------
@@ -532,7 +554,7 @@ http.createServer(async (req, res) => {
       const { title, prompt, refs, plan } = await body(req);
       if (!title?.trim()) return send(res, 400, { msg: "Needs a name." });
       if (!plan && !prompt?.trim()) return send(res, 400, { msg: "Needs a starting prompt to start an agent. Or save it as planned." });
-      return send(res, 200, createFeature(title.trim(), String(prompt || "").trim(), { refs: Array.isArray(refs) ? refs : [], plan: !!plan }));
+      return send(res, 200, createFeature(title.trim(), String(prompt || "").trim(), { refs: mentions(prompt), plan: !!plan }));
     }
     const m = url.pathname.match(/^\/api\/features\/([a-z0-9-]+)\/(\w+)$/);
     const f = m && loadFeatures().find((x) => x.slug === m[1]);
@@ -544,16 +566,18 @@ http.createServer(async (req, res) => {
     const b = await body(req);
     if (action === "reopen") {
       if (!b.title?.trim() || !b.prompt?.trim()) return send(res, 400, { msg: "Needs a title and a prompt." });
-      return send(res, 200, createFeature(b.title.trim(), b.prompt.trim(), { continues: f.slug, refs: Array.isArray(b.refs) ? b.refs : [] }));
+      return send(res, 200, createFeature(b.title.trim(), b.prompt.trim(), { continues: f.slug, refs: mentions(b.prompt, f.slug) }));
     }
+    if (action === "drop") return send(res, 200, dropFeature(f));
+    if (action === "remove" && f.status === "dropped" && f.dir && !f.removed) return send(res, 200, removeFeature(f));
     if (f.status === "planned") {
       if (action === "start") return send(res, 200, startFeature(f, `Start feature: ${f.title}`));
       if (action === "edit") {
         const title = String(b.title || "").trim() || f.title;
         if (title !== f.title && loadFeatures().some((x) => x.slug !== f.slug && x.title.toLowerCase() === title.toLowerCase())) return send(res, 400, { msg: "A feature already has that name." });
-        return send(res, 200, update(f.slug, { title, prompt: String(b.prompt ?? "").trim() }, `Edit planned feature: ${title}`));
+        const prompt = String(b.prompt ?? "").trim();
+        return send(res, 200, update(f.slug, { title, prompt, refs: mentions(prompt, f.slug) }, `Edit planned feature: ${title}`));
       }
-      if (action === "drop") return send(res, 200, update(f.slug, { status: "dropped", dropped: stamp() }, `Dropped: ${f.title}`));
     }
     if (!hasWorktree(f)) return send(res, 400, { msg: "This feature has no branch or agent. Start it, or Reopen it." });
     if (action === "open") {
@@ -572,7 +596,6 @@ http.createServer(async (req, res) => {
     if (action === "resume") return send(res, 200, resume(f, b.where));
     if (action === "retry") { startSetup(f); return send(res, 200, { ok: true }); }
     if (action === "merge") return send(res, 200, await merge(f));
-    if (action === "done") { markDone(f); return send(res, 200, { ok: true }); }
     if (action === "remove") return send(res, 200, removeFeature(f));
     send(res, 404, {});
   } catch (e) {
