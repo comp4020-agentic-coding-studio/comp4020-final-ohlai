@@ -40,14 +40,15 @@
 
   const show = () => {
     const t = document.documentElement.dataset.theme ?? "system";
-    for (const b of $("theme").children) b.ariaPressed = String(b.dataset.t === t);
+    [...$("theme").children].forEach((b, i) => {
+      b.ariaPressed = String(b.dataset.t === t);
+      if (b.dataset.t === t) $("theme").style.setProperty("--i", String(i));
+    });
   };
   $("theme").onclick = (e) => {
     const t = e.target.closest("button")?.dataset.t;
     if (!t) return;
-    if (t === "system") delete document.documentElement.dataset.theme;
-    else document.documentElement.dataset.theme = t;
-    try { t === "system" ? localStorage.removeItem("theme") : localStorage.setItem("theme", t); } catch {}
+    window.setTheme(t);
     show();
   };
   show();

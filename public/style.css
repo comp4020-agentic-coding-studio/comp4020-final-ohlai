@@ -514,10 +514,13 @@ body[data-view="desktop"] .drawer { inset: auto 24px 0 auto; margin: 0; height: 
 
 /* ---------- client app: bottom pill nav, dashboard, settings ---------- */
 body.client main { padding-bottom: 120px; }
-.pillnav { position: fixed; left: 50%; bottom: max(16px, env(safe-area-inset-bottom)); transform: translateX(-50%); width: min(360px, calc(100% - 32px)); display: flex; gap: 4px; padding: 6px; background: var(--ink); border-radius: 999px; box-shadow: var(--shadow); z-index: 10; }
-.pillnav a { flex: 1; display: flex; align-items: center; justify-content: center; gap: 8px; padding: 12px 10px; border-radius: 999px; color: var(--bg); text-decoration: none; font-weight: 600; font-size: 0.9rem; opacity: 0.6; }
-.pillnav a[aria-current="page"] { background: var(--bg); color: var(--ink); opacity: 1; }
-.pillnav svg { width: 20px; height: 20px; }
+.pillnav { --n: 2; --gap: 4px; --pad: 6px; position: fixed; left: 50%; bottom: max(16px, env(safe-area-inset-bottom)); transform: translateX(-50%); display: flex; gap: var(--gap); padding: var(--pad); background: var(--ink); border-radius: 999px; box-shadow: var(--shadow); z-index: 10; }
+.pillnav a { position: relative; z-index: 1; width: 72px; display: flex; align-items: center; justify-content: center; padding: 12px 0; border-radius: 999px; color: var(--bg); text-decoration: none; opacity: 0.6; transition: color 0.22s ease, opacity 0.22s ease; }
+.pillnav a.on { color: var(--ink); opacity: 1; }
+.pillnav .thumb { position: absolute; top: var(--pad); bottom: var(--pad); left: var(--pad); width: 72px; border-radius: 999px; background: var(--bg); transform: translateX(calc(var(--i, 0) * (100% + var(--gap)))); transition: transform 0.22s cubic-bezier(0.3, 0.7, 0.4, 1); }
+.pillnav.none .thumb { opacity: 0; }
+.pillnav.jump .thumb { transition: none; }
+.pillnav svg { width: 22px; height: 22px; }
 .daypicks { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 10px; }
 .daypicks button { text-align: left; display: grid; gap: 2px; padding: 14px; border-radius: 16px; background: var(--card); box-shadow: var(--shadow); font-weight: 400; }
 .daypicks button strong { font-size: 1.05rem; }
@@ -533,7 +536,16 @@ body.client main { padding-bottom: 120px; }
 .wo th { text-align: left; font-weight: 600; padding: 10px 0 4px; }
 .wo td { padding: 2px 0; color: var(--muted); }
 .wo td.num { text-align: right; }
-.seg { display: flex; gap: 4px; padding: 4px; background: var(--soft); border-radius: 14px; }
-.seg button { flex: 1; padding: 10px; background: none; border-radius: 10px; }
-.seg button[aria-pressed="true"] { background: var(--accent); color: var(--accent-ink); }
+.seg { --n: 3; --gap: 4px; position: relative; display: flex; gap: var(--gap); padding: 4px; background: var(--soft); border-radius: 14px; }
+.seg::before { content: ""; position: absolute; top: 4px; bottom: 4px; left: 4px; width: calc((100% - 8px - (var(--n) - 1) * var(--gap)) / var(--n)); border-radius: 10px; background: var(--accent); transform: translateX(calc(var(--i, 0) * (100% + var(--gap)))); transition: transform 0.25s cubic-bezier(0.3, 0.7, 0.4, 1); }
+.seg button { position: relative; flex: 1; padding: 10px; background: none; border-radius: 10px; transition: color 0.25s ease; }
+.seg button[aria-pressed="true"] { color: var(--accent-ink); }
+/* Theme switch: fade colours instead of jumping. Only on while switching (theme.js). */
+html.theming, html.theming *, html.theming *::before, html.theming *::after {
+  transition: background-color 0.35s ease, color 0.35s ease, border-color 0.35s ease, fill 0.35s ease, box-shadow 0.35s ease, transform 0.25s cubic-bezier(0.3, 0.7, 0.4, 1) !important;
+}
+@media (prefers-reduced-motion: reduce) {
+  .pillnav .thumb, .pillnav a, .seg::before, .seg button,
+  html.theming, html.theming *, html.theming *::before, html.theming *::after { transition: none !important; }
+}
 .notice input[type="checkbox"] { width: auto; margin-right: 6px; }
