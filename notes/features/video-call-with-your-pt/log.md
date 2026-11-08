@@ -113,3 +113,45 @@ Imported word for word from the board in `notes/features.md` on 2026-11-08, when
     ill merge it in and deploy and give it a go". So Claude committed on the
     feature branch only; I merge and deploy from the dashboard.
   - `pnpm check`: 20 tests pass.
+
+- 2026-11-09 01:20: I said: "the image should fill the whole card (there is
+  a big gap between the image and the frame) - i want to get those rounded
+  edges etc. We should be dynamically adjusting the side of the cards to
+  match the size of the video inputs from both sides - atm there is lots of
+  space between video input and side of card. Also im going to backtrack on
+  the bento box look - it sholdnt have a backplate and should be like the
+  client popup with messenges where they are just two floating popup cards.
+  Lastly would be nice to have a stamp in the chat of You called for x
+  minutes or something just to show that you called."
+  - Before (see the 01:05 entry): a bento grid on a white backplate, tiles
+    with fixed shapes (16:9 or 3:4) and the video letterboxed inside with
+    `object-fit: contain`, so there was a big grey gap around the picture.
+    Now: no backplate. The dialog is see-through over a blurred backdrop and
+    holds floating cards (22px corners, shadow): their video, your camera,
+    and the status + End card. `fit()` in `public/call.js` sets each video
+    card's width and height to the video's own shape (from `videoWidth` /
+    `videoHeight`, re-run on the video's `resize` event and on window
+    resize), as big as fits the screen. The video then fills its card edge
+    to edge with the rounded corners. A phone held upright sends a tall
+    video and gets a tall card; a laptop sends a wide one. Measured: card
+    shape matches video shape to within 0.006 on both sides.
+    I backtracked on the bento look because I want it to match the chat
+    drawer: separate floating cards, no plate behind them.
+  - New: call stamps. When a call that actually connected ends, the person
+    who placed it posts `{ call_secs }` to `/api/chat/:id`. `server.js` adds
+    a `call_secs` column to `messages` with a guarded `ALTER TABLE`
+    (additive, nothing dropped), and the chat GET and inbox queries return
+    it. The chat shows it as a centred line in the day-label style: "You
+    called for 3 min · 1:32 am", or "Coach Sam called for..." for the other
+    person. Under a minute shows seconds. The PT inbox preview says "Video
+    call". Only the caller posts it, so each call makes exactly one stamp.
+    Calls that never connected (no answer) leave no stamp.
+  - Spec: a client posting `call_secs: 185` makes a message the PT sees with
+    `call_secs: 185`.
+  - Checked with the two headless Chromes again (PT 1366px, client 390px,
+    light and dark): video both ways, the client ends this time and the PT's
+    call closes too, both chats show the stamp ("You called for 6 sec" on the
+    client, "Alex called for 6 sec" on the PT). The phone screen doesn't
+    scroll sideways. `pnpm check`: 20 tests pass.
+  - Tripped up on: a scripted find-and-replace on `server.js` failed because
+    the file has Windows line endings. Did the edits by hand instead.

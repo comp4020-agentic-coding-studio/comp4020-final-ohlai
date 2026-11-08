@@ -40,6 +40,12 @@ export function mountChat(root, other, { onLoad, top } = {}) {
     for (const m of messages) {
       const t = utc(m.created_at), day = fmtDay(t);
       if (day !== lastDay) items.push(el("li", { className: "day", textContent: (lastDay = day) }));
+      if (m.call_secs !== null) {
+        const mins = Math.round(m.call_secs / 60);
+        const long = m.call_secs < 60 ? `${m.call_secs} sec` : `${mins} min`;
+        items.push(el("li", { className: "day callstamp", textContent: `${m.sender_id === me.id ? "You" : data.other.name} called for ${long} · ${fmtTime(t)}` }));
+        continue;
+      }
       items.push(el("li", { className: m.sender_id === me.id ? "mine" : "theirs" },
         m.image ? el("a", { href: `/api/img/${m.image}`, target: "_blank" },
           el("img", { src: `/api/img/${m.image}`, alt: "Photo", loading: "lazy" })) : el("p", { textContent: m.body }),

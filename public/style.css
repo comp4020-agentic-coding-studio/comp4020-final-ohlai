@@ -436,28 +436,27 @@ body.chatpage[data-view="desktop"] .compose { max-width: 1120px; margin: 0 auto;
 .photo:focus-within { outline: 3px solid var(--accent); outline-offset: 2px; }
 .chatpage .error { position: fixed; bottom: 76px; left: 16px; }
 
-/* video call, bento style: the other person's video is a tile of its own,
-   shown whole (contain, not cover) with nothing laid over it. Your camera and
-   the status + End button are separate tiles beside it (below it on a phone). */
-.call { width: min(100vw - 24px, 1100px); max-height: calc(100vh - 24px); padding: 10px; border: 1px solid var(--line); border-radius: 22px; background: var(--bg); color: var(--ink); }
-.call[open] { display: grid; grid-template-columns: 1fr 240px; gap: 10px; }
-.call::backdrop { background: rgba(0, 0, 0, 0.6); }
-.call .tile { border-radius: 14px; background: var(--soft); overflow: hidden; min-height: 0; }
-.call video { display: block; width: 100%; height: 100%; object-fit: contain; }
-.them-tile { aspect-ratio: 16 / 9; }
-.call-side { display: flex; flex-direction: column; gap: 10px; min-height: 0; }
-.self-tile { aspect-ratio: 4 / 3; }
-.self-tile video { object-fit: cover; transform: scaleX(-1); } /* a mirror, like every video app */
-.call-panel { flex: 1; display: flex; flex-direction: column; justify-content: space-between; gap: 12px; padding: 14px; }
+/* video call: no backplate, just floating cards like the chat drawer. Each
+   video card is sized in call.js to its video's exact shape, so the video
+   fills it edge to edge with the card's rounded corners. Nothing sits on top
+   of the other person's video; your camera and the status + End are their
+   own cards beside it (below it on a phone). */
+.call { max-width: none; max-height: none; padding: 0; border: 0; background: none; overflow: visible; color: var(--ink); }
+.call[open] { display: flex; align-items: flex-start; gap: 12px; }
+.call::backdrop { background: rgba(0, 0, 0, 0.45); backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px); }
+.callcard { border-radius: 22px; background: var(--card); overflow: hidden; box-shadow: 0 30px 80px -30px rgba(0, 0, 0, 0.6); flex: none; }
+.callcard video { display: block; width: 100%; height: 100%; object-fit: cover; background: var(--soft); }
+.callcard video.self { transform: scaleX(-1); } /* a mirror, like every video app */
+.call-side { display: flex; flex-direction: column; gap: 12px; width: 250px; }
+.call-panel { display: flex; flex-direction: column; gap: 14px; padding: 16px; }
 .call-status { margin: 0; font-weight: 600; }
 .call .actions { display: flex; gap: 10px; }
 .call .actions button { flex: 1; border-radius: 12px; }
 .call .end { background: var(--warn); border-color: var(--warn); color: var(--bg); }
 @media (max-width: 699px) {
-  .call[open] { grid-template-columns: 1fr; overflow-y: auto; }
-  .them-tile { aspect-ratio: 3 / 4; max-height: 60vh; }
-  .call-side { flex-direction: row; }
-  .self-tile { width: 38%; aspect-ratio: 3 / 4; flex: none; }
+  .call[open] { flex-direction: column; align-items: center; }
+  .call-side { flex-direction: row; align-items: flex-start; width: calc(100vw - 24px); }
+  .call-panel { flex: 1; min-width: 0; }
 }
 
 /* Chat compose bar: icon buttons, the text box and Send all one height, and

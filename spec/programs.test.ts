@@ -185,6 +185,10 @@ it("a client signs up from their invite, then only their own PT can message them
   expect((await api(`/api/call/${p.client_user_id}`, { signal: { kind: "end" } }, stranger)).status).toBe(404);
   expect((await api(`/api/call/${p.client_user_id}`, { signal: { kind: "end" } })).status).toBe(404);
   expect((await api(`/api/call/${p.pt_user_id}`, { signal: { kind: "nope" } }, client)).status).toBe(400);
+  // A finished call leaves a stamp in the chat both people see.
+  expect((await api(`/api/chat/${p.pt_user_id}`, { call_secs: 185 }, client)).status).toBe(201);
+  const after = await (await api(`/api/chat/${p.client_user_id}`, undefined, pt)).json();
+  expect(after.messages.at(-1)).toMatchObject({ sender_id: p.client_user_id, call_secs: 185 });
   // Nothing a client sees gives away the PT link.
   const me = await (await api("/api/me", undefined, client)).text();
   expect(me).not.toContain("pt_token");

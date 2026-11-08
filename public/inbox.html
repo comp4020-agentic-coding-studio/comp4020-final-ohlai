@@ -53,7 +53,7 @@
             el("strong", { textContent: t.name }),
             el("small", { className: "muted", textContent: t.last ? when(t.last.created_at) : "" })),
           el("span", { className: t.unread ? "preview unread" : "preview muted",
-            textContent: !t.last ? "No messages yet" : `${t.last.sender_id === t.id ? "" : "You: "}${t.last.image ? "Photo" : t.last.body}` })),
+            textContent: !t.last ? "No messages yet" : `${t.last.sender_id === t.id ? "" : "You: "}${t.last.image ? "Photo" : t.last.call_secs !== null ? "Video call" : t.last.body}` })),
         t.unread ? el("span", { className: "badge", textContent: t.unread }) : null)))
       : [el("li", { className: "muted pad", textContent: threads.length ? "No clients match." : "No conversations yet. A client shows up here once they sign up from their invite." })]));
   }

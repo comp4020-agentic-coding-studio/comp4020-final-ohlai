@@ -162,6 +162,8 @@ db.exec(`
 `);
 if (!hasColumn("users", "checkin_questions")) db.exec("ALTER TABLE users ADD COLUMN checkin_questions TEXT");
 if (!hasColumn("users", "nudge_message")) db.exec("ALTER TABLE users ADD COLUMN nudge_message TEXT");
+// A finished video call shows in the chat as a stamp: "You called, 3 min".
+if (!hasColumn("messages", "call_secs")) db.exec("ALTER TABLE messages ADD COLUMN call_secs INTEGER");
 if (!hasColumn("users", "show_training")) db.exec("ALTER TABLE users ADD COLUMN show_training INTEGER NOT NULL DEFAULT 1");
 const DEFAULT_QUESTIONS = [
   { text: "How's your energy been this week?", kind: "scale" },
@@ -588,7 +590,7 @@ const server = createServer(async (req, res) => {
       const people = db.prepare(`
         SELECT u.id, u.name, (SELECT group_concat(title, ', ') FROM programs WHERE pt_user_id = ? AND client_user_id = u.id AND ended_at IS NULL) titles
         FROM users u WHERE u.id IN (SELECT client_user_id FROM programs WHERE pt_user_id = ?)`).all(me.id, me.id);
-      const lastMsg = db.prepare("SELECT sender_id, body, image, created_at FROM messages WHERE pt_id = ? AND client_id = ? ORDER BY id DESC");
+      const lastMsg = db.prepare("SELECT sender_id, body, image, call_secs, created_at FROM messages WHERE pt_id = ? AND client_id = ? ORDER BY id DESC");
       const threads = people.map((u) => ({ ...u, last: lastMsg.get(me.id, u.id) ?? null, unread: unread(me.id, u.id) }));
       threads.sort((a, b) => (b.last?.created_at ?? "").localeCompare(a.last?.created_at ?? ""));
       return send(res, 200, { me, threads });
@@ -809,7 +811,7 @@ const server = createServer(async (req, res) => {
       const otherUser = db.prepare("SELECT id, name, role FROM users WHERE id = ?").get(other);
       if (req.method === "GET" && !cm[2]) {
         const messages = db
-          .prepare("SELECT id, sender_id, body, image, created_at FROM messages WHERE pt_id = ? AND client_id = ? ORDER BY id")
+          .prepare("SELECT id, sender_id, body, image, call_secs, created_at FROM messages WHERE pt_id = ? AND client_id = ? ORDER BY id")
           .all(pt, client);
         if (messages.length)
           db.prepare("INSERT INTO reads (user_id, other_id, last_id) VALUES (?,?,?) ON CONFLICT DO UPDATE SET last_id = excluded.last_id")
@@ -817,7 +819,7 @@ const server = createServer(async (req, res) => {
         return send(res, 200, { me, other: otherUser, messages });
       }
       if (req.method === "POST") {
-        let body = "", image = null;
+        let body = "", image = null, callSecs = null;
         if (cm[2]) {
           const buf = await readRaw(req, 5_000_000);
           const ext = IMAGE_TYPES.find(([, is]) => buf.length > 12 && is(buf))?.[0];
@@ -825,11 +827,17 @@ const server = createServer(async (req, res) => {
           image = `${token()}.${ext}`;
           writeFileSync(`${UPLOADS}/${image}`, buf);
         } else {
-          body = str((await readJson(req)).body, 2000);
-          if (!body) return send(res, 400, { error: "Type a message first." });
+          const b = await readJson(req);
+          // A call stamp: how long a video call lasted, sent by the caller when it ends.
+          if (Number.isInteger(b.call_secs) && b.call_secs >= 0) callSecs = Math.min(b.call_secs, 86400);
+          else {
+            body = str(b.body, 2000);
+            if (!body) return send(res, 400, { error: "Type a message first." });
+          }
         }
-        db.prepare("INSERT INTO messages (pt_id, client_id, sender_id, body, image) VALUES (?,?,?,?,?)").run(pt, client, me.id, body ?? "", image);
-        audit(asUser(me), "message", 201, `sent ${image ? "a photo" : "a message"} to ${JSON.stringify(otherUser.name)}`);
+        db.prepare("INSERT INTO messages (pt_id, client_id, sender_id, body, image, call_secs) VALUES (?,?,?,?,?,?)").run(pt, client, me.id, body ?? "", image, callSecs);
+        const what = image ? "a photo" : callSecs !== null ? `a call stamp (${callSecs}s)` : "a message";
+        audit(asUser(me), "message", 201, `sent ${what} to ${JSON.stringify(otherUser.name)}`);
         push("chat", { users: [pt, client] });
         return send(res, 201, {});
       }

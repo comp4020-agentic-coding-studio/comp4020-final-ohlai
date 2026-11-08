@@ -25,3 +25,7 @@ nice works well locally!! just move the end button from overlay on the video (on
 ## 2026-11-09 01:14 (dashboard)
 
 yep commit then ill merge it in and deploy and give it a go
+
+## 2026-11-09 01:29 (dashboard)
+
+the image should fill the whole card (there is a big gap between the image and the frame) - i want to get those rounded edges etc. We should be dynamically adjusting the side of the cards to match the size of the video inputs from both sides - atm there is lots of space between video input and side of card. Also im going to backtrack on the bento box look - it sholdnt have a backplate and should be like the client popup with messenges where they are just two floating popup cards. Lastly would be nice to have a stamp in the chat of You called for x minutes or something just to show that you called.

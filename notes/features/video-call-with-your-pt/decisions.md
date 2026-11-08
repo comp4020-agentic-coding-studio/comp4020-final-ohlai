@@ -36,3 +36,18 @@ Newest at the bottom. Same format as `notes/decisions.md`.
 - **Deploy.** First asked for commit and deploy, then changed to: Claude
   commits, I merge and deploy myself from the dashboard so I can try it.
   That also matches the rule that feature sessions never touch main.
+
+## 2026-11-09: Floating cards instead of bento, cards fit the video, call stamps
+
+- **Changed my mind on the bento box** (previous entry). Dropped the
+  backplate. Now it's floating cards like the chat drawer on the client's
+  program page. Why: I want it to look like that popup.
+- **Video fills its card.** Each video card takes its video's own shape and
+  size, so the picture runs edge to edge with rounded corners. Before, the
+  video was letterboxed in a fixed-shape tile with a big gap around it.
+- **Call stamp in the chat.** I asked for "You called for x minutes or
+  something". Built as a new nullable `call_secs` column on `messages`
+  (guarded `ALTER TABLE`, additive). Claude went with this instead of a
+  normal text message so it can be shown as a stamp and not a chat bubble,
+  and so the other person sees "Coach Sam called" not "You called". Only
+  calls that connected get a stamp, posted by whoever placed the call.
