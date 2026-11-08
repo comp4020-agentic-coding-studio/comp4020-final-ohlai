@@ -59,8 +59,8 @@ db.exec(`
 if (!hasColumn("set_logs", "session_id"))
   db.exec("ALTER TABLE set_logs ADD COLUMN session_id INTEGER REFERENCES sessions(id) ON DELETE CASCADE");
 
-// Accounts sit on top of the links, they don't replace them: a link still
-// opens its program. docs/adr/0003-accounts.md says why.
+// Accounts (docs/adr/0003-accounts-and-chat.md). Clients sign up from an
+// invite (the invites table below); a program's link is only used inside the app.
 db.exec(`
   CREATE TABLE IF NOT EXISTS users (
     id INTEGER PRIMARY KEY,
@@ -129,6 +129,25 @@ db.exec(`
     created_at TEXT NOT NULL DEFAULT (datetime('now'))
   );
 `);
+// An invite is to the app, not to a program: who invited whom. Programs are
+// tied to the client by email until they sign up, then by their account.
+db.exec(`
+  CREATE TABLE IF NOT EXISTS invites (
+    id INTEGER PRIMARY KEY,
+    token TEXT UNIQUE NOT NULL,
+    pt_user_id INTEGER NOT NULL REFERENCES users(id),
+    name TEXT NOT NULL,
+    email TEXT NOT NULL,
+    created_at TEXT NOT NULL DEFAULT (datetime('now')),
+    used_at TEXT
+  );
+`);
+// Changing a client's program ends the old one (kept, with its sets) and
+// starts a new copy. If they're mid-workout the change waits in pending_change
+// (JSON: title, exercises, note) until they finish. change_note is the PT's
+// note to the client about the new program.
+for (const [col, type] of [["ended_at", "TEXT"], ["replaced_by", "INTEGER"], ["pending_change", "TEXT"], ["change_note", "TEXT"]])
+  if (!hasColumn("programs", col)) db.exec(`ALTER TABLE programs ADD COLUMN ${col} ${type}`);
 // A PT's private notes on a client: one free-text note per PT and client email,
 // so every program that client has with the PT shows the same note. Only ever
 // sent to that PT (on /api/dash), never to a link or a client login.
@@ -296,6 +315,19 @@ function createProgram(body, pt) {
   return { ptToken, clientToken };
 }
 
+// Swap a client onto a new program: a fresh copy for the same client, and the
+// old one ends. Nothing is deleted, so every logged set stays where it was.
+function applyChange(old, change) {
+  const pt = db.prepare("SELECT id, name FROM users WHERE id = ?").get(old.pt_user_id);
+  const made = createProgram({ title: change.title, client_name: old.client_name, client_email: old.client_email, exercises: change.exercises }, pt);
+  const next = db.prepare("SELECT id FROM programs WHERE pt_token = ?").get(made.ptToken).id;
+  db.prepare("UPDATE programs SET client_user_id = ?, change_note = ? WHERE id = ?").run(old.client_user_id, change.note, next);
+  db.prepare("UPDATE programs SET ended_at = datetime('now'), replaced_by = ?, pending_change = NULL WHERE id = ?").run(next, old.id);
+  audit(SERVER, "change", 200, `moved ${JSON.stringify(old.client_name)} from p${old.id} to p${next} ${JSON.stringify(change.title)}`);
+  push("program", { programId: old.id, users: [old.pt_user_id, old.client_user_id].filter(Boolean) });
+  return next;
+}
+
 // Either token opens the program; which one tells us who is looking.
 function findProgram(tok) {
   const p = db.prepare("SELECT * FROM programs WHERE client_token = ? OR pt_token = ?").get(tok, tok);
@@ -313,6 +345,9 @@ function findProgram(tok) {
       pt_user_id: p.pt_user_id, client_user_id: p.client_user_id,
     },
     client_token: role === "pt" ? p.client_token : undefined,
+    ended: !!p.ended_at,
+    change_note: p.change_note,
+    pending: p.pending_change && (({ title, note }) => ({ title, note }))(JSON.parse(p.pending_change)),
     claimed: !!(role === "pt" ? p.pt_user_id : p.client_user_id),
     exercises,
     logs,
@@ -326,7 +361,11 @@ function findProgram(tok) {
 function dashRow(p) {
   const f = findProgram(p.pt_token);
   const done = f.sessions.filter((s) => s.finished_at);
-  const last = done.at(-1)?.started_at ?? f.logs.at(-1)?.logged_at ?? null;
+  // Last workout counts their earlier programs too, so changing someone's
+  // program doesn't make them look like they've never trained.
+  const before = p.client_user_id && db.prepare(`SELECT max(s.started_at) t FROM sessions s JOIN programs o ON o.id = s.program_id
+    WHERE o.pt_user_id = ? AND o.client_user_id = ? AND o.ended_at IS NOT NULL AND s.finished_at IS NOT NULL`).get(p.pt_user_id, p.client_user_id).t;
+  const last = done.at(-1)?.started_at ?? f.logs.at(-1)?.logged_at ?? before ?? null;
   const weekAgo = Date.now() - 7 * 864e5;
   const hidden = !!p.client_user_id && !db.prepare("SELECT show_training FROM users WHERE id = ?").get(p.client_user_id).show_training;
   const bySession = (exId) => {
@@ -344,6 +383,7 @@ function dashRow(p) {
     client_name: f.program.client_name,
     client_email: f.program.client_email,
     client_user_id: p.client_user_id,
+    pending: f.pending,
     // dashRow is only for the PT's own dashboard, so the private note can go here.
     note: db.prepare("SELECT body FROM client_notes WHERE pt_user_id = ? AND client_email = ?").get(p.pt_user_id, p.client_email)?.body ?? "",
     last_workout: last,
@@ -382,11 +422,6 @@ const server = createServer(async (req, res) => {
   const path = url.pathname;
   try {
     if (req.method === "GET" && PAGES[path]) return send(res, 200, page(PAGES[path]), "text/html");
-    const moved = { "/templates": "/programs", "/new": "/programs/new" }[path];
-    if (req.method === "GET" && moved) {
-      res.writeHead(301, { location: moved + url.search });
-      return res.end();
-    }
     if (req.method === "GET" && STATIC_TYPE(path) && existsSync(new URL(`./public${path}`, import.meta.url)))
       return send(res, 200, page(path.slice(1)), STATIC_TYPE(path));
     if (req.method === "GET" && (path === "/readme" || path === "/readme/")) {
@@ -395,6 +430,7 @@ const server = createServer(async (req, res) => {
       return send(res, 200, page("readme.html").toString().replace("@README@", md), "text/html");
     }
     if (req.method === "GET" && /^\/p\/[\w-]+$/.test(path)) return send(res, 200, page("program.html"), "text/html");
+    if (req.method === "GET" && /^\/join\/[\w-]+$/.test(path)) return send(res, 200, page("join.html"), "text/html");
     if (req.method === "GET" && /^\/chat\/\d+$/.test(path)) return send(res, 200, page("chat.html"), "text/html");
     if (req.method === "GET" && /^\/checkin\/\d+$/.test(path)) return send(res, 200, page("checkin.html"), "text/html");
     if (req.method === "GET" && /^\/fonts\/[\w-]+\.woff2$/.test(path)) {
@@ -440,8 +476,9 @@ const server = createServer(async (req, res) => {
     if (req.method === "GET" && path === "/api/me") {
       if (!me) return send(res, 401, { error: "Not logged in." });
       if (me.role === "pt") return send(res, 200, { me });
+      // Ended programs still count for history, but only current ones get day buttons.
       const programs = db
-        .prepare("SELECT title, client_token, pt_name, pt_user_id FROM programs WHERE client_user_id = ? ORDER BY id DESC")
+        .prepare("SELECT title, client_token, pt_name, pt_user_id, ended_at, change_note FROM programs WHERE client_user_id = ? ORDER BY id DESC")
         .all(me.id);
       const pts = [...new Map(programs.filter((p) => p.pt_user_id).map((p) => [p.pt_user_id, p.pt_name])).entries()]
         .map(([id, name]) => ({ id, name, unread: unread(me.id, id), checked_in: lastCheckin(id, me.id)?.at ?? null }));
@@ -457,7 +494,8 @@ const server = createServer(async (req, res) => {
             sets: f.logs.filter((l) => l.session_id === s.id).map((l) => ({ exercise: names.get(l.exercise_id), set_no: l.set_no, reps: l.reps, weight: l.weight })) });
       }
       workouts.sort((a, b) => b.started_at.localeCompare(a.started_at));
-      return send(res, 200, { me, programs, pts, workouts });
+      const current = programs.filter((p) => !p.ended_at).map(({ ended_at, ...p }) => p);
+      return send(res, 200, { me, programs: current, pts, workouts });
     }
     if (req.method === "POST" && path === "/api/me/training") {
       if (me?.role !== "client") return send(res, 401, { error: "Log in as a client to change this." });
@@ -477,7 +515,7 @@ const server = createServer(async (req, res) => {
     if (req.method === "GET" && path === "/api/dash") {
       if (me?.role !== "pt") return send(res, 401, { error: "Log in as a PT to see your dashboard." });
       if (!url.searchParams.has("refresh")) audit(asUser(me), "dash", 200, "opened dashboard");
-      const rows = db.prepare("SELECT * FROM programs WHERE pt_user_id = ? ORDER BY id").all(me.id).map(dashRow);
+      const rows = db.prepare("SELECT * FROM programs WHERE pt_user_id = ? AND ended_at IS NULL ORDER BY id").all(me.id).map(dashRow);
       // Whoever has gone longest without training comes first.
       rows.sort((a, b) => (a.last_workout ?? "").localeCompare(b.last_workout ?? ""));
       return send(res, 200, { me, clients: rows });
@@ -538,7 +576,7 @@ const server = createServer(async (req, res) => {
     if (req.method === "GET" && path === "/api/inbox") {
       if (me?.role !== "pt") return send(res, 401, { error: "Log in as a PT to see your inbox." });
       const people = db.prepare(`
-        SELECT u.id, u.name, (SELECT group_concat(title, ', ') FROM programs WHERE pt_user_id = ? AND client_user_id = u.id) titles
+        SELECT u.id, u.name, (SELECT group_concat(title, ', ') FROM programs WHERE pt_user_id = ? AND client_user_id = u.id AND ended_at IS NULL) titles
         FROM users u WHERE u.id IN (SELECT client_user_id FROM programs WHERE pt_user_id = ?)`).all(me.id, me.id);
       const lastMsg = db.prepare("SELECT sender_id, body, image, created_at FROM messages WHERE pt_id = ? AND client_id = ? ORDER BY id DESC");
       const threads = people.map((u) => ({ ...u, last: lastMsg.get(me.id, u.id) ?? null, unread: unread(me.id, u.id) }));
@@ -555,7 +593,7 @@ const server = createServer(async (req, res) => {
       const clients = db.prepare("SELECT client_name name, client_email email, min(id) first FROM programs WHERE pt_user_id = ? GROUP BY client_email COLLATE NOCASE ORDER BY client_name").all(me.id);
       return send(res, 200, { clients: clients.map(({ name, email }) => ({ name, email })) });
     }
-    const tm = path.match(/^\/api\/templates(?:\/(\d+)(\/delete|\/assign)?)?$/);
+    const tm = path.match(/^\/api\/templates(?:\/(\d+)(\/delete|\/assign|\/duplicate)?)?$/);
     if (tm) {
       if (me?.role !== "pt") return send(res, 401, { error: "Log in as a PT to see your programs." });
       if (req.method === "GET" && !tm[1]) {
@@ -580,11 +618,19 @@ const server = createServer(async (req, res) => {
         const made = createProgram({ title: t.name, client_name: b.client_name, client_email: b.client_email, exercises: JSON.parse(t.exercises) }, me);
         if (!made) return send(res, 400, { error: "Need the client's name and a valid email." });
         const found = findProgram(made.ptToken);
-        audit(asProgram(found), "create", 201, `assigned program ${JSON.stringify(t.name)} to ${JSON.stringify(found.program.client_name)}`);
+        const invite = token();
+        db.prepare("INSERT INTO invites (token, pt_user_id, name, email) VALUES (?,?,?,?)").run(invite, me.id, found.program.client_name, found.program.client_email);
+        audit(asProgram(found), "create", 201, `onboarded ${JSON.stringify(found.program.client_name)} with program ${JSON.stringify(t.name)} and made an invite`);
         push("program", { programId: found.program.id, users: [me.id] });
-        return send(res, 201, made);
+        return send(res, 201, { ...made, invite });
       }
-      if (req.method === "POST" && tm[2]) {
+      if (req.method === "POST" && tm[2] === "/duplicate") {
+        const name = `${t.name} (copy)`.slice(0, 80);
+        const { lastInsertRowid: id } = db.prepare("INSERT INTO templates (pt_user_id, name, exercises) VALUES (?,?,?)").run(me.id, name, t.exercises);
+        audit(asUser(me), "template", 201, `duplicated template ${JSON.stringify(t.name)}`);
+        return send(res, 201, { id: Number(id) });
+      }
+      if (req.method === "POST" && tm[2] === "/delete") {
         db.prepare("DELETE FROM templates WHERE id = ?").run(t.id);
         audit(asUser(me), "template", 200, `deleted template ${JSON.stringify(t.name)}`);
         return send(res, 200, {});
@@ -601,6 +647,66 @@ const server = createServer(async (req, res) => {
           : `renamed template ${JSON.stringify(t.name)} to ${JSON.stringify(name)}`);
         return send(res, 200, {});
       }
+    }
+
+    // ---------- invites (/join) ----------
+    // Signing up makes (or logs into) the client's account and links every
+    // program this PT has for the invite's email, whatever they are by then.
+    const inv = path.match(/^\/api\/invite\/([\w-]+)$/);
+    if (inv) {
+      const i = db.prepare("SELECT i.*, u.name pt_name FROM invites i JOIN users u ON u.id = i.pt_user_id WHERE i.token = ?").get(inv[1]);
+      if (!i) {
+        audit(asUser(me), "invite", 404, "no such invite");
+        return send(res, 404, { error: "This invite link doesn't work. Ask your PT to send it again." });
+      }
+      if (req.method === "GET") {
+        if (i.used_at) return send(res, 200, { used: true });
+        const prog = db.prepare("SELECT title FROM programs WHERE pt_user_id = ? AND client_email = ? COLLATE NOCASE AND ended_at IS NULL ORDER BY id DESC").get(i.pt_user_id, i.email);
+        return send(res, 200, { name: i.name, email: i.email, pt_name: i.pt_name, program: prog?.title ?? null });
+      }
+      if (req.method === "POST") {
+        const b = await readJson(req);
+        const fail = (status, error) => (audit(null, "join", status, error), send(res, status, { error }));
+        if (i.used_at) return fail(409, "This invite has been used. Log in instead.");
+        const name = str(b.name, 80) ?? i.name, email = str(b.email) ?? i.email;
+        if (!EMAIL.test(email)) return fail(400, "Need a valid email.");
+        let u = db.prepare("SELECT * FROM users WHERE email = ?").get(email);
+        if (u) {
+          if (u.role !== "client" || !pwOk(b.password ?? "", u.pass)) return fail(403, `Wrong password for ${email}.`);
+        } else {
+          if (String(b.password ?? "").length < 8) return fail(400, "Pick a password of at least 8 characters.");
+          u = addUser(name, email, "client", b.password);
+        }
+        db.prepare("UPDATE programs SET client_user_id = ?, client_name = ?, client_email = ? WHERE pt_user_id = ? AND client_email = ? COLLATE NOCASE AND client_user_id IS NULL")
+          .run(u.id, name, email, i.pt_user_id, i.email);
+        db.prepare("UPDATE invites SET used_at = datetime('now') WHERE id = ?").run(i.id);
+        startLogin(res, u);
+        audit(asUser(u), "join", 200, `signed up from ${JSON.stringify(i.pt_name)}'s invite`);
+        push("program", { users: [i.pt_user_id] });
+        return send(res, 200, { next: "/me" });
+      }
+    }
+
+    // ---------- changing a client's program (dashboard side panel) ----------
+    const chm = path.match(/^\/api\/programs\/(\d+)\/change$/);
+    if (req.method === "POST" && chm) {
+      if (me?.role !== "pt") return send(res, 401, { error: "Log in as a PT." });
+      const p = db.prepare("SELECT * FROM programs WHERE id = ? AND pt_user_id = ? AND ended_at IS NULL").get(Number(chm[1]), me.id);
+      const b = await readJson(req);
+      const t = db.prepare("SELECT * FROM templates WHERE id = ? AND pt_user_id = ?").get(Number(b.template_id), me.id);
+      if (!p || !t) {
+        audit(asUser(me), "change", 404, p ? "no such template" : "no such client program");
+        return send(res, 404, { error: p ? "Pick one of your programs." : "No such client." });
+      }
+      const change = { title: t.name, exercises: JSON.parse(t.exercises), note: str(b.note, 1000) };
+      // Mid-workout: wait until they finish, so the workout they're in isn't pulled out from under them.
+      if (db.prepare("SELECT 1 FROM sessions WHERE program_id = ? AND finished_at IS NULL").get(p.id)) {
+        db.prepare("UPDATE programs SET pending_change = ? WHERE id = ?").run(JSON.stringify(change), p.id);
+        audit(asUser(me), "change", 202, `queued ${JSON.stringify(t.name)} for ${JSON.stringify(p.client_name)} after their workout`);
+        push("program", { programId: p.id, users: [p.pt_user_id, p.client_user_id].filter(Boolean) });
+        return send(res, 202, { queued: true });
+      }
+      return send(res, 200, { queued: false, program_id: applyChange(p, change) });
     }
 
     // ---------- weekly check-ins ----------
@@ -693,22 +799,11 @@ const server = createServer(async (req, res) => {
       return res.end(readFileSync(`${UPLOADS}/${im[1]}`));
     }
 
-    // ---------- programs ----------
-    if (req.method === "POST" && path === "/api/programs") {
-      if (me?.role !== "pt") return send(res, 401, { error: "Log in as a PT to write a program." });
-      const made = createProgram(await readJson(req), me);
-      if (!made) return send(res, 400, { error: "Need a title, the client's name, a valid email and at least one exercise." });
-      const found = findProgram(made.ptToken);
-      audit(asProgram(found), "create", 201, `created program ${JSON.stringify(found.program.title)} for ${JSON.stringify(found.program.client_name)}`);
-      return send(res, 201, made);
-    }
-
-    const m = path.match(/^\/api\/p\/([\w-]+)(?:\/(log|unlog|remove|start|finish|discard|claim|events))?$/);
+    const m = path.match(/^\/api\/p\/([\w-]+)(?:\/(log|unlog|remove|start|finish|discard|events))?$/);
     if (m) {
       const found = findProgram(m[1]);
       const action = m[2] ?? "open";
-      // Claiming is done by whoever is logged in, not by the link's owner.
-      const who = () => (action === "claim" && me ? asUser(me) : asProgram(found));
+      const who = () => asProgram(found);
       const deny = (status, error) => (audit(who(), action, status, error), send(res, status, { error }));
       if (!found) return deny(404, "No program at this link.");
       if (req.method === "GET" && m[2] === "events") return stream(req, res, asProgram(found), { programId: found.program.id });
@@ -726,35 +821,18 @@ const server = createServer(async (req, res) => {
           return send(res, status, findProgram(m[1]));
         };
 
-        // Claiming ties a link to an account. The PT link joins the logged-in
-        // PT's dashboard. The client link makes (or logs into) the client's
-        // account, under the email the PT wrote the program for.
-        if (m[2] === "claim") {
-          if (found.role === "pt") {
-            if (me?.role !== "pt") return deny(401, "Log in as a PT to add this to your dashboard.");
-            if (p.pt_user_id && p.pt_user_id !== me.id) return deny(409, "This program is on another PT's dashboard.");
-            db.prepare("UPDATE programs SET pt_user_id = ? WHERE id = ?").run(me.id, p.id);
-            return done(`added it to ${JSON.stringify(me.name)}'s dashboard`);
-          }
-          if (p.client_user_id) return deny(409, "This program already has an account. Log in instead.");
-          let u = db.prepare("SELECT * FROM users WHERE email = ?").get(p.client_email);
-          if (u) {
-            if (u.role !== "client" || (me?.id !== u.id && !pwOk(b.password ?? "", u.pass)))
-              return deny(403, `Wrong password for ${p.client_email}.`);
-          } else {
-            if (String(b.password ?? "").length < 8) return deny(400, "Pick a password of at least 8 characters.");
-            u = addUser(p.client_name, p.client_email, "client", b.password);
-          }
-          db.prepare("UPDATE programs SET client_user_id = ? WHERE id = ?").run(u.id, p.id);
-          startLogin(res, u);
-          return done("set up their account");
-        }
-
         if (found.role !== "client") return deny(403, "Only the client logs sets.");
         const open = found.open_session;
         const exName = (id) => found.exercises.find((e) => e.id === id)?.name ?? `exercise ${id}`;
 
+        // A change the PT queued while this workout was going happens once it's over.
+        const pending = () => {
+          const raw = db.prepare("SELECT pending_change FROM programs WHERE id = ?").get(p.id).pending_change;
+          if (raw) applyChange(p, JSON.parse(raw));
+        };
+
         if (m[2] === "start") {
+          if (found.ended) return deny(409, "This program has ended.");
           if (open) return deny(409, "Finish or discard the workout you've already started.");
           if (!found.exercises.some((e) => e.day === b.day)) return deny(400, "No such workout.");
           db.prepare("INSERT INTO sessions (program_id, day) VALUES (?, ?)").run(p.id, b.day);
@@ -767,11 +845,13 @@ const server = createServer(async (req, res) => {
           const sets = found.logs.filter((l) => l.session_id === open.id).length;
           if (sets) db.prepare("UPDATE sessions SET finished_at = datetime('now') WHERE id = ?").run(open.id);
           else db.prepare("DELETE FROM sessions WHERE id = ?").run(open.id);
+          pending();
           return done(sets ? `finished ${JSON.stringify(open.day)} with ${sets} sets` : `finished ${JSON.stringify(open.day)} empty, so it was dropped`);
         }
         if (m[2] === "discard") {
           db.prepare("DELETE FROM set_logs WHERE session_id = ?").run(open.id);
           db.prepare("DELETE FROM sessions WHERE id = ?").run(open.id);
+          pending();
           return done(`discarded ${JSON.stringify(open.day)}`);
         }
         if (m[2] === "unlog") {

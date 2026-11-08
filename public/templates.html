@@ -13,57 +13,18 @@
     <div><p class="eyebrow">Your library</p><h1>Programs</h1></div>
     <a href="/programs/new" class="btn primary">New program</a>
   </header>
-  <p class="muted">Write a program once, then assign it to as many clients as you like. Each client gets their own
-    copy, so editing a program here changes it for clients you assign it to next, never for anyone who already has
-    it.</p>
+  <p class="muted">Write a program once, then give it to clients with Onboard client on your
+    <a href="/dash">dashboard</a>. Each client gets their own copy, so editing a program here changes it for clients
+    you onboard next, never for anyone who already has it.</p>
   <div id="list" class="tgrid"></div>
   <p id="err" class="error" role="alert"></p>
 </main>
-
-<dialog id="assign" class="pop assign" aria-labelledby="a-title">
-  <div class="detail-head">
-    <div><h2 id="a-title">Assign</h2></div>
-    <button type="button" id="a-x" aria-label="Close">✕</button>
-  </div>
-  <form id="aform" method="dialog">
-    <fieldset class="who-pick">
-      <legend class="sr">Who to assign it to</legend>
-      <label><input type="radio" name="who" value="existing" checked /> A client you have</label>
-      <label><input type="radio" name="who" value="new" /> A new client</label>
-    </fieldset>
-    <div id="existing">
-      <label for="a-client">Client</label>
-      <select id="a-client"></select>
-    </div>
-    <div id="newc" hidden>
-      <label for="a-name">Client name</label>
-      <input id="a-name" maxlength="80" />
-      <label for="a-email">Client email</label>
-      <input id="a-email" type="email" />
-    </div>
-    <p id="a-err" class="error" role="alert"></p>
-    <div class="actions">
-      <button type="submit" class="primary" id="a-go">Assign</button>
-      <button type="button" id="a-cancel">Cancel</button>
-    </div>
-  </form>
-  <section id="a-done" hidden>
-    <p class="muted" id="a-done-text"></p>
-    <p class="share"><a id="a-link" target="_blank"></a></p>
-    <div class="actions">
-      <a id="a-mail" class="btn primary">Email it to them</a>
-      <a id="a-open" class="btn">Open their program</a>
-      <button type="button" id="a-close">Done</button>
-    </div>
-  </section>
-</dialog>
 
 <script src="/view.js"></script>
 <script type="module">
   import { $, el, api, fmtDay, utc, toLogin, ask } from "/ui.js";
   import { mountSide } from "/side.js";
   mountSide();
-  const [who] = await api("/api/me");
 
   async function load() {
     const [data, ok] = await api("/api/templates");
@@ -71,7 +32,7 @@
     $("list").replaceChildren(...(data.templates.length ? data.templates.map(card) : [
       el("section", { className: "panel empty" },
         el("h2", { textContent: "No programs yet" }),
-        el("p", { className: "muted", textContent: "Write a program once, then assign it to your clients." }),
+        el("p", { className: "muted", textContent: "Write a program once, then onboard clients to it from your dashboard." }),
         el("a", { href: "/programs/new", className: "btn primary", textContent: "New program" }))]));
     if (location.hash) document.querySelector(location.hash)?.scrollIntoView({ block: "center" });
   }
@@ -86,59 +47,19 @@
         el("ul", { className: "plain" }, ...t.exercises.filter((e) => e.day === d).map((e) =>
           el("li", {}, el("span", { textContent: e.name }), el("span", { className: "muted num", textContent: ` ${e.sets} × ${e.reps}` })))))),
       el("div", { className: "actions" },
-        el("button", { type: "button", className: "primary", textContent: "Assign to client", onclick: () => openAssign(t) }),
-        el("a", { href: `/programs/new?edit=${t.id}`, className: "btn", textContent: "Edit" }),
+        el("a", { href: `/programs/new?edit=${t.id}`, className: "btn primary", textContent: "Edit" }),
+        el("button", { type: "button", textContent: "Duplicate", onclick: async () => {
+          const [data, ok] = await api(`/api/templates/${t.id}/duplicate`, {});
+          $("err").textContent = ok ? "" : data.error;
+          if (ok) { history.replaceState(null, "", `#p${data.id}`); load(); }
+        } }),
         el("button", { type: "button", textContent: "Delete", onclick: async () => {
-          if (!(await ask(`Delete ${t.name}?`, "Clients you've already assigned it to keep their copy.", "Delete"))) return;
+          if (!(await ask(`Delete ${t.name}?`, "Clients who already have it keep their copy.", "Delete"))) return;
           const [data, ok] = await api(`/api/templates/${t.id}/delete`, {});
           $("err").textContent = ok ? "" : data.error;
           if (ok) load();
         } })));
   }
-
-  // Assign: an existing client (picked by email) or a new one.
-  let current;
-  const mode = () => document.querySelector("[name=who]:checked").value;
-  const showMode = () => { $("existing").hidden = mode() !== "existing"; $("newc").hidden = mode() !== "new"; };
-  for (const r of document.querySelectorAll("[name=who]")) r.onchange = showMode;
-
-  async function openAssign(t) {
-    current = t;
-    const [{ clients = [] }] = await api("/api/clients");
-    $("a-title").textContent = `Assign ${t.name}`;
-    $("a-client").replaceChildren(...clients.map((c) => el("option", { value: c.email, label: `${c.name} (${c.email})`, textContent: c.name })));
-    document.querySelector(`[name=who][value=${clients.length ? "existing" : "new"}]`).checked = true;
-    document.querySelector("[name=who][value=existing]").disabled = !clients.length;
-    showMode();
-    $("a-err").textContent = "";
-    $("a-name").value = $("a-email").value = "";
-    $("aform").hidden = false;
-    $("a-done").hidden = true;
-    $("assign").showModal();
-  }
-  $("a-cancel").onclick = $("a-close").onclick = $("a-x").onclick = () => { $("assign").close(); };
-  // Clicking the dimmed page around it closes it, like the client card on the dash.
-  $("assign").onclick = (e) => { if (e.target === $("assign")) $("assign").close(); };
-
-  $("aform").onsubmit = async (e) => {
-    e.preventDefault();
-    const opt = $("a-client").selectedOptions[0];
-    const body = mode() === "existing"
-      ? { client_name: opt?.textContent, client_email: opt?.value }
-      : { client_name: $("a-name").value, client_email: $("a-email").value };
-    const [data, ok] = await api(`/api/templates/${current.id}/assign`, body);
-    if (!ok) return ($("a-err").textContent = data.error);
-
-    const url = `${location.origin}/p/${data.clientToken}`;
-    $("a-link").href = $("a-link").textContent = url;
-    $("a-open").href = `/p/${data.ptToken}`;
-    $("a-done-text").textContent = `${body.client_name} has their own copy of ${current.name} and is on your dashboard. Send them this link:`;
-    const msg = `Hi ${body.client_name},\n\nHere's your program "${current.name}". Open it on your phone at the gym and log each set as you go:\n\n${url}\n\n${who.me.name}`;
-    $("a-mail").href = `mailto:${encodeURIComponent(body.client_email)}?subject=${encodeURIComponent("Your program: " + current.name)}&body=${encodeURIComponent(msg)}`;
-    $("a-title").textContent = "Assigned";
-    $("aform").hidden = true;
-    $("a-done").hidden = false;
-  };
 
   load();
 </script>

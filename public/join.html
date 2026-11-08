@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="en-AU" data-style="mono">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Join</title>
+  <link rel="stylesheet" href="/style.css" />
+  <script src="/theme.js"></script>
+</head>
+<!-- Where the invite link from "Onboard client" lands. The invite is to the app,
+     not a program: signing up links whatever program the PT has given them. -->
+<body class="landing">
+<header class="site"><a href="/" class="brand">Program</a></header>
+<main class="narrow">
+  <form id="join" class="card" hidden>
+    <h1 id="hi">Hi</h1>
+    <p class="muted" id="sub"></p>
+    <label for="jName">Your name</label>
+    <input id="jName" autocomplete="name" maxlength="80" required />
+    <label for="jEmail">Email</label>
+    <input id="jEmail" type="email" autocomplete="email" required />
+    <label for="jPass">Password</label>
+    <input id="jPass" type="password" autocomplete="new-password" minlength="8" required />
+    <button class="primary wide" type="submit">Sign up</button>
+    <p class="muted">Already have an account? Use the same email and your password.</p>
+  </form>
+  <p id="err" class="error" role="alert"></p>
+</main>
+
+<script type="module">
+  import { $, api } from "/ui.js";
+  const tok = location.pathname.split("/").pop();
+  const [data, ok] = await api(`/api/invite/${tok}`);
+  if (!ok) $("err").textContent = data.error ?? "This invite link doesn't work. Ask your PT to send it again.";
+  else if (data.used) location.replace("/login?next=/me"); // already signed up: it's just a way back in
+  else {
+    $("hi").textContent = `Hi ${data.name}`;
+    $("sub").textContent = `${data.pt_name} just invited you to join their gym app.${data.program ? ` Your program "${data.program}" is ready.` : ""}`;
+    $("jName").value = data.name;
+    $("jEmail").value = data.email;
+    $("join").hidden = false;
+  }
+
+  $("join").onsubmit = async (e) => {
+    e.preventDefault();
+    const [res, ok] = await api(`/api/invite/${tok}`, { name: $("jName").value, email: $("jEmail").value, password: $("jPass").value });
+    if (!ok) { $("err").textContent = res.error; return; }
+    location.href = "/me";
+  };
+</script>
+</body>
+</html>

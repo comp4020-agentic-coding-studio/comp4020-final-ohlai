@@ -59,7 +59,9 @@ effort making PT pages fit a phone.
   start a new one) before checking a page or pointing me at a URL, and stop
   the old one, so I never end up looking at a stale server.
 - Look at the changed page at its width (see "Who's on what screen") before
-  calling it done.
+  calling it done, in light and dark, and with no popup open. A popup's
+  blurred backdrop hides what's behind it: the Onboard client button once
+  shipped white on white because it was only checked behind the blur.
 - An `onclick = (e) => ...` handler never returns a value (use braces, not
   `a && b`). One that returns false cancels the click, which once broke the
   client's Send button in the chat drawer.
@@ -128,7 +130,9 @@ and my messages often come through it as background turns. If
   `server.js`, restart it with
   `curl -s -X POST http://localhost:4000/api/features/$FEATURE_SLUG/apprestart`
   (it answers once the app is back up), then run `pnpm check`. Use that port
-  for every URL you give me.
+  for every URL you give me. Your `DATA_DIR` starts empty, so my accounts
+  from main aren't there: when you give me a URL, give me a login that works
+  on it too.
 - Everything about the feature goes in `notes/features/<slug>/`:
   - `prompts.md` is every message I send, word for word, with the time. A
     hook writes it. Never edit it, but commit it with your work. Read it at

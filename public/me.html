@@ -52,6 +52,8 @@
         el("h2", { textContent: p.title }),
         el("p", { className: "prog-from" }, `Program from ${p.pt_name}, ${p.days.length} day${p.days.length === 1 ? "" : "s"}. `,
           el("a", { href: `/p/${p.client_token}`, textContent: "See it all" })),
+        p.change_note ? el("div", { className: "card notice" },
+          el("small", { className: "muted", textContent: `New program from ${p.pt_name}` }), el("p", { textContent: p.change_note })) : null,
         el("div", { className: "daypicks" }, ...p.days.map((d) =>
           el("button", { type: "button", onclick: () => { start(p, d.day); } },
             el("strong", { textContent: d.day }),

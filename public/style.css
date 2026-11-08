@@ -276,7 +276,7 @@ body.app main { max-width: none; width: 100%; padding: 20px 28px 48px; }
 .apphead h1 { font-size: 1.6rem; letter-spacing: -0.02em; }
 .apphead input[type="search"] { width: 240px; padding: 10px 14px; background: var(--card); border: 1px solid var(--line); }
 .apphead button, .apphead .btn { padding: 10px 14px; white-space: nowrap; }
-.apphead button { background: var(--card); border: 1px solid var(--line); }
+.apphead button:not(.primary) { background: var(--card); border: 1px solid var(--line); }
 
 .tiles { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 14px; margin-bottom: 14px; }
 .tile, .panel { background: var(--card); border-radius: 18px; box-shadow: var(--shadow); border: 1px solid var(--line); }
@@ -522,12 +522,6 @@ body[data-view="desktop"] .drawer { inset: auto 24px 0 auto; margin: 0; height: 
 .add-day { justify-self: start; background: var(--card); border: 1px dashed var(--muted) !important; }
 .builder-foot { display: flex; align-items: center; gap: 10px; justify-content: flex-end; position: sticky; bottom: 0; padding: 12px 0; background: var(--bg); }
 .builder-foot .error { margin: 0 auto 0 0; }
-.assign { width: min(480px, calc(100% - 32px)); }
-.assign .actions { flex-wrap: nowrap; }
-.assign[open] { display: block; }
-.who-pick { border: 0; padding: 0; margin: 4px 0 0; display: flex; gap: 16px; }
-.who-pick label { display: flex; gap: 6px; align-items: center; color: var(--ink); margin: 0; }
-.who-pick input { width: auto; }
 
 /* ---------- client app: bottom pill nav, dashboard, settings ---------- */
 body.client main { padding-bottom: 120px; }
@@ -595,3 +589,9 @@ html:has(dialog[open].pop, dialog[open].detail, dialog[open].drawer, .pop:popove
 @keyframes confirm-in { from { opacity: 0; transform: translateY(12px) scale(0.96); } }
 @keyframes confirm-fade { from { opacity: 0; } }
 @media (prefers-reduced-motion: reduce) { .pop[open], .pop:popover-open, .pop::backdrop, .detail::backdrop { animation: none; } }
+/* Onboard client and Change program on the dash: a popup with a short form */
+.onboard { width: min(440px, calc(100% - 32px)); }
+.onboard p { margin: 0; color: var(--muted); }
+.onboard .actions { flex-wrap: nowrap; }
+.onboard .actions > * { flex: 1; text-align: center; }
+.onboard .error:not(:empty), .onboard .share, .onboard #ob-none { margin-top: 10px; }

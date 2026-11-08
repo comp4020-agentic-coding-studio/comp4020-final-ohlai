@@ -138,26 +138,9 @@
   // the Send button working.
   $("chatDrawer").onclick = (e) => { if (e.target === $("chatDrawer")) $("chatDrawer").close(); };
 
-  // Ties this link to an account: the PT adds it to their dashboard, the
-  // client sets a password. Both are optional; the link keeps working either way.
-  let viewer; // the logged-in user, if any
   async function renderBanner() {
     const { role, claimed, program } = state;
     const b = $("banner");
-    if (role === "pt" && !claimed) {
-      viewer ??= (await getJson("/api/me"))[0].me ?? null;
-      return b.replaceChildren(el("div", { className: "card notice" },
-        el("p", { textContent: "This program isn't on a dashboard yet." }),
-        viewer?.role === "pt"
-          ? el("button", { type: "button", className: "primary", textContent: "Add to my dashboard", onclick: () => act("claim") })
-          : el("button", { type: "button", className: "primary", textContent: "Log in to add it to your dashboard", onclick: toLogin })));
-    }
-    if (role === "client" && !claimed && !state.open_session) {
-      const pw = el("input", { type: "password", id: "pw", autocomplete: "new-password", minLength: 8 });
-      return b.replaceChildren(el("form", { className: "card notice", onsubmit: (e) => { e.preventDefault(); act("claim", { password: pw.value }); } },
-        el("label", { htmlFor: "pw", textContent: `Set a password to log in from any device and message ${program.pt_name}. Already have one? Use it here.` }),
-        el("div", { className: "row" }, pw, el("button", { type: "submit", className: "primary narrowbtn", textContent: "Save" }))));
-    }
     b.replaceChildren();
   }
 
@@ -239,7 +222,7 @@
     const { program, exercises } = state;
     const all = workouts().filter((w) => w.finished);
     $("title").textContent = program.title;
-    $("sub").textContent = `From ${program.pt_name}. Pick a workout to start.`;
+    $("sub").textContent = state.ended ? `From ${program.pt_name}. Ended.` : `From ${program.pt_name}. Pick a workout to start.`;
     $("actions").append(...navLinks());
     const weekAgo = Date.now() - 7 * 864e5;
     $("stats").replaceChildren(...[
@@ -247,7 +230,8 @@
       ["Last", all.length ? fmtDay(all.at(-1).start) : "–"]].map(stat));
 
     const dayNames = [...new Set(exercises.map((e) => e.day))];
-    const picks = dayNames.map((d) => {
+    // An ended program is history only, so no Start buttons.
+    const picks = state.ended ? [] : dayNames.map((d) => {
       const lastDone = all.filter((w) => w.day === d).at(-1);
       return el("article", { className: "card pick" },
         el("div", { className: "ex-head" },
