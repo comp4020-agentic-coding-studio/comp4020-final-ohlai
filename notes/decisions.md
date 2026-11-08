@@ -437,3 +437,13 @@ Follows the 2026-11-07 entry above. Built in `COMP4020/meta/`.
   greyed-out bell shouldn't be clickable. Now it isn't: it does nothing and
   its tooltip says why (for a planned feature: no agent yet, turn it on once
   it's started).
+
+## 2026-11-08: Bigger header, and popups take over scrolling
+
+- Asked for the logo and title to be a little larger, and more space before
+  the filters and the features. Logo 30px to 44px, title 20px to 24px, gap
+  under the header 20px to 36px.
+- Asked for the page behind a popup to be frozen, and for scrolling anywhere
+  while a popup is open to scroll the popup's content, even with the pointer
+  outside it. Done: the page can't scroll while a popup is open, and scrolling
+  over the dimmed page scrolls the popup.

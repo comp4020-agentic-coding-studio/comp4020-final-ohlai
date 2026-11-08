@@ -72,7 +72,7 @@
   button.sq.on { background:var(--fg); color:var(--bg); }
   .head { cursor:pointer; user-select:none; }
   .chev { display:inline-block; width:14px; color:var(--mute); font-size:11px; }
-  .filters { display:flex; gap:10px; align-items:center; flex-wrap:wrap; margin-bottom:12px; }
+  .filters { display:flex; gap:10px; align-items:center; flex-wrap:wrap; margin-bottom:16px; }
   .chips { display:flex; gap:6px; flex-wrap:wrap; flex:1; }
   .chips button { border-radius:8px; padding:4px 11px; font-size:12.5px; }
   .chips button.on { background:var(--fg); color:var(--bg); border-color:var(--fg); }
@@ -106,10 +106,12 @@
   button.bell svg.i { width:15px; height:15px; }
   button.bell.off { opacity:.35; cursor:default; } button.bell.off:hover { border-color:var(--line); }
   button.bell.off.on { opacity:.45; }
-  .brand { display:flex; align-items:center; gap:10px; }
-  .brand img { width:30px; height:30px; }
+  .brand { display:flex; align-items:center; gap:12px; }
+  .brand img { width:44px; height:44px; }
   @media (prefers-color-scheme: dark) { .brand img { filter:invert(1); } }
-  .brand h1 { margin:0; }
+  .brand h1 { margin:0; font-size:24px; }
+  /* While a popup is open the page behind it stays put. */
+  html.locked { overflow:hidden; }
   .brand h1 span { color:var(--mute); font-weight:500; }
   /* Popups: the page dims and blurs, the panel rises and settles. */
   dialog.modal { border:0; padding:0; background:none; color:var(--fg); max-width:min(680px, calc(100vw - 32px)); width:100%; overflow:visible; }
@@ -133,7 +135,7 @@
 </head>
 <body>
 <main>
-  <div class="row" style="margin-bottom:20px">
+  <div class="row" style="margin-bottom:36px">
     <div class="grow">
       <div class="brand"><img src="/logo.png?v=2" alt=""><h1>Cannu <span>- Parallel agent management</span></h1></div>
       <p class="sub" style="margin:0" id="totals">One branch, folder and Claude session per feature.</p>
@@ -581,17 +583,31 @@ async function onClick(e) {
 // ---------- popups ----------
 // Open: the page dims and blurs, the panel rises and settles. Close (Close,
 // Escape, or a click outside the panel) plays it backwards, then closes.
-function openModal(d) { d.showModal(); requestAnimationFrame(() => requestAnimationFrame(() => d.classList.add("in"))); }
+function openModal(d) {
+  // Lock the page without it jumping sideways when its scrollbar goes.
+  document.documentElement.style.paddingRight = innerWidth - document.documentElement.clientWidth + "px";
+  document.documentElement.classList.add("locked");
+  d.showModal(); requestAnimationFrame(() => requestAnimationFrame(() => d.classList.add("in")));
+}
 function closeModal(d) {
   if (!d.open || !d.classList.contains("in")) return;
   d.classList.remove("in");
-  setTimeout(() => d.close(), 200);
+  setTimeout(() => { d.close(); document.documentElement.classList.remove("locked"); document.documentElement.style.paddingRight = ""; }, 200);
 }
 for (const d of document.querySelectorAll("dialog.modal")) {
   d.addEventListener("cancel", (e) => { e.preventDefault(); closeModal(d); });
   d.addEventListener("mousedown", (e) => { if (e.target === d) closeModal(d); }); // the backdrop
   d.querySelector("[data-close]").onclick = () => closeModal(d);
 }
+// Scrolling anywhere while a popup is open scrolls the popup, even with the
+// pointer over the dimmed page.
+document.addEventListener("wheel", (e) => {
+  const d = document.querySelector("dialog.modal[open]"); if (!d) return;
+  const body = d.querySelector(".body");
+  if (body.contains(e.target)) return; // already scrolling it, or a box inside it
+  e.preventDefault();
+  body.scrollTop += e.deltaMode === 1 ? e.deltaY * 16 : e.deltaY;
+}, { passive: false });
 let MODELS = {}, DEF = null;
 function modelOptions(sel, withDefault) {
   const opts = Object.entries(MODELS).filter(([id]) => id || !withDefault);
