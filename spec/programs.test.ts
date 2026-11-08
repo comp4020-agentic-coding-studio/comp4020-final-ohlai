@@ -220,6 +220,24 @@ it("templates belong to the PT who saved them", async () => {
   expect((await api(`/api/templates/${id}/delete`, {}, pt)).status).toBe(200);
 });
 
+it("a nudge sends the PT's own message to their quiet clients' chats and nobody else's", async () => {
+  const { pt, invite } = await program();
+  const { cookie: client } = await join(invite);
+  const p = await whoAmI(client);
+  const stranger = await signupPT("Stranger");
+
+  expect((await api("/api/nudge/message", { message: "" }, pt)).status).toBe(400);
+  expect((await api("/api/nudge/message", { message: "Oi {name}, where are you?" }, pt)).status).toBe(200);
+  const preview = await (await api("/api/nudge", undefined, pt)).json();
+  expect(preview.clients.map((c: { id: number }) => c.id)).toEqual([p.client_user_id]);
+  expect((await (await api("/api/nudge", undefined, stranger)).json()).clients).toEqual([]);
+  expect((await api("/api/nudge", {}, client)).status).toBe(401);
+
+  expect((await api("/api/nudge", {}, pt)).status).toBe(201);
+  const chat = await (await api(`/api/chat/${p.pt_user_id}`, undefined, client)).json();
+  expect(chat.messages.at(-1)).toMatchObject({ sender_id: p.pt_user_id, body: expect.stringMatching(/^Oi \S+, where are you\?$/) });
+});
+
 it("a client's check-in reaches their own PT and nobody else, and shows in the inbox list", async () => {
   const { pt, invite } = await program();
   const { cookie: client } = await join(invite);

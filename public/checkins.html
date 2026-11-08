@@ -14,6 +14,7 @@
   </header>
   <div class="dashgrid checkins-grid">
     <div class="col" id="clients"></div>
+    <div class="col">
     <section class="panel">
       <div class="panel-head"><h2>Your questions</h2></div>
       <p class="muted">Your clients answer these from their phone, once a week. A 1 to 5 scale is quick to fill in
@@ -26,6 +27,18 @@
         <span id="saved" class="muted" role="status"></span>
       </form>
     </section>
+    <section class="panel" id="nudge">
+      <div class="panel-head"><h2>Nudge message</h2></div>
+      <p class="muted">Sent as a chat message to every client with no workout in 7 days when you click Nudge quiet
+        clients on the dashboard. <code>{name}</code> becomes their first name.</p>
+      <form id="nform">
+        <textarea id="nmsg" rows="4" maxlength="2000" required aria-label="Nudge message"></textarea>
+        <p id="nerr" class="error" role="alert"></p>
+        <button type="submit" class="primary">Save message</button>
+        <span id="nsaved" class="muted" role="status"></span>
+      </form>
+    </section>
+    </div>
   </div>
 </main>
 
@@ -53,6 +66,14 @@
     $("qerr").textContent = ok ? "" : data.error;
     $("saved").textContent = ok ? "Saved. New check-ins use these." : "";
   };
+
+  $("nform").onsubmit = async (e) => {
+    e.preventDefault();
+    const [data, ok] = await api("/api/nudge/message", { message: $("nmsg").value });
+    $("nerr").textContent = ok ? "" : data.error;
+    $("nsaved").textContent = ok ? "Saved." : "";
+  };
+  api("/api/nudge").then(([data, ok]) => { if (ok) $("nmsg").value = data.message; });
 
   async function load(first) {
     const [data, ok] = await api("/api/checkins");

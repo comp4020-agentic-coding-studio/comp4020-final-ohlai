@@ -161,6 +161,7 @@ db.exec(`
   );
 `);
 if (!hasColumn("users", "checkin_questions")) db.exec("ALTER TABLE users ADD COLUMN checkin_questions TEXT");
+if (!hasColumn("users", "nudge_message")) db.exec("ALTER TABLE users ADD COLUMN nudge_message TEXT");
 if (!hasColumn("users", "show_training")) db.exec("ALTER TABLE users ADD COLUMN show_training INTEGER NOT NULL DEFAULT 1");
 const DEFAULT_QUESTIONS = [
   { text: "How's your energy been this week?", kind: "scale" },
@@ -168,6 +169,7 @@ const DEFAULT_QUESTIONS = [
   { text: "How sore have you been?", kind: "scale" },
   { text: "Anything I should know?", kind: "text" },
 ];
+const DEFAULT_NUDGE = "Hi {name}, haven't seen a workout from you in a week. All good? Let me know if the program needs a change.";
 const questionsOf = (ptId) =>
   JSON.parse(db.prepare("SELECT checkin_questions q FROM users WHERE id = ?").get(ptId)?.q ?? "null") ?? DEFAULT_QUESTIONS;
 const checkinRow = (c) => ({ id: c.id, client_id: c.client_id, at: c.created_at, questions: JSON.parse(c.questions), answers: JSON.parse(c.answers) });
@@ -729,6 +731,36 @@ const server = createServer(async (req, res) => {
         return send(res, 200, { questions: qs });
       }
     }
+    // ---------- nudge quiet clients ----------
+    // The PT writes one message on Check-ins; Send puts it in the chat of every
+    // signed-up client with no workout in 7 days. The server decides who's quiet.
+    if (path === "/api/nudge" || path === "/api/nudge/message") {
+      if (me?.role !== "pt") {
+        audit(asUser(me), "nudge", 401, "not logged in as a PT");
+        return send(res, 401, { error: "Log in as a PT to nudge clients." });
+      }
+      const message = db.prepare("SELECT nudge_message m FROM users WHERE id = ?").get(me.id).m ?? DEFAULT_NUDGE;
+      const quiet = () => [...new Map(db.prepare("SELECT * FROM programs WHERE pt_user_id = ? AND ended_at IS NULL AND client_user_id IS NOT NULL").all(me.id)
+        .map(dashRow).filter((r) => !r.last_workout || Date.now() - utc(r.last_workout) > 7 * 864e5)
+        .map((r) => [r.client_user_id, { id: r.client_user_id, name: r.client_name }])).values()];
+      if (req.method === "GET" && path === "/api/nudge") return send(res, 200, { message, clients: quiet() });
+      if (req.method === "POST" && path === "/api/nudge/message") {
+        const m = str((await readJson(req)).message, 2000);
+        if (!m) return send(res, 400, { error: "Write a message first." });
+        db.prepare("UPDATE users SET nudge_message = ? WHERE id = ?").run(m, me.id);
+        audit(asUser(me), "nudge", 200, "saved nudge message");
+        return send(res, 200, { message: m });
+      }
+      if (req.method === "POST" && path === "/api/nudge") {
+        const to = quiet();
+        const ins = db.prepare("INSERT INTO messages (pt_id, client_id, sender_id, body, image) VALUES (?,?,?,?,NULL)");
+        for (const c of to) ins.run(me.id, c.id, me.id, message.replaceAll("{name}", c.name.split(" ")[0]));
+        audit(asUser(me), "nudge", 201, `nudged ${to.length} quiet client${to.length === 1 ? "" : "s"}`);
+        if (to.length) push("chat", { users: [me.id, ...to.map((c) => c.id)] });
+        return send(res, 201, { sent: to });
+      }
+    }
+
     // The client's side: their PT's questions, and sending answers.
     const ck = path.match(/^\/api\/checkin\/(\d+)$/);
     if (ck) {
