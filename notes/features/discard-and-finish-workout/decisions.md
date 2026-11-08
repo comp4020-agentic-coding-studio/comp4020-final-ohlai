@@ -36,3 +36,13 @@ What I picked: "fully delete that program page even if we have to rewrite or ref
 Follows from it: Finish now goes to the dashboard too, because the page it used to land on is gone. This replaces "Finish still stays on the program page" in the "Where Discard takes the client" entry.
 
 Why: I didn't want the flash, and the dashboard already does what that page did.
+
+## 2026-11-09 Delete the PT program view
+
+What came up: I asked where the PT would get to the program view from. Nowhere: "Open program" had already been dropped from the client card on 2026-11-08, so nothing linked to it.
+
+Options: 1, delete the PT view, so `/p/<token>` is only the client's workout and a PT token goes to `/dash` (the agent's pick). 2, leave it as a page nobody can reach.
+
+What I picked: 1. "delete the pt view as well"
+
+Follows from it: the program live-updates route (`/api/p/<token>/events`) went too, because only the PT view used it. The PT API (`GET /api/p/<pt token>`) stays, because the dashboard's lift card reads from it.

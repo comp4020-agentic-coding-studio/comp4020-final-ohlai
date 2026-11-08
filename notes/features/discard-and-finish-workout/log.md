@@ -60,3 +60,21 @@ Now (`public/program.html`, `public/style.css`):
 - The workout screen itself, the exercise summary (`#ex-<id>`) and the PT view on the PT token are unchanged. The workout still lives at `/p/<token>`, which is the address the day buttons on `/me` open.
 
 Checked in real Chrome as a client who joined through their invite, once with Discard and once with Finish. Each time, after clicking the button and confirming, the page landed on `/me`, a watcher on the page saw no Start button appear before it left, and the server had no open workout. Opening `/p/<token>` again afterwards landed on `/me`. `pnpm check` passed (20 tests).
+
+## 2026-11-09 00:50 PT program view deleted too
+
+I asked: "where would the pt access the program view from?"
+
+Answer: nowhere. The "Open program" button on the dashboard's client card was dropped on 2026-11-08 (viewing-a-client-in-the-pt-dash, "Open program button": the exercises are already in the popup). Since then nothing in the app linked to the PT view of `/p/<pt token>`. The client card covers what it did: lift status, each lift's chart and records in a side card (it loads `/api/p/<pt token>` for that), Message, Export sets, Change program and private notes. The agent offered to delete the PT view (its pick) or leave it.
+
+I said: "delete the pt view as well"
+
+What changed:
+- `public/program.html` is now only the client's workout in progress. Removed: the PT branch of the render (day tabs, "PT view" subtitle, PT stats), `navLinks()` (the PT's Dashboard and Export sets buttons), the empty `renderBanner()`, the `#actions`, `#banner` and `#tabs` elements, the `client` flag on `exerciseCard()` and every `!client` check in it, the PT "Sets from <date>" line, the switch to desktop layout, the live-update subscription, and the unused `day`, `extraSets` and `fmtDay`. The chat drawer now always talks to the PT.
+- Opening `/p/<pt token>` now goes straight to `/dash`.
+- `server.js`: removed `GET /api/p/<token>/events`. Only the PT view listened to it. The `?refresh` audit skip went with it, because only that listener sent `?refresh`. `GET /api/p/<pt token>` stays, because the dashboard's lift card uses it. The PT still can't log or change sets with it (the spec checks that).
+- `public/style.css`: removed `.actions.top`, which only the program page used.
+
+Checked: after restarting the app, in real Chrome as a client who joined through their invite: ticking a set logged it on the server and showed the rest timer, Finish landed on `/me` with the workout saved and no picker flash, and reopening `/p/<token>` went to `/me`. Logged in as the PT, opening `/p/<pt token>` went to `/dash`. `GET /api/p/<pt token>` still returned the program for the lift card, and `/api/p/<token>/events` now gives 404. Screenshots of the workout at 390px in light and dark look the same as before. `pnpm check` passed (20 tests).
+
+Left alone: CLAUDE.md still lists "PT program view" among the PT pages under "Who's on what screen". That page doesn't exist any more. I haven't edited CLAUDE.md, and I'm asking about it.

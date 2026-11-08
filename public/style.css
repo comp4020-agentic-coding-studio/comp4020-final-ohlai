@@ -248,8 +248,6 @@ body.client .wo summary { padding: 14px 16px; }
 .toggles { display: flex; gap: 6px; }
 
 /* picker, finish, swipe to delete */
-.actions.top { margin: 0 0 12px; justify-content: flex-end; }
-.actions.top:empty { display: none; }
 .wide { width: 100%; margin-top: 12px; }
 .swipe { position: relative; overflow: hidden; border-radius: 8px; }
 .swipe > .set { position: relative; background: var(--card); touch-action: pan-y; }
@@ -273,7 +271,6 @@ a.back { display: inline-grid; place-items: center; text-decoration: none; }
 .notice label { color: var(--ink); font-size: 0.95rem; margin: 0 0 10px; }
 .narrowbtn { flex: 0 0 auto !important; }
 a.card.link { display: flex; justify-content: space-between; align-items: center; gap: 12px; color: var(--ink); text-decoration: none; }
-.actions.top { gap: 8px; }
 .day-actions { display: flex; gap: 6px; flex: 0 0 auto; }
 .day-actions:empty { display: none; }
 .day-actions button { min-height: 36px; }

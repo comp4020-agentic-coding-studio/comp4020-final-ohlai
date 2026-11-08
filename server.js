@@ -194,8 +194,8 @@ const asProgram = (found) =>
   found && { role: found.role, name: found.role === "pt" ? found.program.pt_name : found.program.client_name, program_id: found.program.id };
 const asUser = (u) => u && { role: u.role, name: u.name, user_id: u.id };
 
-// Live updates over server-sent events. A browser on a program link hears
-// about that program; a logged-in browser hears about its programs and chats.
+// Live updates over server-sent events. A logged-in browser hears about its
+// programs and chats.
 // ponytail: subscribers live in memory, fine on one Fly machine; a second
 // machine needs a shared bus (or SQLite polling) behind push().
 // Connecting, leaving and every update sent are logged, so the logs show who
@@ -842,17 +842,15 @@ const server = createServer(async (req, res) => {
       return res.end(readFileSync(`${UPLOADS}/${im[1]}`));
     }
 
-    const m = path.match(/^\/api\/p\/([\w-]+)(?:\/(log|unlog|remove|start|finish|discard|events))?$/);
+    const m = path.match(/^\/api\/p\/([\w-]+)(?:\/(log|unlog|remove|start|finish|discard))?$/);
     if (m) {
       const found = findProgram(m[1]);
       const action = m[2] ?? "open";
       const who = () => asProgram(found);
       const deny = (status, error) => (audit(who(), action, status, error), send(res, status, { error }));
       if (!found) return deny(404, "No program at this link.");
-      if (req.method === "GET" && m[2] === "events") return stream(req, res, asProgram(found), { programId: found.program.id });
       if (req.method === "GET" && !m[2]) {
-        // A refetch after a live update is already covered by the broadcast line.
-        if (!url.searchParams.has("refresh")) audit(asProgram(found), "open", 200, "opened program");
+        audit(asProgram(found), "open", 200, "opened program");
         return send(res, 200, found);
       }
       if (req.method === "POST" && m[2]) {

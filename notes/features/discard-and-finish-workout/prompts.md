@@ -25,3 +25,11 @@ wait it thuoght we phased out old links without accounts and removed that from b
 ## 2026-11-09 00:38 (dashboard)
 
 On the login you have me and also on the regular jack@example.com it looks like it goes back to the program page for a fraction of a second before going back to the dashbaord. I dont want this. I want to fully delete that program page even if we have to rewrite or refactor some of the app to do so
+
+## 2026-11-09 00:45 (dashboard)
+
+where would the pt access the program view from?
+
+## 2026-11-09 00:47 (dashboard)
+
+delete the pt view as well
