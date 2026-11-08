@@ -30,3 +30,9 @@ Before: a textarea with a Preview tag that saved nothing. Now: a real private no
 **Checked:** restarted the app through the dashboard, `pnpm check` passes (14 tests). Headless Edge at 1440x900 on port 8085, driven over the debug protocol with real clicks, typing and key presses (script outside the repo): signed up a PT, made two programs for "Mia" with the same email. Opened the first card, clicked the note, typed two lines. The status said "Saving…" and then "Saved". Typed more and pressed Esc straight away, which closed the card. Reloaded and opened the second program's card ("Summer cut"): the note was there with both lines and the bit typed just before Esc. No "null" text anywhere in the card. Screenshots look right at desktop width.
 
 **Got wrong:** nothing caught in checking. Two of my bash commands were blocked by the permission check (several commands chained, and an env var check), so I split them up.
+
+## 2026-11-08: saving after you stop typing, confirmed
+
+I said: "yes after you stop typing is good rather than clicking out bc you might stop typing, review hat you said for a second (then hopefully by the time you re over what you wrote it should say saved. instead of only when you click off the input."
+
+This confirms the change flagged in the entry above ("Changed from what I agreed to"). Before: the option I first agreed to saved when you click out of the box. Now, and as built: it saves 0.6s after you stop typing. My reason: you stop to read back over what you wrote, and by then it should already say "Saved". No code change, only the notes and `prompts.md` committed.

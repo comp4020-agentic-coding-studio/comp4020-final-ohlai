@@ -13,3 +13,7 @@ Feature: private notes on clients
 ## 2026-11-08 21:38 (dashboard)
 
 the note shuold be on the CLIENT not the clients program so mirror if it appears in multiple spots. Yes free text can be whatever you want in there but no hardcoded date entries. Yep saved sounds good. Only PT can see the program.
+
+## 2026-11-08 21:55 (dashboard)
+
+yes after you stop typing is good rather than clicking out bc you might stop typing, review hat you said for a second (then hopefully by the time you re over what you wrote it should say saved. instead of only when you click off the input.
