@@ -228,6 +228,48 @@ function push(type, { programId = null, users = [] }) {
 
 const page = (f) => readFileSync(new URL(`./public/${f}`, import.meta.url));
 const esc = (s) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+
+// ponytail: just the markdown README.md uses (headings, paragraphs, lists, tables, bold, italic, code, links, images, raw <img>). Swap for a parser if the README outgrows it.
+function mdInline(t) {
+  const img = [];
+  t = t.replace(/<img [^>]*>/g, (m) => { img.push(m.replace('src="public/', 'src="/')); return `\u0000${img.length - 1}\u0000`; });
+  t = esc(t)
+    .replace(/`([^`]+)`/g, "<code>$1</code>")
+    .replace(/!\[([^\]]*)\]\(([^)]+)\)/g, '<img src="$2" alt="$1">')
+    .replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2">$1</a>')
+    .replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>")
+    .replace(/(^|[^*])\*([^*]+)\*/g, "$1<em>$2</em>");
+  return t.replace(/\u0000(\d+)\u0000/g, (_, i) => img[i]);
+}
+function mdToHtml(md) {
+  const out = [], lines = md.split(/\r?\n/);
+  for (let i = 0; i < lines.length; ) {
+    const l = lines[i];
+    if (!l.trim()) { i++; continue; }
+    const h = l.match(/^(#{1,6})\s+(.*)$/);
+    if (h) { out.push(`<h${h[1].length + 1}>${mdInline(h[2])}</h${h[1].length + 1}>`); i++; continue; }
+    if (/^\s*\|/.test(l)) {
+      const rows = []; while (i < lines.length && /^\s*\|/.test(lines[i])) rows.push(lines[i++]);
+      const cells = (r) => r.trim().replace(/^\||\|$/g, "").split("|").map((c) => mdInline(c.trim()));
+      const body = rows.slice(2).map((r) => `<tr>${cells(r).map((c) => `<td>${c}</td>`).join("")}</tr>`).join("");
+      out.push(`<table><thead><tr>${cells(rows[0]).map((c) => `<th>${c}</th>`).join("")}</tr></thead><tbody>${body}</tbody></table>`);
+      continue;
+    }
+    if (/^\s*[-*]\s+/.test(l)) {
+      const items = [];
+      while (i < lines.length && lines[i].trim() && !/^#/.test(lines[i])) {
+        if (/^\s*[-*]\s+/.test(lines[i])) items.push(lines[i].replace(/^\s*[-*]\s+/, ""));
+        else items[items.length - 1] += " " + lines[i].trim();
+        i++;
+      }
+      out.push(`<ul>${items.map((x) => `<li>${mdInline(x)}</li>`).join("")}</ul>`);
+      continue;
+    }
+    const para = []; while (i < lines.length && lines[i].trim() && !/^(#|\s*\||\s*[-*]\s)/.test(lines[i])) para.push(lines[i++].trim());
+    out.push(`<p>${mdInline(para.join(" "))}</p>`);
+  }
+  return out.join("\n");
+}
 const token = () => randomBytes(12).toString("base64url");
 const utc = (t) => new Date(t.replace(" ", "T") + "Z");
 
@@ -429,14 +471,17 @@ const server = createServer(async (req, res) => {
     if (req.method === "GET" && STATIC_TYPE(path) && existsSync(new URL(`./public${path}`, import.meta.url)))
       return send(res, 200, page(path.slice(1)), STATIC_TYPE(path));
     if (req.method === "GET" && (path === "/readme" || path === "/readme/")) {
-      // ponytail: README served verbatim in <pre>; render markdown properly if it starts to matter
-      const md = esc(readFileSync(new URL("./README.md", import.meta.url), "utf8"));
+      const md = mdToHtml(readFileSync(new URL("./README.md", import.meta.url), "utf8"));
       return send(res, 200, page("readme.html").toString().replace("@README@", md), "text/html");
     }
     if (req.method === "GET" && /^\/p\/[\w-]+$/.test(path)) return send(res, 200, page("program.html"), "text/html");
     if (req.method === "GET" && /^\/join\/[\w-]+$/.test(path)) return send(res, 200, page("join.html"), "text/html");
     if (req.method === "GET" && /^\/chat\/\d+$/.test(path)) return send(res, 200, page("chat.html"), "text/html");
     if (req.method === "GET" && /^\/checkin\/\d+$/.test(path)) return send(res, 200, page("checkin.html"), "text/html");
+    if (req.method === "GET" && path === "/logo.png") {
+      res.writeHead(200, { "content-type": "image/png", "cache-control": "public, max-age=86400" });
+      return res.end(page("logo.png"));
+    }
     if (req.method === "GET" && /^\/fonts\/[\w-]+\.woff2$/.test(path)) {
       res.writeHead(200, { "content-type": "font/woff2", "cache-control": "public, max-age=31536000, immutable" });
       return res.end(page(path.slice(1)));

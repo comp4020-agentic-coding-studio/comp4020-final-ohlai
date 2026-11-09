@@ -473,6 +473,9 @@ body.chatpage[data-view="desktop"] .compose { max-width: 1120px; margin: 0 auto;
 .landing main { width: 100%; max-width: 1120px; padding: 0 16px 48px; flex: 1; }
 .landing main.narrow { max-width: 440px; padding-top: 24px; }
 header.site { display: flex; justify-content: space-between; align-items: center; gap: 12px; max-width: 1120px; width: 100%; margin: 0 auto; padding: 16px; }
+.brand .logo { height: 0.9em; width: auto; margin-right: 8px; vertical-align: -0.05em; }
+[data-theme="dark"] .brand .logo { filter: invert(1); }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .brand .logo { filter: invert(1); } }
 .brand { font-weight: 700; font-size: 1.15rem; color: var(--ink); text-decoration: none; letter-spacing: -0.01em; }
 header.site nav { display: flex; gap: 12px; align-items: center; }
 header.site nav a:not(.btn) { color: var(--ink); text-decoration: none; font-weight: 600; }

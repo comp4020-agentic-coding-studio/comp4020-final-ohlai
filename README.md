@@ -1,3 +1,5 @@
+<img src="public/logo.png" alt="Spotter logo, a dumbbell" width="120">
+
 # Spotter
 
 A PT writes a training program and invites a client to it. The client logs
