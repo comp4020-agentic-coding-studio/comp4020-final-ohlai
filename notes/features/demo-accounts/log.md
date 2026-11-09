@@ -75,3 +75,9 @@ I said: "well idk when the marker will view it it could be any time this week, s
 - The marker can also see it happen live by logging in as Priya and starting a workout.
 - What does age over the week: "sessions this week" drops for Priya, Tom and Ben, and they join the nudge list once 7 days pass since their last workout (Tom around day 4, the others around day 6). Mia stays quiet and Tom stays stalled.
 - No code change. The seed stays as it is.
+
+## 2026-11-09: description for a follow-up feature
+
+I said: "ok ill add a new feature to update the accounts so it looks like real people having been using them every couple of days for the next couple weeks . Please write the description for that feature"
+
+- Wrote the description in chat for me to paste into the dashboard as a new feature. Nothing built here, and no feature folder made, since the dashboard creates those on main.

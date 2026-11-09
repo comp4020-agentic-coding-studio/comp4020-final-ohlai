@@ -25,3 +25,7 @@ thats my reason exactly and it matches my prev convention ive been using of name
 ## 2026-11-09 10:58 (dashboard)
 
 well idk when the marker will view it it could be any time this week, so lets just assume that they will be able to see training now when they test it themself.
+
+## 2026-11-09 11:00 (dashboard)
+
+ok ill add a new feature to update the accounts so it looks like real people having been using them every couple of days for the next couple weeks . Please write the description for that feature
