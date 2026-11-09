@@ -743,3 +743,7 @@ Follows the 2026-11-07 entry above. Built in `COMP4020/meta/`.
 - **Why real-time.** Options: chat that answers inside a rest period, the PT watching sets land, or both. Picked both, and added video: "video chat is helpful for your pt to monitor form which is very important and cant be done just through numbers (sets and reps) and cant be done at all if your pt is not there in person." Video calls are still being built, so the README says they're next.
 - **What has been judged.** I've used it on my phone at the gym, and classmates used it at the crits. No working PT has used it yet, so the README says whether the progress line reads the way a PT reads progress is still open.
 - **Other apps.** I only looked at Hevy, not Trainerize or TrueCoach, so the README only compares with Hevy.
+
+## 2026-11-09: Cannu ended up as chat on the board, not just links
+
+- Changes "Wrapper or links" (2026-11-07). Then I picked links to real sessions over a wrapper. Since then the board got a chat box on each card (2026-11-08), and that's how I talk to agents now: I give feedback at the end of a turn from the card, and only open the real session in a terminal when I need to. PROCESS.md said "links to real sessions over a wrapper", which wasn't true any more, so it now says this instead.

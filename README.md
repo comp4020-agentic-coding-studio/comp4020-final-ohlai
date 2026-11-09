@@ -31,12 +31,14 @@ who asks "bench felt heavy, should I drop it?" needs the answer inside their
 rest, not on Friday. The PT sees sets land and a "Training now" marker, which
 the client can hide, so they know when a question is coming. Form is the one
 thing sets and reps can't show, and a PT can't check it from across town, so
-video calls are next.
+the client can video call their PT from the app. Bad form means injuries and
+less progress.
 
 **It's multi-user because the relationship is the product.** Shirky calls this
 situated software: built for a group that already exists, leaning on the trust
-it already has. A PT never sees another PT's clients, and a chat is only for
-the two people in it.
+it already has. A PT never sees another PT's clients, and a chat or call is only
+for the two people in it. It all happens inside the app, so neither of them
+has to hand out their personal number or social media.
 
 **What's logged stays logged.** A workout from eight weeks ago has to still be
 there, or the progress line means nothing. Changing a client's program keeps
@@ -64,7 +66,4 @@ way a PT reads progress is still open.
 
 ## Sources
 
-- Robin Sloan, [An app can be a home-cooked meal](https://www.robinsloan.com/notes/home-cooked-app/).
-- Clay Shirky, [Situated Software](https://web.archive.org/web/20040411202042/http://www.shirky.com/writings/situated_software.html).
-- Luke Wroblewski, [Mobile First](https://abookapart.com/products/mobile-first).
 - [Hevy](https://www.hevyapp.com/), the workout logger the set rows come from.
