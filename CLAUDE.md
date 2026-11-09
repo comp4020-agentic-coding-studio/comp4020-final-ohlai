@@ -23,7 +23,7 @@ client on a phone mid-workout, the PT at a desk. These rules follow from that.
 ## Who's on what screen
 
 For now the PT only uses a desktop and the client only uses a phone. Design and
-check PT pages (dashboard, builder, PT program view) at desktop width, and
+check PT pages (dashboard, builder) at desktop width, and
 client pages (program, dashboard, settings, chat) at phone width (390px). Don't spend
 effort making PT pages fit a phone.
 

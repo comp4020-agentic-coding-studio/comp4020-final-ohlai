@@ -18,7 +18,8 @@ can log in:
 | Mia Roberts | `mia@example.com` | No workout in 10 days, so she's on the nudge list |
 | Ben Carter | `ben@example.com` | Mid-workout, so "Training now" is on Sam's dashboard |
 | Chloe Martin | none | Invited, hasn't signed up yet |
-They all use the same `demo1234` for a password. Also try out signing out a new account yourself!
+
+They all use the same `demo1234` for a password. Also try out signing up a new account yourself!
 
 
 ## What good means here
